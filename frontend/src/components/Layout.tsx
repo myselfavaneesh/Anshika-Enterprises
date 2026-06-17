@@ -7,7 +7,8 @@ import {
   ShoppingCart, 
   LogOut,
   Boxes,
-  FolderOpen
+  FolderOpen,
+  FileText
 } from 'lucide-react';
 
 const Layout = () => {
@@ -27,6 +28,7 @@ const Layout = () => {
     { name: 'Inventory', href: '/inventory', icon: Boxes },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Sales', href: '/sales', icon: ShoppingCart },
+    { name: 'Quotations', href: '/quotations', icon: FileText },
   ];
 
   return (

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Trash2, Plus, Receipt } from 'lucide-react';
 
 
-const NewSale = () => {
+const NewQuotation = () => {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -18,9 +18,8 @@ const NewSale = () => {
   const [cart, setCart] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   
-  const [availableSerials, setAvailableSerials] = useState<any[]>([]);
-  const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
-  const [isSerialsDialogOpen, setIsSerialsDialogOpen] = useState(false);
+  // Serial numbers are not needed for quotations since inventory isn't deducted
+  const [quantityInput, setQuantityInput] = useState('1');
   
   const [discount, setDiscount] = useState('0');
   const [taxRate, setTaxRate] = useState('0'); 
@@ -43,46 +42,26 @@ const NewSale = () => {
     fetchData();
   }, []);
 
-  const handleProductSelect = async (productId: string) => {
+  const handleProductSelect = (productId: string) => {
     setSelectedProductId(productId);
-    setSelectedSerials([]);
-    if (productId) {
-      try {
-        const res = await api.get(`/inventory/serials/${productId}?status=IN_STOCK`);
-        setAvailableSerials(res.data);
-      } catch (error) {
-        console.error('Error fetching serials', error);
-      }
-    } else {
-      setAvailableSerials([]);
-    }
-  };
-
-  const toggleSerialSelection = (serialNumber: string) => {
-    if (selectedSerials.includes(serialNumber)) {
-      setSelectedSerials(selectedSerials.filter(s => s !== serialNumber));
-    } else {
-      setSelectedSerials([...selectedSerials, serialNumber]);
-    }
+    setQuantityInput('1');
   };
 
   const addToCart = () => {
-    if (!selectedProductId || selectedSerials.length === 0) {
-      alert("Please select at least one serial number");
+    if (!selectedProductId || Number(quantityInput) <= 0) {
+      alert("Please select a product and valid quantity");
       return;
     }
     const product = products.find(p => p._id === selectedProductId);
     if (!product) return;
     
-    const qty = selectedSerials.length;
+    const qty = Number(quantityInput);
 
     const existingItemIndex = cart.findIndex(item => item.productId === product._id);
     if (existingItemIndex >= 0) {
       const newCart = [...cart];
       newCart[existingItemIndex].quantity += qty;
       newCart[existingItemIndex].totalPrice = newCart[existingItemIndex].quantity * newCart[existingItemIndex].unitPrice;
-      // Deduplicate serials just in case
-      newCart[existingItemIndex].serialNumbers = Array.from(new Set([...newCart[existingItemIndex].serialNumbers, ...selectedSerials]));
       setCart(newCart);
     } else {
       setCart([...cart, {
@@ -92,14 +71,11 @@ const NewSale = () => {
         quantity: qty,
         unitPrice: 0,
         totalPrice: 0,
-        serialNumbers: selectedSerials
       }]);
     }
     
     setSelectedProductId('');
-    setSelectedSerials([]);
-    setAvailableSerials([]);
-    setIsSerialsDialogOpen(false);
+    setQuantityInput('1');
   };
 
   const removeFromCart = (productId: string) => {
@@ -134,7 +110,7 @@ const NewSale = () => {
   const cgstAmount = taxAmount / 2;
   const sgstAmount = taxAmount / 2;
 
-  const handleGenerateInvoice = async () => {
+  const handleGenerateQuotation = async () => {
     if (!selectedCustomerId) {
       alert('Please select a customer');
       return;
@@ -154,7 +130,6 @@ const NewSale = () => {
           unitPrice: item.unitPrice,
           taxableUnitPrice: item.unitPrice / (1 + (taxRateNum / 100)),
           taxableTotalPrice: item.totalPrice / (1 + (taxRateNum / 100)),
-          serialNumbers: item.serialNumbers
         })),
         subtotal,
         discount: discountAmount,
@@ -166,13 +141,13 @@ const NewSale = () => {
         grandTotal
       };
 
-      const response = await api.post('/sales', payload);
-      const saleId = response.data._id;
+      const response = await api.post('/quotations', payload);
+      const quotationId = response.data._id;
       
-      window.open(`/sales/${saleId}/print`, '_blank');
-      navigate('/sales');
+      window.open(`/quotations/${quotationId}/print`, '_blank');
+      navigate('/quotations');
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error creating sale');
+      alert(error.response?.data?.error || 'Error creating quotation');
     } finally {
       setIsSubmitting(false);
     }
@@ -181,7 +156,7 @@ const NewSale = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">New Sale & Billing</h2>
+        <h2 className="text-3xl font-bold tracking-tight">New Quotation</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -219,16 +194,12 @@ const NewSale = () => {
                     {products.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
                   </select>
                 </div>
+                <div className="w-24 space-y-2">
+                  <label className="text-sm font-medium">Qty</label>
+                  <Input type="number" min="1" value={quantityInput} onChange={e => setQuantityInput(e.target.value)} />
+                </div>
                 
-                <Button 
-                  onClick={() => setIsSerialsDialogOpen(true)}
-                  disabled={!selectedProductId || availableSerials.length === 0}
-                  variant="secondary"
-                >
-                  Select Serials ({selectedSerials.length})
-                </Button>
-                
-                <Button onClick={addToCart} disabled={selectedSerials.length === 0}><Plus className="mr-2 h-4 w-4" /> Add</Button>
+                <Button onClick={addToCart} disabled={!selectedProductId}><Plus className="mr-2 h-4 w-4" /> Add</Button>
               </div>
 
               <div className="mt-6">
@@ -250,9 +221,6 @@ const NewSale = () => {
                         <TableRow key={item.productId}>
                           <TableCell className="font-medium">
                             {item.name} <span className="text-xs text-muted-foreground ml-2">({item.sku})</span>
-                            <div className="text-xs text-slate-500 mt-1 max-w-[200px] truncate">
-                              S/N: {item.serialNumbers.join(', ')}
-                            </div>
                           </TableCell>
                           <TableCell className="text-right">{item.quantity}</TableCell>
                           <TableCell className="text-right">
@@ -337,52 +305,20 @@ const NewSale = () => {
               <Button 
                 className="w-full mt-6" 
                 size="lg" 
-                onClick={handleGenerateInvoice}
+                onClick={handleGenerateQuotation}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
                 <Receipt className="mr-2 h-5 w-5" />
-                Generate Invoice
+                Generate Quotation
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <Dialog open={isSerialsDialogOpen} onOpenChange={setIsSerialsDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Select Serial Numbers</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-4 max-h-[60vh] overflow-y-auto p-1">
-            {availableSerials.length === 0 ? (
-              <p className="col-span-full text-center text-muted-foreground py-4">No serial numbers in stock</p>
-            ) : (
-              availableSerials.map(s => {
-                // Ignore if already in cart
-                const inCart = cart.find(c => c.productId === selectedProductId)?.serialNumbers.includes(s.serialNumber);
-                if (inCart) return null;
 
-                const isSelected = selectedSerials.includes(s.serialNumber);
-                return (
-                  <div 
-                    key={s._id}
-                    onClick={() => toggleSerialSelection(s.serialNumber)}
-                    className={`p-2 border rounded cursor-pointer transition-colors text-sm text-center ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                  >
-                    {s.serialNumber}
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <DialogFooter className="mt-6 flex justify-between">
-            <span className="text-sm font-medium pt-2">Selected: {selectedSerials.length}</span>
-            <Button onClick={() => setIsSerialsDialogOpen(false)}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
 
-export default NewSale;
+export default NewQuotation;

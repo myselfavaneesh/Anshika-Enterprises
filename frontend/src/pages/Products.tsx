@@ -12,7 +12,7 @@ const Products = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '', sku: '', categoryId: '', lowStockThreshold: '5'
+    name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0'
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -35,8 +35,8 @@ const Products = () => {
         api.get('/products'),
         api.get('/categories')
       ]);
-      setProducts(prodRes.data);
-      setCategories(catRes.data);
+      setProducts(prodRes.data.data || prodRes.data);
+      setCategories(catRes.data.data || catRes.data);
     } catch (error) {
       console.error('Error fetching data', error);
     }
@@ -51,7 +51,8 @@ const Products = () => {
     try {
       const payload = {
         ...formData,
-        lowStockThreshold: Number(formData.lowStockThreshold)
+        lowStockThreshold: Number(formData.lowStockThreshold),
+        gstRate: Number(formData.gstRate)
       };
 
       if (editingId) {
@@ -80,7 +81,7 @@ const Products = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5' });
+    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0' });
   };
 
   const handleEdit = (product: any) => {
@@ -89,7 +90,9 @@ const Products = () => {
       name: product.name,
       sku: product.sku,
       categoryId: product.categoryId?._id || '',
-      lowStockThreshold: product.lowStockThreshold.toString()
+      lowStockThreshold: product.lowStockThreshold.toString(),
+      hsnCode: product.hsnCode || '',
+      gstRate: product.gstRate ? product.gstRate.toString() : '0'
     });
     setIsOpen(true);
   };
@@ -127,6 +130,14 @@ const Products = () => {
                     <option value="">Select Category...</option>
                     {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                   </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">HSN Code</label>
+                  <Input value={formData.hsnCode} onChange={e => setFormData({...formData, hsnCode: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">GST Rate (%)</label>
+                  <Input type="number" min="0" max="100" required value={formData.gstRate} onChange={e => setFormData({...formData, gstRate: e.target.value})} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Low Stock Threshold</label>
@@ -178,6 +189,8 @@ const Products = () => {
               <TableHead>SKU</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
+              <TableHead>HSN Code</TableHead>
+              <TableHead>GST</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -190,6 +203,8 @@ const Products = () => {
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.categoryId?.name || 'Unknown'}</TableCell>
+                  <TableCell>{product.hsnCode || '-'}</TableCell>
+                  <TableCell>{product.gstRate ? `${product.gstRate}%` : '0%'}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
                       <Edit className="h-4 w-4" />

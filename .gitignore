@@ -48,3 +48,4 @@ db.sqlite3
 .parcel-cache
 .cache/
 .tmp/
+reference

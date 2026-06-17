@@ -8,6 +8,7 @@ import productRoutes from './routes/product';
 import inventoryRoutes from './routes/inventory';
 import customerRoutes from './routes/customer';
 import saleRoutes from './routes/sale';
+import quotationRoutes from './routes/quotationRoutes';
 import dashboardRoutes from './routes/dashboard';
 import morgan from 'morgan';
 import { logger } from './utils/logger';
@@ -45,6 +46,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/quotations', quotationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // Basic Route

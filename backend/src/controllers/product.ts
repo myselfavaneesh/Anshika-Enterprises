@@ -1,13 +1,50 @@
 import { Request, Response } from 'express';
 import Product from '../models/Product';
-import Inventory from '../models/Inventory';
 import ProductUnit from '../models/ProductUnit';
 import { logger } from '../utils/logger';
 
-export const getProducts = async (req: Request, res: Response) => {
+export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const products = await Product.find().populate('categoryId');
-    res.json(products);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const sort = (req.query.sort as string) || 'createdAt';
+    const order = (req.query.order as string) === 'desc' ? -1 : 1;
+
+    const categoryId = req.query.categoryId as string;
+    const search = req.query.q as string;
+
+    const query: any = {};
+
+    if (categoryId) {
+      query.categoryId = categoryId;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { sku: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const total = await Product.countDocuments(query);
+    const products = await Product.find(query)
+      .populate('categoryId')
+      .sort({ [sort]: order })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    res.json({
+      data: products,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error: any) {
     logger.error('Error fetching products', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -27,10 +64,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     const product = new Product({ categoryId, name, sku, lowStockThreshold });
     await product.save();
 
-    // Initialize inventory for this product
-    const inventory = new Inventory({ productId: product._id, quantity: 0 });
-    await inventory.save();
-
+    logger.info('Product created successfully', { productId: product._id, name, sku });
     res.status(201).json(product);
   } catch (error: any) {
     logger.error('Error creating product', { error: error.message, stack: error.stack });
@@ -48,6 +82,8 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       res.status(404).json({ error: 'Product not found' });
       return;
     }
+    
+    logger.info('Product updated successfully', { productId: id });
     res.json(product);
   } catch (error: any) {
     logger.error('Error updating product', { productId: req.params.id, error: error.message, stack: error.stack });
@@ -70,8 +106,8 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       res.status(404).json({ error: 'Product not found' });
       return;
     }
-    // Delete associated inventory
-    await Inventory.findOneAndDelete({ productId: id });
+    
+    logger.info('Product deleted successfully', { productId: id });
     res.json({ message: 'Product deleted' });
   } catch (error: any) {
     logger.error('Error deleting product', { productId: req.params.id, error: error.message, stack: error.stack });

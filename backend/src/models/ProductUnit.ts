@@ -24,4 +24,10 @@ const ProductUnitSchema: Schema = new Schema({
   purchasePrice: { type: Number },
 }, { timestamps: true });
 
+ProductUnitSchema.index({ serialNumber: 1 }, { unique: true });
+ProductUnitSchema.index({ status: 1 });
+ProductUnitSchema.index({ productId: 1 });
+ProductUnitSchema.index({ saleId: 1 });
+
 export default mongoose.model<IProductUnit>('ProductUnit', ProductUnitSchema);
+

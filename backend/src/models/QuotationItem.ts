@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface ISaleItem extends Document {
-  saleId: mongoose.Types.ObjectId;
+export interface IQuotationItem extends Document {
+  quotationId: mongoose.Types.ObjectId;
   productId: mongoose.Types.ObjectId;
   quantity: number;
   unitPrice: number; // Inclusive Unit Price
@@ -10,8 +10,8 @@ export interface ISaleItem extends Document {
   taxableTotalPrice: number;
 }
 
-const SaleItemSchema: Schema = new Schema({
-  saleId: { type: Schema.Types.ObjectId, ref: 'Sale', required: true },
+const QuotationItemSchema: Schema = new Schema({
+  quotationId: { type: Schema.Types.ObjectId, ref: 'Quotation', required: true },
   productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
   quantity: { type: Number, required: true },
   unitPrice: { type: Number, required: true },
@@ -20,9 +20,7 @@ const SaleItemSchema: Schema = new Schema({
   taxableTotalPrice: { type: Number, required: true },
 });
 
-// Added indexes
-SaleItemSchema.index({ saleId: 1 });
-SaleItemSchema.index({ productId: 1 });
+QuotationItemSchema.index({ quotationId: 1 });
+QuotationItemSchema.index({ productId: 1 });
 
-export default mongoose.model<ISaleItem>('SaleItem', SaleItemSchema);
-
+export default mongoose.model<IQuotationItem>('QuotationItem', QuotationItemSchema);

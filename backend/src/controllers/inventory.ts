@@ -1,31 +1,120 @@
 import { Request, Response } from 'express';
 import Product from '../models/Product';
 import ProductUnit from '../models/ProductUnit';
-import mongoose from 'mongoose';
+import { InventoryService } from '../services/inventoryService';
 import { logger } from '../utils/logger';
 
-export const getInventory = async (req: Request, res: Response) => {
+export const getInventory = async (req: Request, res: Response): Promise<void> => {
   try {
-    const products = await Product.find().populate('categoryId');
-    
-    const stockCounts = await ProductUnit.aggregate([
-      { $match: { status: 'IN_STOCK' } },
-      { $group: { _id: '$productId', count: { $sum: 1 } } }
-    ]);
-    
-    const stockMap = new Map();
-    stockCounts.forEach(item => {
-      stockMap.set(item._id.toString(), item.count);
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const search = req.query.q as string;
+
+    // Build aggregations to fetch products and count IN_STOCK units
+    const matchQuery: any = {};
+    if (search) {
+      matchQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { sku: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const pipeline: any[] = [];
+    if (search) {
+      pipeline.push({ $match: matchQuery });
+    }
+
+    // Lookup category details
+    pipeline.push({
+      $lookup: {
+        from: 'categories',
+        localField: 'categoryId',
+        foreignField: '_id',
+        as: 'category'
+      }
+    });
+    pipeline.push({ $unwind: { path: '$category', preserveNullAndEmptyArrays: true } });
+
+    // Lookup units in stock to get count
+    pipeline.push({
+      $lookup: {
+        from: 'productunits',
+        let: { pId: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $and: [ { $eq: ['$productId', '$$pId'] }, { $eq: ['$status', 'IN_STOCK'] } ] } } }
+        ],
+        as: 'inStockUnits'
+      }
     });
 
-    const inventoryData = products.map(product => ({
-      _id: product._id,
-      productId: product,
-      quantity: stockMap.get(product._id.toString()) || 0,
-      updatedAt: product.updatedAt 
-    }));
+    pipeline.push({
+      $project: {
+        _id: 1,
+        name: 1,
+        sku: 1,
+        lowStockThreshold: 1,
+        categoryId: {
+          _id: '$category._id',
+          name: '$category.name'
+        },
+        quantity: { $size: '$inStockUnits' },
+        updatedAt: 1
+      }
+    });
 
-    res.json(inventoryData);
+    // Handle pagination at database level if specified
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      pipeline.push({
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          data: [{ $skip: skip }, { $limit: limit }]
+        }
+      });
+
+      const results = await Product.aggregate(pipeline);
+      const data = results[0]?.data || [];
+      const total = results[0]?.metadata[0]?.total || 0;
+
+      const formatted = data.map((item: any) => ({
+        _id: item._id,
+        productId: {
+          _id: item._id,
+          name: item.name,
+          sku: item.sku,
+          lowStockThreshold: item.lowStockThreshold,
+          categoryId: item.categoryId
+        },
+        quantity: item.quantity,
+        updatedAt: item.updatedAt
+      }));
+
+      res.json({
+        data: formatted,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } else {
+      // Default: Return full list (maintaining legacy client-side compatibility)
+      const data = await Product.aggregate(pipeline);
+      const formatted = data.map((item: any) => ({
+        _id: item._id,
+        productId: {
+          _id: item._id,
+          name: item.name,
+          sku: item.sku,
+          lowStockThreshold: item.lowStockThreshold,
+          categoryId: item.categoryId
+        },
+        quantity: item.quantity,
+        updatedAt: item.updatedAt
+      }));
+      res.json(formatted);
+    }
   } catch (error: any) {
     logger.error('Error fetching inventory', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -41,43 +130,22 @@ export const stockIn = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const product = await Product.findById(productId);
-    if (!product) {
-      res.status(404).json({ error: 'Product not found' });
-      return;
-    }
+    await InventoryService.stockIn({
+      productId,
+      purchaseInvoiceNumber,
+      supplierName,
+      serialNumbers,
+      purchasePrice
+    });
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
-    try {
-      const units = serialNumbers.map((serialNumber: string) => ({
-        productId,
-        serialNumber,
-        status: 'IN_STOCK',
-        purchaseInvoiceNumber,
-        supplierName,
-        purchasePrice,
-      }));
-
-      await ProductUnit.insertMany(units, { session });
-      await session.commitTransaction();
-      session.endSession();
-
-      logger.info('Stock added successfully', { productId, unitCount: units.length });
-      res.status(201).json({ message: 'Stock added successfully' });
-    } catch (error: any) {
-      await session.abortTransaction();
-      session.endSession();
-      if (error.code === 11000) {
-         res.status(400).json({ error: 'One or more serial numbers already exist' });
-      } else {
-         throw error;
-      }
-    }
+    res.status(201).json({ message: 'Stock added successfully' });
   } catch (error: any) {
-    logger.error('Error stocking in', { productId: req.body.productId, error: error.message, stack: error.stack });
-    res.status(500).json({ error: 'Server error' });
+    logger.error('Error stocking in', { productId: req.body.productId, error: error.message });
+    if (error.code === 11000) {
+      res.status(400).json({ error: 'One or more serial numbers already exist' });
+    } else {
+      res.status(500).json({ error: error.message || 'Server error stocking in' });
+    }
   }
 };
 
@@ -90,50 +158,28 @@ export const stockOut = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const result = await ProductUnit.updateMany(
-        { productId, serialNumber: { $in: serialNumbers }, status: 'IN_STOCK' },
-        { $set: { status: 'DEFECTIVE' } }, // Use DEFECTIVE or another status for manual stock out
-        { session }
-      );
-
-      if (result.modifiedCount !== serialNumbers.length) {
-        throw new Error('Some serial numbers were not found or are not in stock');
-      }
-
-      await session.commitTransaction();
-      session.endSession();
-
-      logger.info('Stock removed successfully', { productId, removedCount: serialNumbers.length });
-      res.json({ message: 'Stock removed successfully' });
-    } catch (error: any) {
-      await session.abortTransaction();
-      session.endSession();
-      res.status(400).json({ error: error.message });
-    }
+    await InventoryService.stockOut(productId, serialNumbers);
+    res.json({ message: 'Stock removed successfully' });
   } catch (error: any) {
-    logger.error('Error stocking out', { productId: req.body.productId, error: error.message, stack: error.stack });
-    res.status(500).json({ error: 'Server error' });
+    logger.error('Error stocking out', { productId: req.body.productId, error: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
 export const getSerials = async (req: Request, res: Response): Promise<void> => {
   try {
     const { productId } = req.params;
-    const { status } = req.query; // optional filter
+    const { status } = req.query;
 
     const query: any = { productId };
     if (status) {
       query.status = status;
     }
 
-    const serials = await ProductUnit.find(query).sort({ createdAt: -1 });
+    const serials = await ProductUnit.find(query).sort({ createdAt: -1 }).lean();
     res.json(serials);
   } catch (error: any) {
-    logger.error('Error fetching serials', { productId: req.params.productId, error: error.message, stack: error.stack });
+    logger.error('Error fetching serials', { productId: req.params.productId, error: error.message });
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -148,11 +194,11 @@ export const searchSerials = async (req: Request, res: Response): Promise<void> 
 
     const serials = await ProductUnit.find({
       serialNumber: { $regex: q, $options: 'i' }
-    }).populate('productId').populate('saleId');
+    }).populate('productId').populate('saleId').lean();
 
     res.json(serials);
   } catch (error: any) {
-    logger.error('Error searching serials', { query: req.query.q, error: error.message, stack: error.stack });
+    logger.error('Error searching serials', { query: req.query.q, error: error.message });
     res.status(500).json({ error: 'Server error' });
   }
 };

@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { ArrowUpDown, Search, X, List, Plus, Minus } from 'lucide-react';
+import { Search, X, List, Plus, Minus } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 
 const Inventory = () => {
@@ -50,7 +50,7 @@ const Inventory = () => {
   const fetchInventory = async () => {
     try {
       const response = await api.get('/inventory');
-      setInventory(response.data);
+      setInventory(response.data.data || response.data);
     } catch (error) {
       console.error('Error fetching inventory', error);
     }

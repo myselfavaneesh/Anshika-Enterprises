@@ -10,7 +10,7 @@ const Customers = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', address: '', gstNumber: '', state: '', stateCode: '' });
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredCustomers = customers.filter(customer => 
@@ -50,12 +50,19 @@ const Customers = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', phone: '', address: '' });
+    setFormData({ name: '', phone: '', address: '', gstNumber: '', state: '', stateCode: '' });
   };
 
   const handleEdit = (customer: any) => {
     setEditingId(customer._id);
-    setFormData({ name: customer.name, phone: customer.phone || '', address: customer.address || '' });
+    setFormData({ 
+      name: customer.name, 
+      phone: customer.phone || '', 
+      address: customer.address || '',
+      gstNumber: customer.gstNumber || '',
+      state: customer.state || '',
+      stateCode: customer.stateCode || ''
+    });
     setIsOpen(true);
   };
 
@@ -83,6 +90,20 @@ const Customers = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Address</label>
                 <Input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">GST Number</label>
+                <Input value={formData.gstNumber} onChange={e => setFormData({...formData, gstNumber: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">State Name</label>
+                  <Input value={formData.state} onChange={e => setFormData({...formData, state: e.target.value})} placeholder="e.g. Uttar Pradesh" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">State Code</label>
+                  <Input value={formData.stateCode} onChange={e => setFormData({...formData, stateCode: e.target.value})} placeholder="e.g. 09" />
+                </div>
               </div>
               <Button type="submit" className="w-full">{editingId ? 'Update' : 'Save'}</Button>
             </form>
@@ -114,6 +135,8 @@ const Customers = () => {
               <TableHead>Name</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Address</TableHead>
+              <TableHead>GST</TableHead>
+              <TableHead>State</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -126,6 +149,8 @@ const Customers = () => {
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>{customer.phone || 'N/A'}</TableCell>
                   <TableCell>{customer.address || 'N/A'}</TableCell>
+                  <TableCell>{customer.gstNumber || 'N/A'}</TableCell>
+                  <TableCell>{customer.state ? `${customer.state} (${customer.stateCode})` : 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}>
                       <Edit className="h-4 w-4" />

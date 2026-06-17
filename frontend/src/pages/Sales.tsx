@@ -11,7 +11,7 @@ const Sales = () => {
   const fetchSales = async () => {
     try {
       const response = await api.get('/sales');
-      setSales(response.data);
+      setSales(response.data.data || response.data);
     } catch (error) {
       console.error('Error fetching sales', error);
     }
@@ -21,9 +21,8 @@ const Sales = () => {
     fetchSales();
   }, []);
 
-  const handleDownloadInvoice = (saleId: string) => {
-    const token = localStorage.getItem('token');
-    window.open(`http://localhost:5000/api/sales/${saleId}/invoice?token=${token}`, '_blank');
+  const handlePrintInvoice = (saleId: string) => {
+    window.open(`/sales/${saleId}/print`, '_blank');
   };
 
   return (
@@ -65,7 +64,7 @@ const Sales = () => {
                   <TableCell className="text-right">₹{sale.taxAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-right font-bold text-primary">₹{sale.grandTotal.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" title="Download Invoice" onClick={() => handleDownloadInvoice(sale._id)}>
+                    <Button variant="ghost" size="icon" title="Print Invoice" onClick={() => handlePrintInvoice(sale._id)}>
                       <Download className="h-4 w-4" />
                     </Button>
                   </TableCell>

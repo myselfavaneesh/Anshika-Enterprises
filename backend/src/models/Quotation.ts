@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface ISale extends Document {
-  invoiceNumber: string;
+export interface IQuotation extends Document {
+  quotationNumber: string;
   customerId: mongoose.Types.ObjectId;
   subtotal: number;
   discount: number;
@@ -11,12 +11,13 @@ export interface ISale extends Document {
   cgstAmount: number;
   sgstAmount: number;
   grandTotal: number;
-  status: 'PAID' | 'PENDING' | 'CANCELLED';
+  status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED';
+  validUntil: Date;
   createdAt: Date;
 }
 
-const SaleSchema: Schema = new Schema({
-  invoiceNumber: { type: String, required: true, unique: true },
+const QuotationSchema: Schema = new Schema({
+  quotationNumber: { type: String, required: true, unique: true },
   customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
   subtotal: { type: Number, required: true },
   discount: { type: Number, default: 0 },
@@ -26,12 +27,12 @@ const SaleSchema: Schema = new Schema({
   cgstAmount: { type: Number, default: 0 },
   sgstAmount: { type: Number, default: 0 },
   grandTotal: { type: Number, required: true },
-  status: { type: String, enum: ['PAID', 'PENDING', 'CANCELLED'], default: 'PAID' },
+  status: { type: String, enum: ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED'], default: 'DRAFT' },
+  validUntil: { type: Date },
 }, { timestamps: true });
 
-SaleSchema.index({ invoiceNumber: 1 }, { unique: true });
-SaleSchema.index({ customerId: 1 });
-SaleSchema.index({ createdAt: -1 });
+QuotationSchema.index({ quotationNumber: 1 }, { unique: true });
+QuotationSchema.index({ customerId: 1 });
+QuotationSchema.index({ createdAt: -1 });
 
-export default mongoose.model<ISale>('Sale', SaleSchema);
-
+export default mongoose.model<IQuotation>('Quotation', QuotationSchema);
