@@ -152,6 +152,7 @@ const NewSale = () => {
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
           taxableUnitPrice: item.unitPrice / (1 + (taxRateNum / 100)),
           taxableTotalPrice: item.totalPrice / (1 + (taxRateNum / 100)),
           serialNumbers: item.serialNumbers

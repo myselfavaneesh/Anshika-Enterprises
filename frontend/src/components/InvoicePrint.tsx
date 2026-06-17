@@ -7,11 +7,44 @@ interface InvoicePrintProps {
 }
 
 const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) => {
-  // Utility for number to words
   const numberToWords = (num: number): string => {
-    // Basic implementation for demonstration. 
-    // In production, use a library like `number-to-words` or a custom Indian numbering system converter.
-    return `INR ${num.toFixed(2)} Only`; 
+    if (num === 0) return 'Rupees Zero Only';
+    const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const inWords = (n: number): string => {
+      let str = '';
+      if (n > 9999999) {
+        str += inWords(Math.floor(n / 10000000)) + 'Crore ';
+        n %= 10000000;
+      }
+      if (n > 99999) {
+        str += inWords(Math.floor(n / 100000)) + 'Lakh ';
+        n %= 100000;
+      }
+      if (n > 999) {
+        str += inWords(Math.floor(n / 1000)) + 'Thousand ';
+        n %= 1000;
+      }
+      if (n > 99) {
+        str += inWords(Math.floor(n / 100)) + 'Hundred ';
+        n %= 100;
+      }
+      if (n > 0) {
+        if (n < 20) {
+          str += a[n];
+        } else {
+          str += b[Math.floor(n / 10)] + ' ';
+          if (n % 10 > 0) {
+            str += a[n % 10];
+          }
+        }
+      }
+      return str;
+    };
+
+    const wholePart = Math.round(num);
+    return `Rupees ${inWords(wholePart)}Only`.replace(/\s+/g, ' ');
   };
 
   const getHsnSummary = (items: any[]) => {
@@ -31,12 +64,24 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
 
   const hsnSummary = data?.items ? getHsnSummary(data.items) : [];
 
+  React.useEffect(() => {
+    const originalTitle = document.title;
+    if (type === 'TAX INVOICE') {
+      document.title = `Invoice_${data?.invoiceNumber || 'Draft'}`;
+    } else {
+      document.title = `Quotation_${data?.quotationNumber || 'Draft'}`;
+    }
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [type, data]);
+
   return (
-    <div className="bg-white text-black p-4 md:p-8 w-[210mm] min-h-[297mm] mx-auto text-xs shadow-lg print:shadow-none print:p-0" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="bg-white text-black p-4 md:p-8 w-[210mm] min-h-[297mm] mx-auto text-xs shadow-lg print:shadow-none print:p-[10mm]" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Print styles */}
       <style>{`
         @media print {
-          @page { size: A4; margin: 10mm; }
+          @page { size: A4; margin: 0; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
           .no-print { display: none; }
         }
@@ -52,17 +97,17 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
         {/* Left Column */}
         <div className="border-r border-black flex flex-col">
           <div className="p-2 border-b border-black flex-1">
-            <h3 className="font-semibold mb-1">Consignee (Ship to)</h3>
-            <p className="font-bold">{data?.customerId?.name || 'Customer Name'}</p>
-            <p>{data?.customerId?.address || 'Address Line 1'}</p>
-            <p>State Name: {data?.customerId?.state || '-'}, Code: {data?.customerId?.stateCode || '-'}</p>
-            <p>Contact: {data?.customerId?.phone || '-'}</p>
+            <h3 className="font-semibold mb-1 text-gray-600">Company</h3>
+            <p className="font-bold text-sm">ANSHIKA ENTERPRISES</p>
+            <p>Phoolpur, Azamgarh, Uttar Pradesh - 276304</p>
+            <p>State Name: Uttar Pradesh, Code: 09</p>
+            <p>Contact: 9598522526</p>
           </div>
           <div className="p-2 flex-1">
             <h3 className="font-semibold mb-1">Buyer (Bill to)</h3>
             <p className="font-bold">{data?.customerId?.name || 'Customer Name'}</p>
             <p>{data?.customerId?.address || 'Address Line 1'}</p>
-            <p>State Name: {data?.customerId?.state || '-'}, Code: {data?.customerId?.stateCode || '-'}</p>
+            <p>State Name: {data?.customerId?.state || 'Uttar Pradesh'}, Code: {data?.customerId?.stateCode || '09'}</p>
             <p>Contact: {data?.customerId?.phone || '-'}</p>
           </div>
         </div>
@@ -138,7 +183,6 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
             <th className="w-10">Sl No.</th>
             <th className="text-left">Description of Goods</th>
             <th>HSN/SAC</th>
-            <th>GST Rate</th>
             <th>Quantity</th>
             <th>Rate</th>
             <th>per</th>
@@ -157,7 +201,6 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
                 )}
               </td>
               <td className="text-center align-top border-b-0">{item.productId?.hsnCode || '-'}</td>
-              <td className="text-center align-top border-b-0">{item.productId?.gstRate || 0}%</td>
               <td className="text-center align-top border-b-0 font-bold">{item.quantity} PC</td>
               <td className="text-right align-top border-b-0">{item.taxableUnitPrice?.toFixed(2)}</td>
               <td className="text-center align-top border-b-0">PC</td>
@@ -167,32 +210,35 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
           ))}
           {/* Fill empty space if few items */}
           <tr className="h-24">
-            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>
+            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>
           </tr>
-          
+
           {/* Tax Totals */}
           <tr>
-            <td colSpan={8} className="text-right italic border-y-0 font-semibold pt-4">CGST</td>
+            <td colSpan={7} className="text-right italic border-y-0 font-semibold pt-4">
+              CGST {data?.taxRate ? `(${(data.taxRate / 2)}%)` : ''}
+            </td>
             <td className="text-right border-y-0 font-bold pt-4">{data?.cgstAmount?.toFixed(2)}</td>
           </tr>
           <tr>
-            <td colSpan={8} className="text-right italic border-y-0 font-semibold">SGST</td>
+            <td colSpan={7} className="text-right italic border-y-0 font-semibold">
+              SGST {data?.taxRate ? `(${(data.taxRate / 2)}%)` : ''}
+            </td>
             <td className="text-right border-y-0 font-bold">{data?.sgstAmount?.toFixed(2)}</td>
           </tr>
           <tr>
-            <td colSpan={8} className="text-right italic border-y-0 font-semibold pb-4">Round Off</td>
+            <td colSpan={7} className="text-right italic border-y-0 font-semibold pb-4">Round Off</td>
             <td className="text-right border-y-0 font-bold pb-4">
-               {data ? (data.grandTotal - (data.taxableAmount + data.cgstAmount + data.sgstAmount)).toFixed(2) : '0.00'}
+              {data ? (data.grandTotal - (data.taxableAmount + data.cgstAmount + data.sgstAmount)).toFixed(2) : '0.00'}
             </td>
           </tr>
           <tr>
-            <td colSpan={8} className="text-right font-bold">Total</td>
+            <td colSpan={7} className="text-right font-bold">Total</td>
             <td className="text-right font-bold text-sm">₹ {data?.grandTotal?.toFixed(2)}</td>
           </tr>
         </tbody>
       </table>
 
-      {/* Amount in words */}
       <div className="border border-t-0 border-black p-2 flex justify-between">
         <div>
           <span className="italic">Amount Chargeable (in words)</span><br />
@@ -201,80 +247,35 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
         <div className="italic font-bold">E. & O.E</div>
       </div>
 
-      {/* Tax Breakdown Table */}
-      <table className="w-full mt-4">
-        <thead>
-          <tr>
-            <th rowSpan={2}>HSN/SAC</th>
-            <th rowSpan={2}>Taxable Value</th>
-            <th colSpan={2}>CGST</th>
-            <th colSpan={2}>SGST/UTGST</th>
-            <th rowSpan={2}>Total Tax Amount</th>
-          </tr>
-          <tr>
-            <th>Rate</th>
-            <th>Amount</th>
-            <th>Rate</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {hsnSummary.map((hsn: any, idx: number) => (
-            <tr key={idx}>
-              <td className="text-center">{hsn.hsnCode || '-'}</td>
-              <td className="text-right">{hsn.taxableValue.toFixed(2)}</td>
-              <td className="text-center">{hsn.rate / 2}%</td>
-              <td className="text-right">{hsn.cgstAmount.toFixed(2)}</td>
-              <td className="text-center">{hsn.rate / 2}%</td>
-              <td className="text-right">{hsn.sgstAmount.toFixed(2)}</td>
-              <td className="text-right">{(hsn.cgstAmount + hsn.sgstAmount).toFixed(2)}</td>
-            </tr>
-          ))}
-          <tr>
-            <td className="text-right font-bold">Total</td>
-            <td className="text-right font-bold">{data?.taxableAmount?.toFixed(2)}</td>
-            <td></td>
-            <td className="text-right font-bold">{data?.cgstAmount?.toFixed(2)}</td>
-            <td></td>
-            <td className="text-right font-bold">{data?.sgstAmount?.toFixed(2)}</td>
-            <td className="text-right font-bold">{data?.taxAmount?.toFixed(2)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div className="border border-t-0 border-black p-2">
-        <span className="italic">Tax Amount (in words) :</span> <span className="font-bold">{numberToWords(data?.taxAmount || 0)}</span>
-      </div>
-
       {/* Footer Section */}
       <div className="border border-t-0 border-black flex">
         <div className="w-1/2 p-2 border-r border-black flex flex-col justify-between">
           <div>
-             <p>Company's GSTIN/UIN : <span className="font-bold">09KIIPS1847F1ZP</span></p>
-             <div className="mt-2 text-[10px]">
-               <p className="font-bold underline mb-1">Declaration</p>
-               <p>We declare that this {type === 'QUOTATION' ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</p>
-             </div>
+            <p>Company's GSTIN/UIN : <span className="font-bold">09BZOPK7723E1Z1</span></p>
+            <div className="mt-2 text-[10px]">
+              <p className="font-bold underline mb-1">Declaration</p>
+              <p>We declare that this {type === 'QUOTATION' ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</p>
+            </div>
           </div>
         </div>
         <div className="w-1/2 p-2">
           <p className="font-bold mb-1 underline">Company's Bank Details</p>
-          <p>Bank Name <span className="float-right">: HDFC Bank 759</span></p>
-          <p>A/c No. <span className="float-right">: </span></p>
-          <p>Branch & IFS Code <span className="float-right">: </span></p>
+          <p>Bank Name <span className="float-right">: Union Bank Of India</span></p>
+          <p>A/c No. <span className="float-right">: 359701010036291</span></p>
+          <p>IFSC Code <span className="float-right">: UBIN0535974</span></p>
         </div>
       </div>
 
       <div className="border border-t-0 border-black flex min-h-[100px]">
-         <div className="w-1/2 p-2 border-r border-black">
-           <p className="mb-4">Customer's Seal and Signature</p>
-         </div>
-         <div className="w-1/2 p-2 relative">
-           <p className="font-bold text-right">for ANSHIKA ENTERPRISES</p>
-           <p className="absolute bottom-2 right-2">Authorised Signatory</p>
-         </div>
+        <div className="w-1/2 p-2 border-r border-black">
+          <p className="mb-4">Customer's Signature</p>
+        </div>
+        <div className="w-1/2 p-2 relative">
+          <p className="font-bold text-right">for ANSHIKA ENTERPRISES</p>
+          <p className="absolute bottom-2 right-2">Authorised Signatory</p>
+        </div>
       </div>
-      
+
       <p className="text-center mt-2 text-[10px]">This is a Computer Generated {type === 'QUOTATION' ? 'Quotation' : 'Invoice'}</p>
     </div>
   );

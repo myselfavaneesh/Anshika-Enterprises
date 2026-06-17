@@ -35,7 +35,7 @@ const numberToWords = (num: number): string => {
   if (thousand > 0) word += inWords(thousand) + ' Thousand ';
   if (num > 0) word += inWords(num);
   
-  return '₹ ' + word.trim() + ' Only';
+  return 'Rupees ' + word.trim() + ' Only';
 };
 
 export const generateInvoicePDF = async (sale: any, items: any[], customer: any): Promise<Buffer> => {
