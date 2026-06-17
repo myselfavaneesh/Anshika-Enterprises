@@ -10,8 +10,11 @@ import customerRoutes from './routes/customer';
 import saleRoutes from './routes/sale';
 import quotationRoutes from './routes/quotationRoutes';
 import dashboardRoutes from './routes/dashboard';
+import paymentRoutes from './routes/payment';
+import purchaseRoutes from './routes/purchase';
 import morgan from 'morgan';
 import { logger } from './utils/logger';
+import { initBackupCron } from './utils/backup';
 
 dotenv.config();
 
@@ -46,8 +49,10 @@ app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/purchases', purchaseRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
@@ -58,6 +63,9 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   logger.info(`Server is running on port ${port}`);
 });
+
+// Initialize Cron Jobs
+initBackupCron();
 
 
 

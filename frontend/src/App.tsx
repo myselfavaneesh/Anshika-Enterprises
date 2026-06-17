@@ -12,6 +12,7 @@ import NewSale from './pages/NewSale';
 import Quotations from './pages/Quotations';
 import NewQuotation from './pages/NewQuotation';
 import PrintInvoice from './pages/PrintInvoice';
+import Parties from './pages/Parties';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route path="categories" element={<Categories />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="customers" element={<Customers />} />
+            <Route path="parties" element={<Parties />} />
             <Route path="sales" element={<Sales />} />
             <Route path="sales/new" element={<NewSale />} />
             <Route path="quotations" element={<Quotations />} />

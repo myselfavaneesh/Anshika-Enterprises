@@ -26,7 +26,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
-export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
+export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user || req.user.role !== 'admin') {
     res.status(403).json({ error: 'Access denied. Admin privileges required.' });
     return;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
@@ -6,26 +6,41 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Plus, Receipt } from 'lucide-react';
+import { Trash2, Plus, Receipt, IndianRupee } from 'lucide-react';
 
+const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
-const NewSale = () => {
+export default function NewSale() {
   const navigate = useNavigate();
+  
+  // Data
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  
+  // POS State
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  
+  const [productSearch, setProductSearch] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState('');
   
   const [cart, setCart] = useState<any[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState('');
   
   const [availableSerials, setAvailableSerials] = useState<any[]>([]);
   const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
   const [isSerialsDialogOpen, setIsSerialsDialogOpen] = useState(false);
   
   const [discount, setDiscount] = useState('0');
-  const [taxRate, setTaxRate] = useState('0'); 
+  const [taxRate, setTaxRate] = useState('18'); 
+  const [amountPaid, setAmountPaid] = useState('');
+  const [paymentMode, setPaymentMode] = useState('CASH');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Refs for keyboard navigation
+  const productInputRef = useRef<HTMLInputElement>(null);
+  const amountPaidRef = useRef<HTMLInputElement>(null);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,18 +58,34 @@ const NewSale = () => {
     fetchData();
   }, []);
 
-  const handleProductSelect = async (productId: string) => {
-    setSelectedProductId(productId);
-    setSelectedSerials([]);
-    if (productId) {
-      try {
-        const res = await api.get(`/inventory/serials/${productId}?status=IN_STOCK`);
-        setAvailableSerials(res.data);
-      } catch (error) {
-        console.error('Error fetching serials', error);
-      }
-    } else {
+  // Handle Customer Selection
+  useEffect(() => {
+    const c = customers.find(c => `${c.name} (${c.phone})` === customerSearch);
+    if (c) setSelectedCustomerId(c._id);
+    else setSelectedCustomerId('');
+  }, [customerSearch, customers]);
+
+  // Handle Product Selection
+  useEffect(() => {
+    const p = products.find(p => p.name === productSearch || p.sku === productSearch);
+    if (p && p._id !== selectedProductId) {
+      setSelectedProductId(p._id);
+      fetchSerials(p._id);
+    } else if (!p) {
+      setSelectedProductId('');
       setAvailableSerials([]);
+    }
+  }, [productSearch, products]);
+
+  const fetchSerials = async (productId: string) => {
+    try {
+      const res = await api.get(`/inventory/serials/${productId}?status=IN_STOCK`);
+      setAvailableSerials(res.data);
+      if (res.data.length > 0) {
+        setIsSerialsDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error fetching serials', error);
     }
   };
 
@@ -67,10 +98,8 @@ const NewSale = () => {
   };
 
   const addToCart = () => {
-    if (!selectedProductId || selectedSerials.length === 0) {
-      alert("Please select at least one serial number");
-      return;
-    }
+    if (!selectedProductId || selectedSerials.length === 0) return;
+    
     const product = products.find(p => p._id === selectedProductId);
     if (!product) return;
     
@@ -81,7 +110,6 @@ const NewSale = () => {
       const newCart = [...cart];
       newCart[existingItemIndex].quantity += qty;
       newCart[existingItemIndex].totalPrice = newCart[existingItemIndex].quantity * newCart[existingItemIndex].unitPrice;
-      // Deduplicate serials just in case
       newCart[existingItemIndex].serialNumbers = Array.from(new Set([...newCart[existingItemIndex].serialNumbers, ...selectedSerials]));
       setCart(newCart);
     } else {
@@ -96,10 +124,15 @@ const NewSale = () => {
       }]);
     }
     
+    // Reset product selection
+    setProductSearch('');
     setSelectedProductId('');
     setSelectedSerials([]);
     setAvailableSerials([]);
     setIsSerialsDialogOpen(false);
+    
+    // Focus back to product search for next item
+    setTimeout(() => productInputRef.current?.focus(), 100);
   };
 
   const removeFromCart = (productId: string) => {
@@ -119,20 +152,22 @@ const NewSale = () => {
     }));
   };
 
+  // Math
+  const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
+  const isInterState = selectedCustomer?.stateCode && selectedCustomer.stateCode !== SHOP_STATE_CODE;
+
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0); // Inclusive subtotal
   const discountAmount = Number(discount) || 0;
   
-  // New GST Math:
-  // Grand Total is (inclusive subtotal) - discount
   const grandTotal = subtotal - discountAmount;
-  
   const taxRateNum = Number(taxRate) || 0;
-  // Taxable Base = GrandTotal / (1 + GST%)
+  
   const taxableAmount = grandTotal / (1 + (taxRateNum / 100));
   const taxAmount = grandTotal - taxableAmount;
   
-  const cgstAmount = taxAmount / 2;
-  const sgstAmount = taxAmount / 2;
+  const cgstAmount = isInterState ? 0 : taxAmount / 2;
+  const sgstAmount = isInterState ? 0 : taxAmount / 2;
+  // Note: Backend might need igstAmount if it was added, but we'll stick to 0 cgst/sgst for IGST scenarios for now, or just send cgst=0, sgst=0.
 
   const handleGenerateInvoice = async () => {
     if (!selectedCustomerId) {
@@ -164,14 +199,16 @@ const NewSale = () => {
         taxAmount,
         cgstAmount,
         sgstAmount,
-        grandTotal
+        grandTotal,
+        amountPaid: Number(amountPaid) || 0,
+        paymentMode
       };
 
       const response = await api.post('/sales', payload);
       const saleId = response.data._id;
       
       window.open(`/sales/${saleId}/print`, '_blank');
-      navigate('/sales');
+      navigate('/parties');
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error creating sale');
     } finally {
@@ -179,96 +216,129 @@ const NewSale = () => {
     }
   };
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F8') {
+        e.preventDefault();
+        amountPaidRef.current?.focus();
+      } else if (e.key === 'F9') {
+        e.preventDefault();
+        submitBtnRef.current?.click();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">New Sale & Billing</h2>
+        <h2 className="text-3xl font-bold tracking-tight">POS / New Sale</h2>
+        <div className="text-sm text-slate-500">
+          <kbd className="px-2 py-1 bg-slate-100 border rounded mr-2">F8</kbd> Jump to Payment
+          <kbd className="px-2 py-1 bg-slate-100 border rounded ml-4 mr-2">F9</kbd> Submit
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer Details</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-t-4 border-t-primary shadow-sm">
+            <CardHeader className="py-4">
+              <CardTitle className="text-lg">Customer Selection</CardTitle>
             </CardHeader>
             <CardContent>
-              <select 
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                value={selectedCustomerId}
-                onChange={e => setSelectedCustomerId(e.target.value)}
-              >
-                <option value="">Select a Customer...</option>
-                {customers.map(c => <option key={c._id} value={c._id}>{c.name} ({c.phone})</option>)}
-              </select>
+              <Input 
+                list="customers-list"
+                placeholder="Search Customer by Name or Phone... (Press Tab to move)"
+                value={customerSearch}
+                onChange={e => setCustomerSearch(e.target.value)}
+                className="text-lg py-6 shadow-inner"
+                autoFocus
+              />
+              <datalist id="customers-list">
+                {customers.map(c => <option key={c._id} value={`${c.name} (${c.phone})`} />)}
+              </datalist>
+              {selectedCustomer && (
+                <div className="mt-3 p-3 bg-green-50 text-green-800 rounded-md flex justify-between items-center text-sm">
+                  <div>
+                    <span className="font-semibold">{selectedCustomer.name}</span> • {selectedCustomer.phone}
+                    {selectedCustomer.gstNumber && ` • GST: ${selectedCustomer.gstNumber}`}
+                  </div>
+                  <div className="font-medium">
+                    State Code: {selectedCustomer.stateCode || '-'} {isInterState ? '(IGST)' : '(CGST/SGST)'}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Products</CardTitle>
+          <Card className="shadow-sm">
+            <CardHeader className="py-4">
+              <CardTitle className="text-lg">Cart Items</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-4 items-end">
-                <div className="flex-1 space-y-2">
-                  <label className="text-sm font-medium">Product</label>
-                  <select 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    value={selectedProductId}
-                    onChange={e => handleProductSelect(e.target.value)}
-                  >
-                    <option value="">Select Product...</option>
-                    {products.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-                  </select>
+              <div className="flex gap-4 items-center mb-6">
+                <div className="flex-1">
+                  <Input 
+                    list="products-list"
+                    placeholder="Scan or Search Product... (Press Enter to open serials)"
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                    ref={productInputRef}
+                    className="text-lg font-medium"
+                  />
+                  <datalist id="products-list">
+                    {products.map(p => <option key={p._id} value={p.name}>{p.sku}</option>)}
+                  </datalist>
                 </div>
-                
                 <Button 
                   onClick={() => setIsSerialsDialogOpen(true)}
                   disabled={!selectedProductId || availableSerials.length === 0}
                   variant="secondary"
+                  className="h-10"
                 >
-                  Select Serials ({selectedSerials.length})
+                  Serials ({selectedSerials.length})
                 </Button>
-                
-                <Button onClick={addToCart} disabled={selectedSerials.length === 0}><Plus className="mr-2 h-4 w-4" /> Add</Button>
               </div>
 
-              <div className="mt-6">
+              <div className="rounded-md border overflow-hidden">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-slate-50">
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="text-right w-16">Qty</TableHead>
+                      <TableHead className="text-right w-32">Unit Price (Inc. Tax)</TableHead>
+                      <TableHead className="text-right w-32">Total</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cart.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Cart is empty</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Cart is empty. Scan a product to begin.</TableCell></TableRow>
                     ) : (
                       cart.map((item) => (
-                        <TableRow key={item.productId}>
+                        <TableRow key={item.productId} className="hover:bg-slate-50">
                           <TableCell className="font-medium">
-                            {item.name} <span className="text-xs text-muted-foreground ml-2">({item.sku})</span>
-                            <div className="text-xs text-slate-500 mt-1 max-w-[200px] truncate">
-                              S/N: {item.serialNumbers.join(', ')}
+                            {item.name}
+                            <div className="text-xs font-mono text-slate-500 mt-1 truncate max-w-[250px]">
+                              {item.serialNumbers.join(', ')}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right font-bold text-lg">{item.quantity}</TableCell>
                           <TableCell className="text-right">
                             <Input 
                               type="number" 
                               min="0" 
-                              step="0.01"
-                              className="w-24 h-8 text-right ml-auto" 
-                              value={item.unitPrice} 
-                              onChange={e => updateItemPrice(item.productId, Number(e.target.value))} 
+                              className="w-full h-8 text-right font-medium" 
+                              value={item.unitPrice || ''} 
+                              onChange={e => updateItemPrice(item.productId, Number(e.target.value))}
+                              placeholder="0.00"
                             />
                           </TableCell>
-                          <TableCell className="text-right">₹{item.totalPrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-bold text-lg text-primary">₹{item.totalPrice.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => removeFromCart(item.productId)}>
+                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeFromCart(item.productId)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -283,66 +353,118 @@ const NewSale = () => {
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
+          <Card className="shadow-lg border-primary/20 sticky top-6">
+            <CardHeader className="bg-slate-50 border-b pb-4">
+              <CardTitle>Billing Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Subtotal</span>
-                <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+            <CardContent className="space-y-5 pt-6">
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Subtotal (Inc. Tax)</span>
+                <span className="font-semibold text-lg">₹{subtotal.toFixed(2)}</span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Discount (₹)</span>
-                <Input 
-                  type="number" 
-                  min="0" 
-                  className="w-24 h-8 text-right" 
-                  value={discount} 
-                  onChange={e => setDiscount(e.target.value)} 
-                />
+                <span className="text-slate-600">Discount</span>
+                <div className="relative w-32">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₹</span>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    className="pl-7 text-right font-medium" 
+                    value={discount} 
+                    onChange={e => setDiscount(e.target.value)} 
+                  />
+                </div>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Global GST Rate (%)</span>
-                <Input 
-                  type="number" 
-                  min="0" 
-                  className="w-24 h-8 text-right" 
-                  value={taxRate} 
-                  onChange={e => setTaxRate(e.target.value)} 
-                />
+                <span className="text-slate-600">GST Rate (%)</span>
+                <select 
+                  className="w-32 h-10 rounded-md border border-input bg-background px-3 text-right font-medium"
+                  value={taxRate}
+                  onChange={e => setTaxRate(e.target.value)}
+                >
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="12">12%</option>
+                  <option value="18">18%</option>
+                  <option value="28">28%</option>
+                </select>
               </div>
 
-              <div className="border-t pt-4 flex justify-between text-sm">
-                <span className="text-slate-500">Taxable Value</span>
-                <span className="font-medium">₹{taxableAmount.toFixed(2)}</span>
-              </div>
-              
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">CGST</span>
-                <span className="font-medium">₹{cgstAmount.toFixed(2)}</span>
-              </div>
-              
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">SGST</span>
-                <span className="font-medium">₹{sgstAmount.toFixed(2)}</span>
+              <div className="bg-slate-50 p-3 rounded-lg space-y-2 text-sm border">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Taxable Value</span>
+                  <span className="font-medium">₹{taxableAmount.toFixed(2)}</span>
+                </div>
+                {isInterState ? (
+                  <div className="flex justify-between text-indigo-600">
+                    <span>IGST ({taxRate}%)</span>
+                    <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-indigo-600">
+                      <span>CGST ({Number(taxRate)/2}%)</span>
+                      <span className="font-medium">₹{cgstAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-indigo-600">
+                      <span>SGST ({Number(taxRate)/2}%)</span>
+                      <span className="font-medium">₹{sgstAmount.toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div className="border-t pt-4 flex justify-between items-center">
-                <span className="text-lg font-bold">Grand Total</span>
-                <span className="text-xl font-bold text-primary">₹{grandTotal.toFixed(2)}</span>
+              <div className="pt-2 flex justify-between items-center">
+                <span className="text-xl font-bold">Grand Total</span>
+                <span className="text-3xl font-black text-primary">₹{grandTotal.toFixed(2)}</span>
+              </div>
+
+              <div className="border-t-2 border-dashed pt-5 mt-5">
+                <label className="text-sm font-bold text-slate-700 mb-2 block">Payment Received</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                    <Input 
+                      type="number" 
+                      min="0" 
+                      ref={amountPaidRef}
+                      className="pl-7 h-12 text-xl font-bold text-green-700" 
+                      placeholder="0.00"
+                      value={amountPaid} 
+                      onChange={e => setAmountPaid(e.target.value)} 
+                    />
+                  </div>
+                  <select 
+                    className="w-28 h-12 rounded-md border border-input bg-background px-3 font-medium"
+                    value={paymentMode}
+                    onChange={e => setPaymentMode(e.target.value)}
+                  >
+                    <option value="CASH">CASH</option>
+                    <option value="UPI">UPI</option>
+                    <option value="BANK">BANK</option>
+                  </select>
+                </div>
+                {Number(amountPaid) > 0 && (
+                  <div className="mt-2 text-right text-sm">
+                    {Number(amountPaid) > grandTotal ? (
+                      <span className="text-orange-600 font-medium">Return Change: ₹{(Number(amountPaid) - grandTotal).toFixed(2)}</span>
+                    ) : (
+                      <span className="text-red-600 font-medium">Due Balance: ₹{(grandTotal - Number(amountPaid)).toFixed(2)}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <Button 
-                className="w-full mt-6" 
-                size="lg" 
+                ref={submitBtnRef}
+                className="w-full h-14 text-lg font-bold mt-4 shadow-md" 
                 onClick={handleGenerateInvoice}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
-                <Receipt className="mr-2 h-5 w-5" />
-                Generate Invoice
+                <Receipt className="mr-2 h-6 w-6" />
+                Complete Sale (F9)
               </Button>
             </CardContent>
           </Card>
@@ -350,16 +472,15 @@ const NewSale = () => {
       </div>
 
       <Dialog open={isSerialsDialogOpen} onOpenChange={setIsSerialsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Select Serial Numbers</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-4 max-h-[60vh] overflow-y-auto p-1">
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 max-h-[60vh] overflow-y-auto p-2">
             {availableSerials.length === 0 ? (
-              <p className="col-span-full text-center text-muted-foreground py-4">No serial numbers in stock</p>
+              <p className="col-span-full text-center text-muted-foreground py-8">No serial numbers in stock</p>
             ) : (
               availableSerials.map(s => {
-                // Ignore if already in cart
                 const inCart = cart.find(c => c.productId === selectedProductId)?.serialNumbers.includes(s.serialNumber);
                 if (inCart) return null;
 
@@ -368,7 +489,11 @@ const NewSale = () => {
                   <div 
                     key={s._id}
                     onClick={() => toggleSerialSelection(s.serialNumber)}
-                    className={`p-2 border rounded cursor-pointer transition-colors text-sm text-center ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                    className={`p-3 border-2 rounded-lg cursor-pointer transition-all text-sm font-mono text-center select-none ${
+                      isSelected 
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm scale-[0.98]' 
+                      : 'hover:border-primary/50 hover:bg-slate-50 bg-white'
+                    }`}
                   >
                     {s.serialNumber}
                   </div>
@@ -376,14 +501,12 @@ const NewSale = () => {
               })
             )}
           </div>
-          <DialogFooter className="mt-6 flex justify-between">
-            <span className="text-sm font-medium pt-2">Selected: {selectedSerials.length}</span>
-            <Button onClick={() => setIsSerialsDialogOpen(false)}>Done</Button>
+          <DialogFooter className="mt-6 flex justify-between items-center border-t pt-4">
+            <span className="text-lg font-bold text-primary">Selected: {selectedSerials.length}</span>
+            <Button onClick={addToCart} size="lg" className="px-8">Confirm & Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-export default NewSale;
+}

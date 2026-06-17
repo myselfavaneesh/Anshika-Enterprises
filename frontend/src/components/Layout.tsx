@@ -26,7 +26,7 @@ const Layout = () => {
     { name: 'Products', href: '/products', icon: Package },
     { name: 'Categories', href: '/categories', icon: FolderOpen },
     { name: 'Inventory', href: '/inventory', icon: Boxes },
-    { name: 'Customers', href: '/customers', icon: Users },
+    { name: 'Parties (Khata)', href: '/parties', icon: Users },
     { name: 'Sales', href: '/sales', icon: ShoppingCart },
     { name: 'Quotations', href: '/quotations', icon: FileText },
   ];

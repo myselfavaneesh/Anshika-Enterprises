@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface ICustomer extends Document {
+export interface ISupplier extends Document {
   name: string;
   phone?: string;
   address?: string;
@@ -11,7 +11,7 @@ export interface ICustomer extends Document {
   createdAt: Date;
 }
 
-const CustomerSchema: Schema = new Schema({
+const SupplierSchema: Schema = new Schema({
   name: { type: String, required: true },
   phone: { type: String },
   address: { type: String },
@@ -21,8 +21,7 @@ const CustomerSchema: Schema = new Schema({
   outstandingBalance: { type: Number, default: 0 },
 }, { timestamps: true });
 
-CustomerSchema.index({ phone: 1 });
-CustomerSchema.index({ gstNumber: 1 });
+SupplierSchema.index({ phone: 1 });
+SupplierSchema.index({ gstNumber: 1 });
 
-export default mongoose.model<ICustomer>('Customer', CustomerSchema);
-
+export default mongoose.model<ISupplier>('Supplier', SupplierSchema);
