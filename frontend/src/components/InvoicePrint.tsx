@@ -6,7 +6,7 @@ interface InvoicePrintProps {
   companyInfo?: any;
 }
 
-const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) => {
+const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
   const numberToWords = (num: number): string => {
     if (num === 0) return 'Rupees Zero Only';
     const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
@@ -47,22 +47,6 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
     return `Rupees ${inWords(wholePart)}Only`.replace(/\s+/g, ' ');
   };
 
-  const getHsnSummary = (items: any[]) => {
-    const summary: Record<string, any> = {};
-    items.forEach(item => {
-      const hsn = item.productId?.hsnCode || '-';
-      if (!summary[hsn]) {
-        summary[hsn] = { taxableValue: 0, cgstAmount: 0, sgstAmount: 0, rate: item.productId?.gstRate || 0 };
-      }
-      summary[hsn].taxableValue += item.taxableTotalPrice || 0;
-      const cgst = (item.taxableTotalPrice * ((item.productId?.gstRate || 0) / 2)) / 100;
-      summary[hsn].cgstAmount += cgst;
-      summary[hsn].sgstAmount += cgst;
-    });
-    return Object.values(summary);
-  };
-
-  const hsnSummary = data?.items ? getHsnSummary(data.items) : [];
 
   React.useEffect(() => {
     const originalTitle = document.title;
@@ -186,7 +170,8 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
             <th>Quantity</th>
             <th>Rate</th>
             <th>per</th>
-            <th>Disc. %</th>
+            <th>GST %</th>
+            <th className="text-right">GST Amt</th>
             <th className="text-right">Amount</th>
           </tr>
         </thead>
@@ -204,36 +189,37 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
               <td className="text-center align-top border-b-0 font-bold">{item.quantity} PC</td>
               <td className="text-right align-top border-b-0">{item.taxableUnitPrice?.toFixed(2)}</td>
               <td className="text-center align-top border-b-0">PC</td>
-              <td className="text-center align-top border-b-0">-</td>
+              <td className="text-center align-top border-b-0">{data?.taxRate || 0}%</td>
+              <td className="text-right align-top border-b-0">{((item.totalPrice || 0) - (item.taxableTotalPrice || 0)).toFixed(2)}</td>
               <td className="text-right align-top border-b-0 font-bold">{item.taxableTotalPrice?.toFixed(2)}</td>
             </tr>
           ))}
           {/* Fill empty space if few items */}
           <tr className="h-24">
-            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>
+            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>
           </tr>
 
           {/* Tax Totals */}
           <tr>
-            <td colSpan={7} className="text-right italic border-y-0 font-semibold pt-4">
+            <td colSpan={8} className="text-right italic border-y-0 font-semibold pt-4">
               CGST {data?.taxRate ? `(${(data.taxRate / 2)}%)` : ''}
             </td>
             <td className="text-right border-y-0 font-bold pt-4">{data?.cgstAmount?.toFixed(2)}</td>
           </tr>
           <tr>
-            <td colSpan={7} className="text-right italic border-y-0 font-semibold">
+            <td colSpan={8} className="text-right italic border-y-0 font-semibold">
               SGST {data?.taxRate ? `(${(data.taxRate / 2)}%)` : ''}
             </td>
             <td className="text-right border-y-0 font-bold">{data?.sgstAmount?.toFixed(2)}</td>
           </tr>
           <tr>
-            <td colSpan={7} className="text-right italic border-y-0 font-semibold pb-4">Round Off</td>
+            <td colSpan={8} className="text-right italic border-y-0 font-semibold pb-4">Round Off</td>
             <td className="text-right border-y-0 font-bold pb-4">
               {data ? (data.grandTotal - (data.taxableAmount + data.cgstAmount + data.sgstAmount)).toFixed(2) : '0.00'}
             </td>
           </tr>
           <tr>
-            <td colSpan={7} className="text-right font-bold">Total</td>
+            <td colSpan={8} className="text-right font-bold">Total</td>
             <td className="text-right font-bold text-sm">₹ {data?.grandTotal?.toFixed(2)}</td>
           </tr>
         </tbody>

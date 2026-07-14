@@ -44,6 +44,10 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
       res.status(400).json({ error: 'Validation failed', details: error.errors });
       return;
     }
+    if (error.code === 11000) {
+      res.status(400).json({ error: 'Duplicate serial number detected. One or more serial numbers already exist in the inventory.' });
+      return;
+    }
     logger.error('Error processing purchase', { error: error.message });
     res.status(400).json({ error: error.message || 'Error processing purchase' });
   }

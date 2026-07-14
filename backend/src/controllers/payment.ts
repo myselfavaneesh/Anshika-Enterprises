@@ -82,10 +82,15 @@ export const recordPayment = async (req: Request, res: Response): Promise<void> 
     console.error('Error in recordPayment transaction:', error);
     
     // Fallback for Standalone MongoDB clusters (which don't support transactions)
-    if (error.message.includes('Transaction numbers are only allowed on a replica set member or mongos')) {
+    if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set member or mongos')) {
        // Attempt non-transactional fallback if required, but for strict integrity we just return error
        res.status(500).json({ error: 'MongoDB Replica Set required for Ledger Transactions. Please configure MongoDB.' });
        return;
+    }
+
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.referenceId) {
+      res.status(400).json({ error: 'This UPI/Bank Reference Number has already been used in another transaction.' });
+      return;
     }
 
     res.status(400).json({ error: error.message || 'Error recording payment' });

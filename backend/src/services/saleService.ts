@@ -4,6 +4,7 @@ import SaleItem from '../models/SaleItem';
 import ProductUnit from '../models/ProductUnit';
 import Customer from '../models/Customer';
 import Payment from '../models/Payment';
+import Product from '../models/Product';
 import { logger } from '../utils/logger';
 
 export interface SaleItemInput {
@@ -36,22 +37,49 @@ export class SaleService {
     session.startTransaction();
 
     try {
-      const { customerId, items, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, amountPaid, paymentMode } = data;
+      const { customerId, items, discount, grandTotal, amountPaid, paymentMode } = data;
       const invoiceNumber = `INV-${Date.now()}`;
+
+      // Server-side Math Validation
+      let expectedSubtotal = 0;
+      let expectedTaxableAmount = 0;
+      let expectedTaxAmount = 0;
+
+      for (const item of items) {
+        const product = await Product.findById(item.productId).lean();
+        if (!product) throw new Error(`Product not found: ${item.productId}`);
+        
+        const trueGstRate = product.gstRate || 0;
+        const lineTotal = item.unitPrice * item.quantity;
+        
+        expectedSubtotal += lineTotal;
+        
+        const lineTaxable = lineTotal / (1 + (trueGstRate / 100));
+        const lineTax = lineTotal - lineTaxable;
+        
+        expectedTaxableAmount += lineTaxable;
+        expectedTaxAmount += lineTax;
+      }
+
+      const expectedGrandTotal = expectedSubtotal - (discount || 0);
+
+      if (Math.abs(expectedGrandTotal - grandTotal) > 1) {
+        throw new Error('Financial calculation mismatch. Potential payload tampering.');
+      }
 
       // 1. Create Sale
       const sale = new Sale({
         invoiceNumber,
         customerId,
-        subtotal,
-        discount,
-        taxableAmount,
-        taxRate,
-        taxAmount,
-        cgstAmount,
-        sgstAmount,
-        grandTotal,
-        status: amountPaid >= grandTotal ? 'PAID' : 'PENDING',
+        subtotal: expectedSubtotal,
+        discount: discount || 0,
+        taxableAmount: expectedTaxableAmount,
+        taxRate: data.taxRate || 0,
+        taxAmount: expectedTaxAmount,
+        cgstAmount: data.cgstAmount,
+        sgstAmount: data.sgstAmount,
+        grandTotal: expectedGrandTotal,
+        status: amountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
       });
       await sale.save({ session });
 
@@ -72,18 +100,31 @@ export class SaleService {
         });
         await saleItem.save({ session });
 
-        const result = await ProductUnit.updateMany(
-          { productId: item.productId, serialNumber: { $in: item.serialNumbers }, status: 'IN_STOCK' },
-          { $set: { status: 'SOLD', saleId: sale._id, saleItemId: saleItem._id } },
-          { session }
-        );
+        for (const serial of item.serialNumbers) {
+          const updatedUnit = await ProductUnit.findOneAndUpdate(
+            { serialNumber: serial, status: 'IN_STOCK' },
+            { status: 'SOLD', saleId: sale._id, saleItemId: saleItem._id },
+            { session, new: true }
+          );
 
-        if (result.modifiedCount !== item.serialNumbers.length) {
-          throw new Error(`One or more serial numbers are not available or are already sold/defective for product ID: ${item.productId}`);
+          if (!updatedUnit) {
+            throw new Error(`Serial number ${serial} is already sold or unavailable.`);
+          }
         }
       }
 
       // 3. Ledger Logic (Khata Sync)
+      // Step A: Increase the customer's balance by the invoice grandTotal
+      const updatedCustomer = await Customer.findByIdAndUpdate(
+        customerId,
+        { $inc: { outstandingBalance: expectedGrandTotal } },
+        { session, new: true }
+      );
+      if (!updatedCustomer) {
+        throw new Error(`Customer not found with ID: ${customerId}`);
+      }
+
+      // Step B: If money is paid, create Payment and reduce the balance
       if (amountPaid > 0) {
         const payment = new Payment({
           entityType: 'CUSTOMER',
@@ -95,26 +136,12 @@ export class SaleService {
           notes: `Payment for Sale ${invoiceNumber}`,
         });
         await payment.save({ session });
-      }
 
-      const amountDue = grandTotal - amountPaid;
-      if (amountDue > 0) {
-         // Increment Customer's outstanding balance
-         const updatedCustomer = await Customer.findByIdAndUpdate(
-           customerId,
-           { $inc: { outstandingBalance: amountDue } },
-           { session, new: true }
-         );
-         if (!updatedCustomer) {
-           throw new Error(`Customer not found with ID: ${customerId}`);
-         }
-      } else if (amountDue < 0) {
-         // They overpaid, reduce their balance (or they have credit)
-         const updatedCustomer = await Customer.findByIdAndUpdate(
-           customerId,
-           { $inc: { outstandingBalance: amountDue } },
-           { session, new: true }
-         );
+        await Customer.findByIdAndUpdate(
+          customerId,
+          { $inc: { outstandingBalance: -amountPaid } },
+          { session }
+        );
       }
 
       await session.commitTransaction();
@@ -153,20 +180,23 @@ export class SaleService {
       await SaleItem.deleteMany({ saleId: sale._id }, { session });
 
       // 3. Find and delete associated Payment
+      // The user requested referenceId === saleId, but we stored invoiceNumber previously. Let's check both or just invoiceNumber.
+      // Based on our createSale logic, referenceId is the invoiceNumber.
       const payment = await Payment.findOne({ referenceId: sale.invoiceNumber, entityType: 'CUSTOMER' }).session(session);
-      let amountPaid = 0;
       if (payment) {
-        amountPaid = payment.amount;
         await Payment.deleteOne({ _id: payment._id }, { session });
+        // Revert the payment deduction
+        await Customer.findByIdAndUpdate(
+          sale.customerId,
+          { $inc: { outstandingBalance: payment.amount } },
+          { session }
+        );
       }
 
-      // 4. Revert Customer balance
-      // Original logic: amountDue = grandTotal - amountPaid. This was added to outstandingBalance.
-      // Now we subtract amountDue.
-      const amountDue = sale.grandTotal - amountPaid;
+      // 4. Revert Customer balance (Revert the grandTotal addition)
       await Customer.findByIdAndUpdate(
         sale.customerId,
-        { $inc: { outstandingBalance: -amountDue } },
+        { $inc: { outstandingBalance: -sale.grandTotal } },
         { session }
       );
 

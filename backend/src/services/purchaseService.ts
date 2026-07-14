@@ -83,12 +83,24 @@ export class PurchaseService {
           status: 'IN_STOCK',
           purchaseId: purchase._id,
           purchaseItemId: purchaseItem._id,
+          supplierId: supplierId,
         }));
         
         await ProductUnit.insertMany(unitsToInsert, { session });
       }
 
       // 3. Ledger Logic (Khata Sync)
+      // Step A: Increase what we owe the supplier by grandTotal
+      const updatedSupplier = await Supplier.findByIdAndUpdate(
+        supplierId,
+        { $inc: { outstandingBalance: grandTotal } },
+        { session, new: true }
+      );
+      if (!updatedSupplier) {
+        throw new Error(`Supplier not found with ID: ${supplierId}`);
+      }
+
+      // Step B: If money is paid, create Payment and reduce what we owe
       if (amountPaid > 0) {
         const payment = new Payment({
           entityType: 'SUPPLIER',
@@ -100,26 +112,12 @@ export class PurchaseService {
           notes: `Payment for Purchase Invoice ${purchaseInvoiceNumber}`,
         });
         await payment.save({ session });
-      }
 
-      const amountDue = grandTotal - amountPaid;
-      if (amountDue > 0) {
-         // Increment Supplier's outstanding balance (We owe them)
-         const updatedSupplier = await Supplier.findByIdAndUpdate(
-           supplierId,
-           { $inc: { outstandingBalance: amountDue } },
-           { session, new: true }
-         );
-         if (!updatedSupplier) {
-           throw new Error(`Supplier not found with ID: ${supplierId}`);
-         }
-      } else if (amountDue < 0) {
-         // We overpaid, reduce what we owe them
-         const updatedSupplier = await Supplier.findByIdAndUpdate(
-           supplierId,
-           { $inc: { outstandingBalance: amountDue } },
-           { session, new: true }
-         );
+        await Supplier.findByIdAndUpdate(
+          supplierId,
+          { $inc: { outstandingBalance: -amountPaid } },
+          { session }
+        );
       }
 
       await session.commitTransaction();

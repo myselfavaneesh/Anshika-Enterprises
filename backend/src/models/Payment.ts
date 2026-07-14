@@ -24,5 +24,6 @@ const PaymentSchema: Schema = new Schema({
 
 // Compound index for fast ledger queries
 PaymentSchema.index({ entityId: 1, entityType: 1, createdAt: -1 });
+PaymentSchema.index({ referenceId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model<IPayment>('Payment', PaymentSchema);

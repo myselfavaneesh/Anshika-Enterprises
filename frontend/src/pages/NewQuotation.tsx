@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+
 import { Trash2, Plus, Receipt } from 'lucide-react';
 
 
@@ -210,13 +210,15 @@ const NewQuotation = () => {
                       <TableHead>Product</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-right">GST %</TableHead>
+                      <TableHead className="text-right">GST Amt</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cart.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Cart is empty</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Cart is empty</TableCell></TableRow>
                     ) : (
                       cart.map((item) => (
                         <TableRow key={item.productId}>
@@ -234,6 +236,8 @@ const NewQuotation = () => {
                               onChange={e => updateItemPrice(item.productId, Number(e.target.value))} 
                             />
                           </TableCell>
+                          <TableCell className="text-right">{taxRateNum}%</TableCell>
+                          <TableCell className="text-right">₹{(item.totalPrice - (item.totalPrice / (1 + (taxRateNum / 100)))).toFixed(2)}</TableCell>
                           <TableCell className="text-right">₹{item.totalPrice.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => removeFromCart(item.productId)}>

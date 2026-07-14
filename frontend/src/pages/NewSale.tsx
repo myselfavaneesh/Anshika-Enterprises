@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Plus, Receipt, IndianRupee } from 'lucide-react';
+import { Trash2, Receipt } from 'lucide-react';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 

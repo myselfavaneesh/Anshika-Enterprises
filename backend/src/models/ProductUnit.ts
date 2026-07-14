@@ -6,6 +6,9 @@ export interface IProductUnit extends Document {
   status: 'IN_STOCK' | 'SOLD' | 'DEFECTIVE';
   purchaseInvoiceNumber?: string;
   supplierName?: string;
+  purchaseId?: mongoose.Types.ObjectId;
+  purchaseItemId?: mongoose.Types.ObjectId;
+  supplierId?: mongoose.Types.ObjectId;
   saleId?: mongoose.Types.ObjectId;
   saleItemId?: mongoose.Types.ObjectId;
   purchasePrice?: number;
@@ -19,6 +22,9 @@ const ProductUnitSchema: Schema = new Schema({
   status: { type: String, enum: ['IN_STOCK', 'SOLD', 'DEFECTIVE'], default: 'IN_STOCK', index: true },
   purchaseInvoiceNumber: { type: String },
   supplierName: { type: String },
+  purchaseId: { type: Schema.Types.ObjectId, ref: 'Purchase', index: true },
+  purchaseItemId: { type: Schema.Types.ObjectId, ref: 'PurchaseItem' },
+  supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier', index: true },
   saleId: { type: Schema.Types.ObjectId, ref: 'Sale', index: true },
   saleItemId: { type: Schema.Types.ObjectId, ref: 'SaleItem' },
   purchasePrice: { type: Number },

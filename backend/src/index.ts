@@ -12,6 +12,7 @@ import quotationRoutes from './routes/quotationRoutes';
 import dashboardRoutes from './routes/dashboard';
 import paymentRoutes from './routes/payment';
 import purchaseRoutes from './routes/purchase';
+import returnRoutes from './routes/return';
 import morgan from 'morgan';
 import { logger } from './utils/logger';
 import { initBackupCron } from './utils/backup';
@@ -51,8 +52,9 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/quotations', quotationRoutes);
-app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/returns', returnRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
