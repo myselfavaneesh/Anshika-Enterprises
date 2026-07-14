@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { Search, X, List, Plus, Minus, Camera } from 'lucide-react';
+import { Search, X, List, Plus, Minus } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 

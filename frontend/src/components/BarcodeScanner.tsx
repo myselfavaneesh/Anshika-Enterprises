@@ -38,7 +38,7 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
 
     if (isScanning && videoRef.current) {
       codeReaderRef.current = new BrowserMultiFormatReader();
-      codeReaderRef.current.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
+      codeReaderRef.current.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
         if (!mounted) return;
         
         if (result) {

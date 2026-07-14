@@ -157,7 +157,7 @@ const EditQuotation = () => {
         grandTotal
       };
 
-      const response = await api.put(`/quotations/${id}`, payload);
+      await api.put(`/quotations/${id}`, payload);
       
       window.open(`/quotations/${id}/print`, '_blank');
       navigate('/quotations');

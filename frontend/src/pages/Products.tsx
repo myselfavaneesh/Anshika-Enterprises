@@ -18,7 +18,7 @@ const Products = () => {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
