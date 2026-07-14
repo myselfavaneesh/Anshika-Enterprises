@@ -24,7 +24,7 @@ export const processReturn = async (req: Request, res: Response): Promise<void> 
     res.status(201).json(saleReturn);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: error.errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
       return;
     }
     logger.error('Error processing return', { error: error.message });

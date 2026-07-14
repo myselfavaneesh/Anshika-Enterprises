@@ -7,6 +7,7 @@ import categoryRoutes from './routes/category';
 import productRoutes from './routes/product';
 import inventoryRoutes from './routes/inventory';
 import customerRoutes from './routes/customer';
+import supplierRoutes from './routes/supplier';
 import saleRoutes from './routes/sale';
 import quotationRoutes from './routes/quotationRoutes';
 import dashboardRoutes from './routes/dashboard';
@@ -49,6 +50,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/suppliers', supplierRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/quotations', quotationRoutes);
@@ -58,7 +60,7 @@ app.use('/api/dashboard', dashboardRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
-  res.send('Inventory SaaS API is running');
+  res.send('Anshika Enterprises API is running');
 });
 
 // Start Server

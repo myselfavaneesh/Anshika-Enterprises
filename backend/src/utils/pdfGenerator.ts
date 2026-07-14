@@ -222,7 +222,7 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
     </html>
   `;
 
-  await page.setContent(html, { waitUntil: 'networkidle0' });
+  await page.setContent(html, { waitUntil: 'networkidle0' as any });
   const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
 
   await browser.close();

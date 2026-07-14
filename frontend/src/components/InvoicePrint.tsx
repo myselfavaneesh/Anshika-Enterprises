@@ -164,14 +164,14 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
       <table className="w-full mb-0 border-b-0">
         <thead>
           <tr>
-            <th className="w-10">Sl No.</th>
+            <th className="w-10">SN</th>
             <th className="text-left">Description of Goods</th>
             <th>HSN/SAC</th>
             <th>Quantity</th>
             <th>Rate</th>
             <th>per</th>
             <th>GST %</th>
-            <th className="text-right">GST Amt</th>
+            <th className="text-right">GST Inclusive Amount</th>
             <th className="text-right">Amount</th>
           </tr>
         </thead>
@@ -190,7 +190,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
               <td className="text-right align-top border-b-0">{item.taxableUnitPrice?.toFixed(2)}</td>
               <td className="text-center align-top border-b-0">PC</td>
               <td className="text-center align-top border-b-0">{data?.taxRate || 0}%</td>
-              <td className="text-right align-top border-b-0">{((item.totalPrice || 0) - (item.taxableTotalPrice || 0)).toFixed(2)}</td>
+              <td className="text-right align-top border-b-0">{item.totalPrice?.toFixed(2)}</td>
               <td className="text-right align-top border-b-0 font-bold">{item.taxableTotalPrice?.toFixed(2)}</td>
             </tr>
           ))}

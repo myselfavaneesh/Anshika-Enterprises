@@ -41,7 +41,7 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
     res.status(201).json(sale);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: error.errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
       return;
     }
     logger.error('Error processing sale', { error: error.message });
@@ -164,7 +164,7 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
 export const deleteSale = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    await SaleService.deleteSale(id);
+    await SaleService.deleteSale(id as string);
     res.json({ message: 'Sale deleted successfully' });
   } catch (error: any) {
     logger.error('Error deleting sale', { saleId: req.params.id, error: error.message });

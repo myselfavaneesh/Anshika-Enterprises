@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -10,6 +11,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  usePageTitle('Login');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +28,7 @@ const Login = () => {
   return (
     <div className="flex h-screen items-center justify-center bg-slate-50">
       <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
-        <h2 className="text-2xl font-bold text-center text-slate-800 mb-8">Inventory SaaS Login</h2>
+        <h2 className="text-2xl font-bold text-center text-slate-800 mb-8">Anshika Enterprises Login</h2>
         {error && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{error}</div>}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>

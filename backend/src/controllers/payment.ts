@@ -108,15 +108,15 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
     }
 
     const payments = await Payment.find({ 
-      entityId: entityId as string, 
-      entityType: entityType as string 
+      entityId: entityId as any, 
+      entityType: entityType as any 
     }).lean();
 
     let invoices: any[] = [];
     if (entityType === 'CUSTOMER') {
-      invoices = await Sale.find({ customerId: entityId }).lean();
+      invoices = await Sale.find({ customerId: entityId as any }).lean();
     } else if (entityType === 'SUPPLIER') {
-      invoices = await Purchase.find({ supplierId: entityId }).lean();
+      invoices = await Purchase.find({ supplierId: entityId as any }).lean();
     }
 
     // Transform payments

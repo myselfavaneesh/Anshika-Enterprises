@@ -211,7 +211,7 @@ const NewQuotation = () => {
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Price</TableHead>
                       <TableHead className="text-right">GST %</TableHead>
-                      <TableHead className="text-right">GST Amt</TableHead>
+                      <TableHead className="text-right">GST Inclusive Amount</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
@@ -237,7 +237,7 @@ const NewQuotation = () => {
                             />
                           </TableCell>
                           <TableCell className="text-right">{taxRateNum}%</TableCell>
-                          <TableCell className="text-right">₹{(item.totalPrice - (item.totalPrice / (1 + (taxRateNum / 100)))).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">₹{item.totalPrice.toFixed(2)}</TableCell>
                           <TableCell className="text-right">₹{item.totalPrice.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => removeFromCart(item.productId)}>

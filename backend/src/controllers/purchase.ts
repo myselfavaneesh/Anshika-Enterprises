@@ -41,7 +41,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
     res.status(201).json(purchase);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: error.errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
       return;
     }
     if (error.code === 11000) {
@@ -137,7 +137,7 @@ export const getPurchaseById = async (req: Request, res: Response): Promise<void
 export const deletePurchase = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    await PurchaseService.deletePurchase(id);
+    await PurchaseService.deletePurchase(id as string);
     res.json({ message: 'Purchase deleted successfully' });
   } catch (error: any) {
     logger.error('Error deleting purchase', { purchaseId: req.params.id, error: error.message });

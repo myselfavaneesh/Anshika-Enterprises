@@ -13,11 +13,15 @@ import Quotations from './pages/Quotations';
 import NewQuotation from './pages/NewQuotation';
 import PrintInvoice from './pages/PrintInvoice';
 import Parties from './pages/Parties';
+import PartyLedger from './pages/PartyLedger';
+
+import TitleUpdater from './components/TitleUpdater';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <TitleUpdater />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/sales/:id/print" element={<PrintInvoice />} />
@@ -30,6 +34,7 @@ function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="customers" element={<Customers />} />
             <Route path="parties" element={<Parties />} />
+            <Route path="parties/:type/:id/ledger" element={<PartyLedger />} />
             <Route path="sales" element={<Sales />} />
             <Route path="sales/new" element={<NewSale />} />
             <Route path="quotations" element={<Quotations />} />
