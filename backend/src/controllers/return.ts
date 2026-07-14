@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { ReturnService } from '../services/returnService';
 import { logger } from '../utils/logger';
+import { mapToMongoose } from '../utils/mapper';
 
 const ProcessReturnSchema = z.object({
   saleId: z.string().min(1),
@@ -21,7 +22,7 @@ export const processReturn = async (req: Request, res: Response): Promise<void> 
       validatedData.notes
     );
 
-    res.status(201).json(saleReturn);
+    res.status(201).json(mapToMongoose(saleReturn));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: (error as any).errors });

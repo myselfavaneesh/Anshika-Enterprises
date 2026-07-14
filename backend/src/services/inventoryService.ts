@@ -1,6 +1,4 @@
-import mongoose from 'mongoose';
-import Product from '../models/Product';
-import ProductUnit from '../models/ProductUnit';
+import prisma from '../prisma';
 import { logger } from '../utils/logger';
 
 export interface StockInData {
@@ -16,7 +14,7 @@ export class InventoryService {
     try {
       const { productId, purchaseInvoiceNumber, supplierName, serialNumbers, purchasePrice } = data;
 
-      const product = await Product.findById(productId);
+      const product = await prisma.product.findUnique({ where: { id: productId } });
       if (!product) {
         throw new Error('Product not found');
       }
@@ -30,7 +28,7 @@ export class InventoryService {
         purchasePrice: purchasePrice || 0,
       }));
 
-      await ProductUnit.insertMany(units);
+      await prisma.productUnit.createMany({ data: units });
 
       logger.info('Stock added successfully', { productId, unitCount: units.length });
     } catch (error: any) {
@@ -41,12 +39,12 @@ export class InventoryService {
 
   static async stockOut(productId: string, serialNumbers: string[]): Promise<void> {
     try {
-      const result = await ProductUnit.updateMany(
-        { productId, serialNumber: { $in: serialNumbers }, status: 'IN_STOCK' },
-        { $set: { status: 'DEFECTIVE' } }
-      );
+      const result = await prisma.productUnit.updateMany({
+        where: { productId, serialNumber: { in: serialNumbers }, status: 'IN_STOCK' },
+        data: { status: 'DEFECTIVE' }
+      });
 
-      if (result.modifiedCount !== serialNumbers.length) {
+      if (result.count !== serialNumbers.length) {
         throw new Error('Some serial numbers were not found or are not in stock');
       }
 

@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import categoryRoutes from './routes/category';
@@ -33,16 +32,17 @@ app.use(morgan('combined', {
   stream: { write: (message) => logger.info(message.trim()) }
 }));
 
-// Database Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/inventory-saas';
-console.log(MONGODB_URI)
-mongoose.connect(MONGODB_URI)
+import prisma from './prisma';
+
+// Database Connection Test
+prisma.$connect()
   .then(() => {
-    logger.info('Connected to MongoDB');
+    logger.info('Connected to PostgreSQL via Prisma');
   })
   .catch((err) => {
-    logger.error('MongoDB connection error', { error: err.message, stack: err.stack });
+    logger.error('PostgreSQL connection error', { error: err.message, stack: err.stack });
   });
+
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -61,6 +61,19 @@ app.use('/api/dashboard', dashboardRoutes);
 // Basic Route
 app.get('/', (req, res) => {
   res.send('Anshika Enterprises API is running');
+});
+
+// Global Error Handling Middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled Exception', {
+    message: err.message,
+    stack: err.stack,
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip
+  });
+  
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 // Start Server

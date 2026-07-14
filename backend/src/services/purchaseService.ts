@@ -1,9 +1,4 @@
-import mongoose from 'mongoose';
-import Purchase from '../models/Purchase';
-import PurchaseItem from '../models/PurchaseItem';
-import ProductUnit from '../models/ProductUnit';
-import Supplier from '../models/Supplier';
-import Payment from '../models/Payment';
+import prisma from '../prisma';
 import { logger } from '../utils/logger';
 
 export interface PurchaseItemInput {
@@ -33,149 +28,135 @@ export interface PurchaseInput {
 
 export class PurchaseService {
   static async createPurchase(data: PurchaseInput): Promise<any> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      const { 
-        purchaseInvoiceNumber, supplierId, items, subtotal, discount, 
-        taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, 
-        grandTotal, amountPaid, paymentMode 
-      } = data;
+      const purchase = await prisma.$transaction(async (tx) => {
+        const { 
+          purchaseInvoiceNumber, supplierId, items, subtotal, discount, 
+          taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, 
+          grandTotal, amountPaid, paymentMode 
+        } = data;
 
-      // 1. Create Purchase
-      const purchase = new Purchase({
-        purchaseInvoiceNumber,
-        supplierId,
-        subtotal,
-        discount,
-        taxableAmount,
-        taxRate,
-        taxAmount,
-        cgstAmount,
-        sgstAmount,
-        grandTotal,
-        status: amountPaid >= grandTotal ? 'PAID' : 'PENDING',
-      });
-      await purchase.save({ session });
+        // 1. Create Purchase
+        const newPurchase = await tx.purchase.create({
+          data: {
+            purchaseInvoiceNumber,
+            supplierId,
+            subtotal,
+            discount,
+            taxableAmount,
+            taxRate,
+            taxAmount,
+            cgstAmount,
+            sgstAmount,
+            grandTotal,
+            status: amountPaid >= grandTotal ? 'PAID' : 'PENDING',
+          }
+        });
 
-      // 2. Process items & Create ProductUnits
-      for (const item of items) {
-        if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
-          throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+        // 2. Process items & Create ProductUnits
+        for (const item of items) {
+          if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
+            throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+          }
+
+          const purchaseItem = await tx.purchaseItem.create({
+            data: {
+              purchaseId: newPurchase.id,
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.quantity * item.unitPrice,
+              taxableUnitPrice: item.taxableUnitPrice,
+              taxableTotalPrice: item.taxableTotalPrice,
+            }
+          });
+
+          // Add ProductUnits to Inventory
+          const unitsToInsert = item.serialNumbers.map(sn => ({
+            productId: item.productId,
+            serialNumber: sn,
+            status: 'IN_STOCK',
+            purchaseId: newPurchase.id,
+            purchaseItemId: purchaseItem.id,
+            supplierId: supplierId,
+          }));
+          
+          await tx.productUnit.createMany({
+            data: unitsToInsert
+          });
         }
 
-        const purchaseItem = new PurchaseItem({
-          purchaseId: purchase._id,
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.quantity * item.unitPrice,
-          taxableUnitPrice: item.taxableUnitPrice,
-          taxableTotalPrice: item.taxableTotalPrice,
+        // 3. Ledger Logic (Khata Sync)
+        // Step A: Increase what we owe the supplier by grandTotal
+        const updatedSupplier = await tx.supplier.update({
+          where: { id: supplierId },
+          data: { outstandingBalance: { increment: grandTotal } }
         });
-        await purchaseItem.save({ session });
 
-        // Add ProductUnits to Inventory
-        const unitsToInsert = item.serialNumbers.map(sn => ({
-          productId: item.productId,
-          serialNumber: sn,
-          status: 'IN_STOCK',
-          purchaseId: purchase._id,
-          purchaseItemId: purchaseItem._id,
-          supplierId: supplierId,
-        }));
-        
-        await ProductUnit.insertMany(unitsToInsert, { session });
-      }
+        // Step B: If money is paid, create Payment and reduce what we owe
+        if (amountPaid > 0) {
+          await tx.payment.create({
+            data: {
+              entityType: 'SUPPLIER',
+              entityId: supplierId,
+              type: 'MONEY_OUT',
+              amount: amountPaid,
+              paymentMode: paymentMode || 'CASH',
+              referenceId: purchaseInvoiceNumber,
+              notes: `Payment for Purchase Invoice ${purchaseInvoiceNumber}`,
+            }
+          });
 
-      // 3. Ledger Logic (Khata Sync)
-      // Step A: Increase what we owe the supplier by grandTotal
-      const updatedSupplier = await Supplier.findByIdAndUpdate(
-        supplierId,
-        { $inc: { outstandingBalance: grandTotal } },
-        { session, new: true }
-      );
-      if (!updatedSupplier) {
-        throw new Error(`Supplier not found with ID: ${supplierId}`);
-      }
+          await tx.supplier.update({
+            where: { id: supplierId },
+            data: { outstandingBalance: { decrement: amountPaid } }
+          });
+        }
 
-      // Step B: If money is paid, create Payment and reduce what we owe
-      if (amountPaid > 0) {
-        const payment = new Payment({
-          entityType: 'SUPPLIER',
-          entityId: supplierId,
-          type: 'MONEY_OUT',
-          amount: amountPaid,
-          paymentMode: paymentMode || 'CASH',
-          referenceId: purchaseInvoiceNumber,
-          notes: `Payment for Purchase Invoice ${purchaseInvoiceNumber}`,
-        });
-        await payment.save({ session });
+        return newPurchase;
+      });
 
-        await Supplier.findByIdAndUpdate(
-          supplierId,
-          { $inc: { outstandingBalance: -amountPaid } },
-          { session }
-        );
-      }
-
-      await session.commitTransaction();
-      session.endSession();
-
-      logger.info('Purchase completed successfully', { purchaseId: purchase._id, purchaseInvoiceNumber });
+      logger.info('Purchase completed successfully', { purchaseId: purchase.id, purchaseInvoiceNumber: purchase.purchaseInvoiceNumber });
       return purchase;
     } catch (error: any) {
-      await session.abortTransaction();
-      session.endSession();
       logger.error('Error during createPurchase', { error: error.message });
-      
-      if (error.message.includes('Transaction numbers are only allowed on a replica set member or mongos')) {
-        throw new Error('MongoDB Replica Set required for Ledger Transactions. Please configure MongoDB.');
-      }
       throw error;
     }
   }
 
   static async deletePurchase(purchaseId: string): Promise<void> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      const purchase = await Purchase.findById(purchaseId).session(session);
-      if (!purchase) throw new Error('Purchase not found');
+      await prisma.$transaction(async (tx) => {
+        const purchase = await tx.purchase.findUnique({ where: { id: purchaseId } });
+        if (!purchase) throw new Error('Purchase not found');
 
-      // 1. Delete ProductUnits
-      await ProductUnit.deleteMany({ purchaseId: purchase._id }, { session });
+        // 1. Delete ProductUnits
+        await tx.productUnit.deleteMany({ where: { purchaseId: purchase.id } });
 
-      // 2. Delete PurchaseItems
-      await PurchaseItem.deleteMany({ purchaseId: purchase._id }, { session });
+        // 2. Delete PurchaseItems
+        await tx.purchaseItem.deleteMany({ where: { purchaseId: purchase.id } });
 
-      // 3. Find and delete associated Payment
-      const payment = await Payment.findOne({ referenceId: purchase.purchaseInvoiceNumber, entityType: 'SUPPLIER' }).session(session);
-      let amountPaid = 0;
-      if (payment) {
-        amountPaid = payment.amount;
-        await Payment.deleteOne({ _id: payment._id }, { session });
-      }
+        // 3. Find and delete associated Payment
+        const payment = await tx.payment.findFirst({ where: { referenceId: purchase.purchaseInvoiceNumber, entityType: 'SUPPLIER' } });
+        let amountPaid = 0;
+        if (payment) {
+          amountPaid = payment.amount;
+          await tx.payment.delete({ where: { id: payment.id } });
+        }
 
-      // 4. Revert Supplier balance
-      const amountDue = purchase.grandTotal - amountPaid;
-      await Supplier.findByIdAndUpdate(
-        purchase.supplierId,
-        { $inc: { outstandingBalance: -amountDue } },
-        { session }
-      );
+        // 4. Revert Supplier balance
+        const amountDue = purchase.grandTotal - amountPaid;
+        await tx.supplier.update({
+          where: { id: purchase.supplierId },
+          data: { outstandingBalance: { decrement: amountDue } }
+        });
 
-      // 5. Delete Purchase
-      await Purchase.deleteOne({ _id: purchase._id }, { session });
+        // 5. Delete Purchase
+        await tx.purchase.delete({ where: { id: purchase.id } });
+      });
 
-      await session.commitTransaction();
-      session.endSession();
       logger.info('Purchase deleted successfully', { purchaseId });
     } catch (error: any) {
-      await session.abortTransaction();
-      session.endSession();
       logger.error('Error deleting purchase', { error: error.message });
       throw error;
     }

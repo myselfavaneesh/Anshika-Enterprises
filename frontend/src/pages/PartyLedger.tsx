@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { FileText, IndianRupee, ArrowLeft } from 'lucide-react';
+import { FileText, IndianRupee, ArrowLeft, MessageCircle } from 'lucide-react';
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -59,6 +59,18 @@ export default function PartyLedger() {
     }
   };
 
+  const handleSendReminder = () => {
+    if (!party?.phone) {
+      alert('No phone number found for this customer.');
+      return;
+    }
+    const amount = formatCurrency(Math.abs(party.outstandingBalance));
+    const message = `Hello ${party.name},\n\nThis is a gentle reminder that you have an outstanding balance of ${amount}.\n\nPlease arrange the payment at your earliest convenience. Thank you!`;
+    const encodedMessage = encodeURIComponent(message);
+    const phone = party.phone.replace(/\D/g, '');
+    window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+  };
+
   if (!data) {
     return <div className="p-8 text-center text-slate-500">Loading ledger...</div>;
   }
@@ -72,13 +84,13 @@ export default function PartyLedger() {
         <h2 className="text-3xl font-bold tracking-tight">Ledger Statement</h2>
       </div>
 
-      <div className="bg-white dark:bg-slate-950 p-6 rounded-md border shadow-sm flex justify-between items-start">
+      <div className="bg-white dark:bg-slate-950 p-6 rounded-md border shadow-sm flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <h3 className="text-2xl font-semibold">{party?.name}</h3>
           <p className="text-sm text-slate-500 mt-1">{party?.phone || 'No Phone'} • {party?.address || 'No Address'}</p>
           <p className="text-sm text-slate-500 mt-1">GSTIN: {party?.gstNumber || 'N/A'}</p>
         </div>
-        <div className="text-right">
+        <div className="w-full sm:w-auto text-left sm:text-right">
           <p className="text-sm font-medium text-slate-500">Total Outstanding</p>
           <p className={`text-2xl font-bold ${
             isCustomer 
@@ -94,15 +106,23 @@ export default function PartyLedger() {
               )}
             </span>
           </p>
-          <Button className="mt-4" onClick={() => setIsPaymentModalOpen(true)}>
-            <IndianRupee className="w-4 h-4 mr-2" />
-            Record Payment
-          </Button>
+          <div className="flex flex-col sm:flex-row justify-start sm:justify-end gap-2 mt-4 w-full">
+            {isCustomer && (party?.outstandingBalance || 0) > 0 && (
+              <Button variant="outline" onClick={handleSendReminder}>
+                <MessageCircle className="w-4 h-4 mr-2 text-green-600" />
+                Send Reminder
+              </Button>
+            )}
+            <Button onClick={() => setIsPaymentModalOpen(true)} className="w-full sm:w-auto">
+              <IndianRupee className="w-4 h-4 mr-2" />
+              Record Payment
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
-        <Table>
+      <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
+        <Table className="min-w-[600px]">
           <TableHeader className="bg-slate-50">
             <TableRow>
               <TableHead>Date</TableHead>

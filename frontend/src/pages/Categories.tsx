@@ -83,7 +83,7 @@ const Categories = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Categories</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -92,7 +92,7 @@ const Categories = () => {
         </div>
         <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="shadow-sm hover:shadow-md transition-all duration-200">
+            <Button className="w-full sm:w-auto shadow-sm hover:shadow-md transition-all duration-200">
               <Plus className="mr-2 h-4 w-4" /> Add Category
             </Button>
           </DialogTrigger>
@@ -152,7 +152,7 @@ const Categories = () => {
       )}
 
       {/* Search Filter Toolbar */}
-      <div className="flex items-center gap-2 max-w-sm bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm">
+      <div className="flex items-center gap-2 w-full sm:max-w-sm bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm">
         <Search className="h-4 w-4 text-slate-400" />
         <input 
           type="text"

@@ -1,11 +1,9 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import Purchase from '../models/Purchase';
-import PurchaseItem from '../models/PurchaseItem';
-import ProductUnit from '../models/ProductUnit';
-import Supplier from '../models/Supplier';
+import prisma from '../prisma';
 import { PurchaseService } from '../services/purchaseService';
 import { logger } from '../utils/logger';
+import { mapToMongoose } from '../utils/mapper';
 
 const PurchaseItemSchema = z.object({
   productId: z.string(),
@@ -38,13 +36,13 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 
     const purchase = await PurchaseService.createPurchase(validatedData);
 
-    res.status(201).json(purchase);
+    res.status(201).json(mapToMongoose(purchase));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
       return;
     }
-    if (error.code === 11000) {
+    if (error.code === 'P2002') {
       res.status(400).json({ error: 'Duplicate serial number detected. One or more serial numbers already exist in the inventory.' });
       return;
     }
@@ -59,37 +57,44 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const search = req.query.q as string;
-    const status = req.query.status as string;
+    const search = typeof req.query.q === 'string' ? req.query.q : undefined;
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
 
-    const query: any = {};
+    const where: any = {};
 
     if (status) {
-      query.status = status;
+      where.status = status;
     }
 
     if (search) {
-      const suppliers = await Supplier.find({
-        name: { $regex: search, $options: 'i' }
-      }).select('_id').lean();
-      const supplierIds = suppliers.map(s => s._id);
+      const suppliers = await prisma.supplier.findMany({
+        where: { name: { contains: search, mode: 'insensitive' } },
+        select: { id: true }
+      });
+      const supplierIds = suppliers.map(s => s.id);
 
-      query.$or = [
-        { purchaseInvoiceNumber: { $regex: search, $options: 'i' } },
-        { supplierId: { $in: supplierIds } }
+      where.OR = [
+        { purchaseInvoiceNumber: { contains: search, mode: 'insensitive' } },
+        { supplierId: { in: supplierIds } }
       ];
     }
 
-    const total = await Purchase.countDocuments(query);
-    const purchases = await Purchase.find(query)
-      .populate('supplierId')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const total = await prisma.purchase.count({ where });
+    const purchases = await prisma.purchase.findMany({
+      where,
+      include: { supplier: true },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    });
+
+    const mappedPurchases = purchases.map(p => {
+      const { supplier, ...rest } = p as any;
+      return mapToMongoose({ ...rest, supplierId: supplier });
+    });
 
     res.json({
-      data: purchases,
+      data: mappedPurchases,
       pagination: {
         total,
         page,
@@ -106,28 +111,35 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
 export const getPurchaseById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const purchase = await Purchase.findById(id).lean();
+    const purchase = await prisma.purchase.findUnique({ where: { id: id as string } });
     if (!purchase) {
       res.status(404).json({ error: 'Purchase not found' });
       return;
     }
 
-    const rawItems = await PurchaseItem.find({ purchaseId: id }).populate('productId').lean();
-    const supplier = await Supplier.findById(purchase.supplierId).lean();
+    const rawItems = await prisma.purchaseItem.findMany({
+      where: { purchaseId: id as string },
+      include: { product: true }
+    });
+    const supplier = await prisma.supplier.findUnique({ where: { id: purchase.supplierId } });
 
     const items = await Promise.all(rawItems.map(async (item) => {
-      const units = await ProductUnit.find({ purchaseItemId: item._id }).select('serialNumber').lean();
+      const units = await prisma.productUnit.findMany({
+        where: { purchaseItemId: item.id },
+        select: { serialNumber: true }
+      });
       return {
-        ...item,
+        ...mapToMongoose(item),
+        productId: mapToMongoose((item as any).product),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
 
-    res.json({
+    res.json(mapToMongoose({
       ...purchase,
-      supplierId: supplier,
+      supplierId: supplier ? mapToMongoose(supplier) : null,
       items: items
-    });
+    }));
   } catch (error: any) {
     logger.error('Error fetching purchase by id', { purchaseId: req.params.id, error: error.message });
     res.status(500).json({ error: 'Server error' });

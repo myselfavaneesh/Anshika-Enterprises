@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Edit, Search, X } from 'lucide-react';
+import { Plus, Edit, Search, X, Trash2 } from 'lucide-react';
 
 const Customers = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -64,6 +64,17 @@ const Customers = () => {
       stateCode: customer.stateCode || ''
     });
     setIsOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this customer?')) {
+      try {
+        await api.delete(`/customers/${id}`);
+        fetchCustomers();
+      } catch (error: any) {
+        alert(error.response?.data?.error || 'Failed to delete customer');
+      }
+    }
   };
 
   return (
@@ -142,7 +153,7 @@ const Customers = () => {
           </TableHeader>
           <TableBody>
             {filteredCustomers.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center">No customers found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center">No customers found.</TableCell></TableRow>
             ) : (
               filteredCustomers.map((customer) => (
                 <TableRow key={customer._id}>
@@ -152,9 +163,14 @@ const Customers = () => {
                   <TableCell>{customer.gstNumber || 'N/A'}</TableCell>
                   <TableCell>{customer.state ? `${customer.state} (${customer.stateCode})` : 'N/A'}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1 items-center">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(customer._id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

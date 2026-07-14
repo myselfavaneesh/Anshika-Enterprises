@@ -183,8 +183,8 @@ const NewQuotation = () => {
               <CardTitle>Add Products</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-4 items-end">
-                <div className="flex-1 space-y-2">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end w-full">
+                <div className="w-full space-y-2">
                   <label className="text-sm font-medium">Product</label>
                   <select 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
@@ -200,11 +200,11 @@ const NewQuotation = () => {
                   <Input type="number" min="1" value={quantityInput} onChange={e => setQuantityInput(e.target.value)} />
                 </div>
                 
-                <Button onClick={addToCart} disabled={!selectedProductId}><Plus className="mr-2 h-4 w-4" /> Add</Button>
+                <Button onClick={addToCart} disabled={!selectedProductId} className="w-full sm:w-auto mt-2 sm:mt-0"><Plus className="mr-2 h-4 w-4" /> Add</Button>
               </div>
 
-              <div className="mt-6">
-                <Table>
+              <div className="mt-6 overflow-x-auto rounded-md border">
+                <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>

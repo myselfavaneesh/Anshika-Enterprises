@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import Product from '../models/Product';
-import ProductUnit from '../models/ProductUnit';
+import prisma from '../prisma';
 import { logger } from '../utils/logger';
+import { mapToMongoose } from '../utils/mapper';
 
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -10,34 +10,40 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     const skip = (page - 1) * limit;
 
     const sort = (req.query.sort as string) || 'createdAt';
-    const order = (req.query.order as string) === 'desc' ? -1 : 1;
+    const order = (req.query.order as string) === 'desc' ? 'desc' : 'asc';
 
-    const categoryId = req.query.categoryId as string;
-    const search = req.query.q as string;
+    const categoryId = typeof req.query.categoryId === 'string' ? req.query.categoryId : undefined;
+    const search = typeof req.query.q === 'string' ? req.query.q : undefined;
 
-    const query: any = {};
+    const where: any = {};
 
     if (categoryId) {
-      query.categoryId = categoryId;
+      where.categoryId = categoryId;
     }
 
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } }
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } }
       ];
     }
 
-    const total = await Product.countDocuments(query);
-    const products = await Product.find(query)
-      .populate('categoryId')
-      .sort({ [sort]: order })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const total = await prisma.product.count({ where });
+    const products = await prisma.product.findMany({
+      where,
+      include: { category: true },
+      orderBy: { [sort]: order },
+      skip,
+      take: limit,
+    });
+
+    const mappedProducts = products.map(p => {
+      const { category, ...rest } = p as any;
+      return mapToMongoose({ ...rest, categoryId: category });
+    });
 
     res.json({
-      data: products,
+      data: mappedProducts,
       pagination: {
         total,
         page,
@@ -53,19 +59,27 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { categoryId, name, sku, lowStockThreshold } = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate } = req.body;
     
-    const existingSku = await Product.findOne({ sku });
+    const existingSku = await prisma.product.findUnique({ where: { sku } });
     if (existingSku) {
       res.status(400).json({ error: 'SKU already exists' });
       return;
     }
 
-    const product = new Product({ categoryId, name, sku, lowStockThreshold });
-    await product.save();
+    const product = await prisma.product.create({
+      data: {
+        categoryId,
+        name,
+        sku,
+        lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : 5,
+        hsnCode,
+        gstRate: gstRate !== undefined ? Number(gstRate) : 0,
+      }
+    });
 
-    logger.info('Product created successfully', { productId: product._id, name, sku });
-    res.status(201).json(product);
+    logger.info('Product created successfully', { productId: product.id, name, sku });
+    res.status(201).json(mapToMongoose(product));
   } catch (error: any) {
     logger.error('Error creating product', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -75,16 +89,29 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate } = req.body;
     
-    const product = await Product.findByIdAndUpdate(id, updates, { new: true });
-    if (!product) {
-      res.status(404).json({ error: 'Product not found' });
-      return;
+    try {
+      const product = await prisma.product.update({
+        where: { id: id as string },
+        data: {
+          categoryId,
+          name,
+          sku,
+          ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
+          hsnCode,
+          ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
+        }
+      });
+      logger.info('Product updated successfully', { productId: id });
+      res.json(mapToMongoose(product));
+    } catch (e: any) {
+      if (e.code === 'P2025') {
+        res.status(404).json({ error: 'Product not found' });
+      } else {
+        throw e;
+      }
     }
-    
-    logger.info('Product updated successfully', { productId: id });
-    res.json(product);
   } catch (error: any) {
     logger.error('Error updating product', { productId: req.params.id, error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -95,20 +122,23 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
   try {
     const { id } = req.params;
     
-    const unitCount = await ProductUnit.countDocuments({ productId: id });
+    const unitCount = await prisma.productUnit.count({ where: { productId: id as string } });
     if (unitCount > 0) {
       res.status(400).json({ error: 'Cannot delete product because it has inventory or sales history.' });
       return;
     }
 
-    const product = await Product.findByIdAndDelete(id);
-    if (!product) {
-      res.status(404).json({ error: 'Product not found' });
-      return;
+    try {
+      await prisma.product.delete({ where: { id: id as string } });
+      logger.info('Product deleted successfully', { productId: id });
+      res.json({ message: 'Product deleted' });
+    } catch (e: any) {
+      if (e.code === 'P2025') {
+        res.status(404).json({ error: 'Product not found' });
+      } else {
+        throw e;
+      }
     }
-    
-    logger.info('Product deleted successfully', { productId: id });
-    res.json({ message: 'Product deleted' });
   } catch (error: any) {
     logger.error('Error deleting product', { productId: req.params.id, error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });

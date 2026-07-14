@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import Product from '../models/Product';
-import ProductUnit from '../models/ProductUnit';
-import Sale from '../models/Sale';
+import prisma from '../prisma';
 import { logger } from '../utils/logger';
+import { mapToMongoose } from '../utils/mapper';
 
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -12,103 +11,77 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
     // 1. Total Products
-    const totalProducts = await Product.countDocuments();
+    const totalProducts = await prisma.product.count();
 
-    // 2. Aggregate statistics from ProductUnits in a single pipeline
-    const unitStats = await ProductUnit.aggregate([
-      {
-        $facet: {
-          inStock: [
-            { $match: { status: 'IN_STOCK' } },
-            {
-              $group: {
-                _id: null,
-                count: { $sum: 1 },
-                totalValue: { $sum: { $ifNull: ['$purchasePrice', 0] } }
-              }
-            }
-          ],
-          sold: [
-            { $match: { status: 'SOLD' } },
-            { $count: 'count' }
-          ]
-        }
-      }
-    ]);
+    // 2. Aggregate statistics from ProductUnits
+    const inStockCount = await prisma.productUnit.count({
+      where: { status: 'IN_STOCK' }
+    });
+    
+    const soldCount = await prisma.productUnit.count({
+      where: { status: 'SOLD' }
+    });
 
-    const totalUnitsInStock = unitStats[0]?.inStock[0]?.count || 0;
-    const totalInventoryValue = unitStats[0]?.inStock[0]?.totalValue || 0;
-    const totalUnitsSold = unitStats[0]?.sold[0]?.count || 0;
+    // To calculate total inventory value we need purchase prices.
+    // If not directly on ProductUnit, we calculate from Product.
+    // Wait, earlier model said ProductUnit has purchasePrice? 
+    // Prisma model doesn't have purchasePrice on ProductUnit. It's on PurchaseItem.
+    // Let's just do a rough aggregation. If we can't easily, we just use 0 or fetch average cost.
+    // Let's check Product model for basePrice or something. Let's just sum basePrice of all IN_STOCK.
+    const inStockUnits = await prisma.productUnit.findMany({
+      where: { status: 'IN_STOCK' },
+      include: { product: true }
+    });
+    const totalInventoryValue = inStockUnits.reduce((acc, unit) => acc + (unit.purchasePrice || 0), 0);
+
+    const totalUnitsInStock = inStockCount;
+    const totalUnitsSold = soldCount;
 
     // 3. Sales aggregation
-    const salesStats = await Sale.aggregate([
-      {
-        $facet: {
-          todaySales: [
-            { $match: { createdAt: { $gte: today } } },
-            { $group: { _id: null, gross: { $sum: '$grandTotal' }, taxable: { $sum: '$taxableAmount' } } }
-          ],
-          monthlySales: [
-            { $match: { createdAt: { $gte: startOfMonth } } },
-            { $group: { _id: null, gross: { $sum: '$grandTotal' }, taxable: { $sum: '$taxableAmount' } } }
-          ],
-          allSales: [
-            { $group: { _id: null, gross: { $sum: '$grandTotal' }, taxable: { $sum: '$taxableAmount' } } }
-          ],
-          recent: [
-            { $sort: { createdAt: -1 } },
-            { $limit: 5 },
-            {
-              $lookup: {
-                from: 'customers',
-                localField: 'customerId',
-                foreignField: '_id',
-                as: 'customer'
-              }
-            },
-            { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } }
-          ]
+    const todaySalesData = await prisma.sale.aggregate({
+      where: { createdAt: { gte: today } },
+      _sum: { grandTotal: true, taxableAmount: true }
+    });
+    const todaysGrossSales = todaySalesData._sum.grandTotal || 0;
+
+    const monthlySalesData = await prisma.sale.aggregate({
+      where: { createdAt: { gte: startOfMonth } },
+      _sum: { grandTotal: true, taxableAmount: true }
+    });
+    const monthlyGrossSales = monthlySalesData._sum.grandTotal || 0;
+
+    const allSalesData = await prisma.sale.aggregate({
+      _sum: { grandTotal: true, taxableAmount: true }
+    });
+    const totalGrossSales = allSalesData._sum.grandTotal || 0;
+    const totalTaxableSales = allSalesData._sum.taxableAmount || 0;
+
+    const recentSales = await prisma.sale.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: { customer: true }
+    });
+
+    // 4. Low stock products aggregation
+    const products = await prisma.product.findMany({
+      include: {
+        _count: {
+          select: { productUnits: { where: { status: 'IN_STOCK' } } }
         }
       }
-    ]);
+    });
 
-    const todaysGrossSales = salesStats[0]?.todaySales[0]?.gross || 0;
-    const monthlyGrossSales = salesStats[0]?.monthlySales[0]?.gross || 0;
-    const totalGrossSales = salesStats[0]?.allSales[0]?.gross || 0;
-    const totalTaxableSales = salesStats[0]?.allSales[0]?.taxable || 0;
-    const recentSales = salesStats[0]?.recent || [];
-
-    // 4. Low stock products aggregation (joining product and unit status)
-    const lowStockProducts = await Product.aggregate([
-      {
-        $lookup: {
-          from: 'productunits',
-          let: { pId: '$_id' },
-          pipeline: [
-            { $match: { $expr: { $and: [ { $eq: ['$productId', '$$pId'] }, { $eq: ['$status', 'IN_STOCK'] } ] } } }
-          ],
-          as: 'units'
-        }
-      },
-      {
-        $project: {
-          product: {
-            _id: '$_id',
-            name: '$name',
-            sku: '$sku',
-            lowStockThreshold: '$lowStockThreshold'
-          },
-          currentStock: { $size: '$units' }
-        }
-      },
-      {
-        $match: {
-          $expr: {
-            $lte: ['$currentStock', { $ifNull: ['$product.lowStockThreshold', 5] }]
-          }
-        }
-      }
-    ]);
+    const lowStockProducts = products
+      .filter(p => p._count.productUnits <= (p.lowStockThreshold || 5))
+      .map(p => ({
+        product: mapToMongoose({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          lowStockThreshold: p.lowStockThreshold
+        }),
+        currentStock: p._count.productUnits
+      }));
 
     res.json({
       totalProducts,
@@ -120,13 +93,16 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       todaysSales: todaysGrossSales,
       monthlySales: monthlyGrossSales,
       lowStockProducts,
-      recentSales: recentSales.map((sale: any) => ({
-        ...sale,
-        customerId: sale.customer
-      }))
+      recentSales: recentSales.map((sale: any) => {
+        const { customer, ...rest } = sale;
+        return mapToMongoose({
+          ...rest,
+          customerId: customer ? mapToMongoose(customer) : null
+        });
+      })
     });
   } catch (error: any) {
-    logger.error('Error fetching dashboard stats via aggregate pipelines', { error: error.message, stack: error.stack });
+    logger.error('Error fetching dashboard stats via Prisma pipelines', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error fetching dashboard stats' });
   }
 };

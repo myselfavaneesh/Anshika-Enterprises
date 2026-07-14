@@ -1,96 +1,69 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import Payment from '../models/Payment';
-import Customer from '../models/Customer';
-import Supplier from '../models/Supplier';
-import Sale from '../models/Sale';
-import Purchase from '../models/Purchase';
+import prisma from '../prisma';
+import { logger } from '../utils/logger';
+import { mapToMongoose } from '../utils/mapper';
 
 // Record a new payment and update the ledger balance securely
 export const recordPayment = async (req: Request, res: Response): Promise<void> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { entityType, entityId, type, amount, paymentMode, referenceId, notes } = req.body;
 
     if (!['CUSTOMER', 'SUPPLIER'].includes(entityType)) {
-      throw new Error('Invalid entityType. Must be CUSTOMER or SUPPLIER');
+      res.status(400).json({ error: 'Invalid entityType. Must be CUSTOMER or SUPPLIER' });
+      return;
     }
     if (!['MONEY_IN', 'MONEY_OUT'].includes(type)) {
-      throw new Error('Invalid type. Must be MONEY_IN or MONEY_OUT');
+      res.status(400).json({ error: 'Invalid type. Must be MONEY_IN or MONEY_OUT' });
+      return;
     }
 
-    // 1. Create the payment record
-    const payment = new Payment({
-      entityType,
-      entityId,
-      type,
-      amount: Number(amount),
-      paymentMode,
-      referenceId,
-      notes,
+    const numAmount = Number(amount);
+
+    const payment = await prisma.$transaction(async (tx) => {
+      // 1. Create the payment record
+      const newPayment = await tx.payment.create({
+        data: {
+          entityType,
+          entityId,
+          type,
+          amount: numAmount,
+          paymentMode,
+          referenceId,
+          notes,
+        }
+      });
+      
+      // 2. Update the outstanding balance
+      let balanceChange = 0;
+      if (entityType === 'CUSTOMER') {
+        balanceChange = type === 'MONEY_IN' ? -numAmount : numAmount;
+        await tx.customer.update({
+          where: { id: entityId },
+          data: { outstandingBalance: { increment: balanceChange } }
+        });
+      } else if (entityType === 'SUPPLIER') {
+        balanceChange = type === 'MONEY_OUT' ? -numAmount : numAmount;
+        await tx.supplier.update({
+          where: { id: entityId },
+          data: { outstandingBalance: { increment: balanceChange } }
+        });
+      }
+
+      return newPayment;
     });
-    
-    await payment.save({ session });
 
-    // 2. Update the outstanding balance
-    // MONEY_IN means we received money (decreases customer due, or means we got a refund from supplier)
-    // MONEY_OUT means we paid money (increases customer due if refund, or decreases supplier due)
-    
-    // Ledger Logic: 
-    // For CUSTOMER: 
-    //   Outstanding Balance is what they owe us.
-    //   MONEY_IN (Customer pays us) -> Decreases balance
-    //   MONEY_OUT (We refund customer) -> Increases balance
-    
-    // For SUPPLIER:
-    //   Outstanding Balance is what we owe them.
-    //   MONEY_OUT (We pay supplier) -> Decreases balance
-    //   MONEY_IN (Supplier refunds us) -> Increases balance
-
-    let balanceChange = 0;
-    if (entityType === 'CUSTOMER') {
-      balanceChange = type === 'MONEY_IN' ? -amount : amount;
-      
-      const updatedCustomer = await Customer.findByIdAndUpdate(
-        entityId,
-        { $inc: { outstandingBalance: balanceChange } },
-        { session, new: true }
-      );
-      if (!updatedCustomer) throw new Error('Customer not found');
-
-    } else if (entityType === 'SUPPLIER') {
-      balanceChange = type === 'MONEY_OUT' ? -amount : amount;
-      
-      const updatedSupplier = await Supplier.findByIdAndUpdate(
-        entityId,
-        { $inc: { outstandingBalance: balanceChange } },
-        { session, new: true }
-      );
-      if (!updatedSupplier) throw new Error('Supplier not found');
-    }
-
-    await session.commitTransaction();
-    session.endSession();
-
-    res.status(201).json(payment);
+    res.status(201).json(mapToMongoose(payment));
   } catch (error: any) {
-    await session.abortTransaction();
-    session.endSession();
+    logger.error('Error in recordPayment transaction:', { error: error.message, stack: error.stack });
     
-    console.error('Error in recordPayment transaction:', error);
-    
-    // Fallback for Standalone MongoDB clusters (which don't support transactions)
-    if (error.message && error.message.includes('Transaction numbers are only allowed on a replica set member or mongos')) {
-       // Attempt non-transactional fallback if required, but for strict integrity we just return error
-       res.status(500).json({ error: 'MongoDB Replica Set required for Ledger Transactions. Please configure MongoDB.' });
-       return;
-    }
-
-    if (error.code === 11000 && error.keyPattern && error.keyPattern.referenceId) {
+    if (error.code === 'P2002' && error.meta?.target?.includes('referenceId')) {
       res.status(400).json({ error: 'This UPI/Bank Reference Number has already been used in another transaction.' });
       return;
+    }
+    
+    if (error.code === 'P2025') {
+       res.status(404).json({ error: 'Entity (Customer/Supplier) not found' });
+       return;
     }
 
     res.status(400).json({ error: error.message || 'Error recording payment' });
@@ -102,58 +75,24 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
   try {
     const { entityId, entityType } = req.query;
     
-    if (!entityId || !entityType) {
+    if (!entityId || typeof entityId !== 'string' || !entityType || typeof entityType !== 'string') {
        res.status(400).json({ error: 'entityId and entityType are required' });
        return;
     }
 
-    const payments = await Payment.find({ 
-      entityId: entityId as any, 
-      entityType: entityType as any 
-    }).lean();
+    const payments = await prisma.payment.findMany({ 
+      where: { 
+        entityId: entityId as string, 
+        entityType: entityType as string
+      }
+    });
 
     let invoices: any[] = [];
     if (entityType === 'CUSTOMER') {
-      invoices = await Sale.find({ customerId: entityId as any }).lean();
+      invoices = await prisma.sale.findMany({ where: { customerId: entityId as string } });
     } else if (entityType === 'SUPPLIER') {
-      invoices = await Purchase.find({ supplierId: entityId as any }).lean();
+      invoices = await prisma.purchase.findMany({ where: { supplierId: entityId as string } });
     }
-
-    // Transform payments
-    const ledgerEntries = payments.map(p => ({
-      _id: p._id,
-      date: p.createdAt,
-      type: 'PAYMENT',
-      description: `Payment (${p.paymentMode})`,
-      reference: p.referenceId || '-',
-      amountIn: p.type === 'MONEY_IN' ? p.amount : 0,
-      amountOut: p.type === 'MONEY_OUT' ? p.amount : 0,
-    }));
-
-    // Transform invoices
-    const invoiceEntries = invoices.map(inv => {
-      if (entityType === 'CUSTOMER') {
-        return {
-          _id: inv._id,
-          date: inv.createdAt,
-          type: 'SALE',
-          description: 'Sale Invoice',
-          reference: inv.invoiceNumber,
-          amountIn: 0,
-          amountOut: inv.grandTotal, // Sale increases what they owe us (like MONEY_OUT from our perspective? No, "amountOut" = they owe us more? Let's use debit/credit)
-        };
-      } else {
-        return {
-          _id: inv._id,
-          date: inv.createdAt,
-          type: 'PURCHASE',
-          description: 'Purchase Invoice',
-          reference: inv.purchaseInvoiceNumber,
-          amountIn: inv.grandTotal, // Purchase means we owe them more
-          amountOut: 0,
-        };
-      }
-    });
 
     // We need standard Debit/Credit for Khata:
     // For Customer: 
@@ -167,7 +106,8 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
     const allEntries = payments.map(p => {
        const isCustomer = entityType === 'CUSTOMER';
        return {
-         id: p._id,
+         id: p.id,
+         _id: p.id, // Compatibility for frontend
          date: p.createdAt,
          type: 'PAYMENT',
          description: `Payment (${p.paymentMode})`,
@@ -179,7 +119,8 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
       invoices.map(inv => {
         const isCustomer = entityType === 'CUSTOMER';
         return {
-          id: inv._id,
+          id: inv.id,
+          _id: inv.id, // Compatibility for frontend
           date: inv.createdAt,
           type: isCustomer ? 'SALE' : 'PURCHASE',
           description: isCustomer ? 'Sale Invoice' : 'Purchase Invoice',
@@ -213,56 +154,49 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
     ledgerWithBalance.reverse();
 
     res.status(200).json(ledgerWithBalance);
-  } catch (error) {
-    console.error('Error fetching ledger:', error);
+  } catch (error: any) {
+    logger.error('Error fetching ledger:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Error fetching ledger' });
   }
 };
 
 export const deletePayment = async (req: Request, res: Response): Promise<void> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { id } = req.params;
-    const payment = await Payment.findById(id).session(session);
-    
-    if (!payment) {
+
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({ where: { id: id as string } });
+      
+      if (!payment) {
+        throw new Error('NOT_FOUND');
+      }
+
+      // Revert balance
+      let balanceChange = 0;
+      if (payment.entityType === 'CUSTOMER') {
+        balanceChange = payment.type === 'MONEY_IN' ? payment.amount : -payment.amount;
+        await tx.customer.update({
+          where: { id: payment.entityId },
+          data: { outstandingBalance: { increment: balanceChange } }
+        });
+      } else if (payment.entityType === 'SUPPLIER') {
+        balanceChange = payment.type === 'MONEY_OUT' ? payment.amount : -payment.amount;
+        await tx.supplier.update({
+          where: { id: payment.entityId },
+          data: { outstandingBalance: { increment: balanceChange } }
+        });
+      }
+
+      await tx.payment.delete({ where: { id: payment.id } });
+    });
+
+    res.json({ message: 'Payment deleted successfully' });
+  } catch (error: any) {
+    if (error.message === 'NOT_FOUND') {
       res.status(404).json({ error: 'Payment not found' });
       return;
     }
-
-    // Revert balance
-    let balanceChange = 0;
-    if (payment.entityType === 'CUSTOMER') {
-      // Original logic: MONEY_IN (-amount), MONEY_OUT (+amount)
-      // Reverse: MONEY_IN (+amount), MONEY_OUT (-amount)
-      balanceChange = payment.type === 'MONEY_IN' ? payment.amount : -payment.amount;
-      await Customer.findByIdAndUpdate(
-        payment.entityId,
-        { $inc: { outstandingBalance: balanceChange } },
-        { session }
-      );
-    } else if (payment.entityType === 'SUPPLIER') {
-      // Original logic: MONEY_OUT (-amount), MONEY_IN (+amount)
-      // Reverse: MONEY_OUT (+amount), MONEY_IN (-amount)
-      balanceChange = payment.type === 'MONEY_OUT' ? payment.amount : -payment.amount;
-      await Supplier.findByIdAndUpdate(
-        payment.entityId,
-        { $inc: { outstandingBalance: balanceChange } },
-        { session }
-      );
-    }
-
-    await Payment.deleteOne({ _id: payment._id }, { session });
-
-    await session.commitTransaction();
-    session.endSession();
-    res.json({ message: 'Payment deleted successfully' });
-  } catch (error: any) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error('Error deleting payment:', error);
+    logger.error('Error deleting payment:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'Server error' });
   }
 };

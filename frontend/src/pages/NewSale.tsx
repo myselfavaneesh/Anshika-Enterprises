@@ -278,8 +278,8 @@ export default function NewSale() {
               <CardTitle className="text-lg">Cart Items</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-4 items-center mb-6">
-                <div className="flex-1">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 w-full">
+                <div className="w-full">
                   <Input 
                     list="products-list"
                     placeholder="Scan or Search Product... (Press Enter to open serials)"
@@ -296,14 +296,14 @@ export default function NewSale() {
                   onClick={() => setIsSerialsDialogOpen(true)}
                   disabled={!selectedProductId || availableSerials.length === 0}
                   variant="secondary"
-                  className="h-10"
+                  className="h-10 w-full sm:w-auto"
                 >
                   Serials ({selectedSerials.length})
                 </Button>
               </div>
 
-              <div className="rounded-md border overflow-hidden">
-                <Table>
+              <div className="rounded-md border overflow-x-auto">
+                <Table className="min-w-[600px]">
                   <TableHeader className="bg-slate-50">
                     <TableRow>
                       <TableHead>Product</TableHead>
@@ -476,7 +476,7 @@ export default function NewSale() {
           <DialogHeader>
             <DialogTitle>Select Serial Numbers</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 max-h-[60vh] overflow-y-auto p-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 max-h-[60vh] overflow-y-auto p-2">
             {availableSerials.length === 0 ? (
               <p className="col-span-full text-center text-muted-foreground py-8">No serial numbers in stock</p>
             ) : (

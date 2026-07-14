@@ -113,8 +113,8 @@ const Inventory = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-1 w-full gap-4 items-center max-w-lg">
-          <div className="flex flex-1 items-center gap-2 bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm">
+        <div className="flex flex-col sm:flex-row flex-1 w-full gap-4 sm:items-center max-w-lg">
+          <div className="flex flex-1 items-center gap-2 bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm w-full">
             <Search className="h-4 w-4 text-slate-400" />
             <input 
               type="text"
@@ -130,7 +130,7 @@ const Inventory = () => {
             )}
           </div>
           
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <select 
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={stockStatusFilter}

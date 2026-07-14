@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -21,6 +21,7 @@ export default function Parties() {
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ 
     name: '', phone: '', address: '', gstNumber: '', state: '', stateCode: '', outstandingBalance: 0 
   });
@@ -30,24 +31,67 @@ export default function Parties() {
   const { data: suppliers = [], mutate: mutateSuppliers } = useSWR('/suppliers', fetcher);
 
   const resetForm = () => {
+    setEditingId(null);
     setFormData({ name: '', phone: '', address: '', gstNumber: '', state: '', stateCode: '', outstandingBalance: 0 });
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (activeTab === 'customers') {
-        await api.post('/customers', formData);
-        mutateCustomers();
+      if (editingId) {
+        if (activeTab === 'customers') {
+          await api.put(`/customers/${editingId}`, formData);
+          mutateCustomers();
+        } else {
+          await api.put(`/suppliers/${editingId}`, formData);
+          mutateSuppliers();
+        }
       } else {
-        await api.post('/suppliers', formData);
-        mutateSuppliers();
+        if (activeTab === 'customers') {
+          await api.post('/customers', formData);
+          mutateCustomers();
+        } else {
+          await api.post('/suppliers', formData);
+          mutateSuppliers();
+        }
       }
       setIsAddModalOpen(false);
       resetForm();
     } catch (error) {
-      console.error('Error adding party', error);
+      console.error('Error saving party', error);
       alert('Failed to save');
+    }
+  };
+
+  const handleEdit = (party: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(party._id);
+    setFormData({
+      name: party.name,
+      phone: party.phone || '',
+      address: party.address || '',
+      gstNumber: party.gstNumber || '',
+      state: party.state || '',
+      stateCode: party.stateCode || '',
+      outstandingBalance: party.outstandingBalance || 0
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleDelete = async (id: string, type: 'customers' | 'suppliers', e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`Are you sure you want to delete this ${type === 'customers' ? 'customer' : 'supplier'}?`)) {
+      try {
+        if (type === 'customers') {
+          await api.delete(`/customers/${id}`);
+          mutateCustomers();
+        } else {
+          await api.delete(`/suppliers/${id}`);
+          mutateSuppliers();
+        }
+      } catch (error: any) {
+        alert(error.response?.data?.error || 'Failed to delete');
+      }
     }
   };
 
@@ -94,9 +138,17 @@ export default function Parties() {
                       {formatCurrency(Math.abs(bal))} <span className="text-xs opacity-80">{bal !== 0 && balLabel}</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/parties/${type}/${party._id}/ledger`); }}>
-                        View Statement
-                      </Button>
+                      <div className="flex justify-end gap-1 items-center">
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/parties/${type}/${party._id}/ledger`); }}>
+                          Statement
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={(e) => handleEdit(party, e)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={(e) => handleDelete(party._id, type, e)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -110,19 +162,19 @@ export default function Parties() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Khata Book</h2>
         
         <Dialog open={isAddModalOpen} onOpenChange={(open) => { setIsAddModalOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" /> 
               Add {activeTab === 'customers' ? 'Customer' : 'Supplier'}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New {activeTab === 'customers' ? 'Customer' : 'Supplier'}</DialogTitle>
+              <DialogTitle>{editingId ? 'Edit' : 'Add New'} {activeTab === 'customers' ? 'Customer' : 'Supplier'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddSubmit} className="space-y-4 pt-4">
               <div className="space-y-2">
@@ -162,7 +214,7 @@ export default function Parties() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)}>
-        <TabsList className="grid w-[400px] grid-cols-2">
+        <TabsList className="grid w-full sm:w-[400px] grid-cols-2">
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
         </TabsList>

@@ -11,6 +11,7 @@ import Sales from './pages/Sales';
 import NewSale from './pages/NewSale';
 import Quotations from './pages/Quotations';
 import NewQuotation from './pages/NewQuotation';
+import EditQuotation from './pages/EditQuotation';
 import PrintInvoice from './pages/PrintInvoice';
 import Parties from './pages/Parties';
 import PartyLedger from './pages/PartyLedger';
@@ -39,6 +40,7 @@ function App() {
             <Route path="sales/new" element={<NewSale />} />
             <Route path="quotations" element={<Quotations />} />
             <Route path="quotations/new" element={<NewQuotation />} />
+            <Route path="quotations/:id/edit" element={<EditQuotation />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />

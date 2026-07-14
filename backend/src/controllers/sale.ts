@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import Sale from '../models/Sale';
-import SaleItem from '../models/SaleItem';
-import ProductUnit from '../models/ProductUnit';
-import Customer from '../models/Customer';
+import prisma from '../prisma';
 import { SaleService } from '../services/saleService';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { logger } from '../utils/logger';
+import { mapToMongoose } from '../utils/mapper';
 
 const SaleItemSchema = z.object({
   productId: z.string(),
@@ -38,7 +36,7 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
 
     const sale = await SaleService.createSale(validatedData);
 
-    res.status(201).json(sale);
+    res.status(201).json(mapToMongoose(sale));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
@@ -55,37 +53,49 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const search = req.query.q as string;
-    const status = req.query.status as string;
+    const search = typeof req.query.q === 'string' ? req.query.q : undefined;
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
 
-    const query: any = {};
+    const where: any = {};
 
     if (status) {
-      query.status = status;
+      where.status = status;
     }
 
     if (search) {
-      const customers = await Customer.find({
-        name: { $regex: search, $options: 'i' }
-      }).select('_id').lean();
-      const customerIds = customers.map(c => c._id);
+      const customers = await prisma.customer.findMany({
+        where: { 
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search, mode: 'insensitive' } }
+          ]
+        },
+        select: { id: true }
+      });
+      const customerIds = customers.map(c => c.id);
 
-      query.$or = [
-        { invoiceNumber: { $regex: search, $options: 'i' } },
-        { customerId: { $in: customerIds } }
+      where.OR = [
+        { invoiceNumber: { contains: search, mode: 'insensitive' } },
+        { customerId: { in: customerIds } }
       ];
     }
 
-    const total = await Sale.countDocuments(query);
-    const sales = await Sale.find(query)
-      .populate('customerId')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const total = await prisma.sale.count({ where });
+    const sales = await prisma.sale.findMany({
+      where,
+      include: { customer: true },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    });
+
+    const mappedSales = sales.map(s => {
+      const { customer, ...rest } = s as any;
+      return mapToMongoose({ ...rest, customerId: customer });
+    });
 
     res.json({
-      data: sales,
+      data: mappedSales,
       pagination: {
         total,
         page,
@@ -102,24 +112,31 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
 export const downloadInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const sale = await Sale.findById(id).lean();
+    const sale = await prisma.sale.findUnique({ where: { id: id as string } });
     if (!sale) {
       res.status(404).json({ error: 'Sale not found' });
       return;
     }
 
-    const rawItems = await SaleItem.find({ saleId: id }).populate('productId').lean();
-    const customer = await Customer.findById(sale.customerId).lean();
+    const rawItems = await prisma.saleItem.findMany({
+      where: { saleId: id as string },
+      include: { product: true }
+    });
+    
+    const customer = await prisma.customer.findUnique({ where: { id: sale.customerId } });
 
     const items = await Promise.all(rawItems.map(async (item) => {
-      const units = await ProductUnit.find({ saleItemId: item._id }).select('serialNumber').lean();
+      const units = await prisma.productUnit.findMany({
+        where: { saleItemId: item.id },
+        select: { serialNumber: true }
+      });
       return {
-        ...item,
+        ...mapToMongoose(item),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
 
-    const pdfBuffer = await generateInvoicePDF(sale, items, customer);
+    const pdfBuffer = await generateInvoicePDF(mapToMongoose(sale), items, mapToMongoose(customer));
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="invoice-${sale.invoiceNumber}.pdf"`);
@@ -133,28 +150,35 @@ export const downloadInvoice = async (req: Request, res: Response): Promise<void
 export const getSaleById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const sale = await Sale.findById(id).lean();
+    const sale = await prisma.sale.findUnique({ where: { id: id as string } });
     if (!sale) {
       res.status(404).json({ error: 'Sale not found' });
       return;
     }
 
-    const rawItems = await SaleItem.find({ saleId: id }).populate('productId').lean();
-    const customer = await Customer.findById(sale.customerId).lean();
+    const rawItems = await prisma.saleItem.findMany({
+      where: { saleId: id as string },
+      include: { product: true }
+    });
+    const customer = await prisma.customer.findUnique({ where: { id: sale.customerId } });
 
     const items = await Promise.all(rawItems.map(async (item) => {
-      const units = await ProductUnit.find({ saleItemId: item._id }).select('serialNumber').lean();
+      const units = await prisma.productUnit.findMany({
+        where: { saleItemId: item.id },
+        select: { serialNumber: true }
+      });
       return {
-        ...item,
+        ...mapToMongoose(item),
+        productId: mapToMongoose((item as any).product),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
 
-    res.json({
+    res.json(mapToMongoose({
       ...sale,
-      customerId: customer,
+      customerId: customer ? mapToMongoose(customer) : null,
       items: items
-    });
+    }));
   } catch (error: any) {
     logger.error('Error fetching sale by id', { saleId: req.params.id, error: error.message });
     res.status(500).json({ error: 'Server error' });

@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Edit, Trash2, Search, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Products = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -17,34 +17,62 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-      
-    const matchesCategory = 
-      selectedCategoryFilter === '' || 
-      product.categoryId?._id === selectedCategoryFilter;
-      
-    return matchesSearch && matchesCategory;
-  });
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchProducts = async () => {
+    setIsLoading(true);
     try {
-      const [prodRes, catRes] = await Promise.all([
-        api.get('/products'),
-        api.get('/categories')
-      ]);
-      setProducts(prodRes.data.data || prodRes.data);
-      setCategories(catRes.data.data || catRes.data);
+      const res = await api.get('/products', {
+        params: {
+          page,
+          limit,
+          categoryId: selectedCategoryFilter || undefined,
+          q: searchTerm || undefined
+        }
+      });
+      setProducts(res.data.data || res.data);
+      if (res.data.pagination) {
+        setTotalPages(res.data.pagination.pages);
+      }
     } catch (error) {
-      console.error('Error fetching data', error);
+      console.error('Error fetching products', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/categories');
+      setCategories(res.data.data || res.data);
+    } catch (error) {
+      console.error('Error fetching categories', error);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchCategories();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProducts();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [page, limit, selectedCategoryFilter, searchTerm]);
+
+  useEffect(() => {
+    if (page !== 1) setPage(1);
+  }, [searchTerm, selectedCategoryFilter, limit]);
+
+  const fetchData = () => {
+    fetchProducts();
+  };
+
+  const filteredProducts = products;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,18 +127,18 @@ const Products = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Products</h2>
         <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
+            <Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> Add Product</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingId ? 'Edit Product' : 'Add New Product'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Name</label>
                   <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
@@ -152,8 +180,8 @@ const Products = () => {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-1 w-full gap-4 items-center max-w-lg">
-          <div className="flex flex-1 items-center gap-2 bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm">
+        <div className="flex flex-col sm:flex-row flex-1 w-full gap-4 sm:items-center max-w-lg">
+          <div className="flex flex-1 items-center gap-2 bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm w-full">
             <Search className="h-4 w-4 text-slate-400" />
             <input 
               type="text"
@@ -169,7 +197,7 @@ const Products = () => {
             )}
           </div>
           
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <select 
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={selectedCategoryFilter}
@@ -195,8 +223,24 @@ const Products = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center">No products found.</TableCell></TableRow>
+            {isLoading ? (
+              Array.from({ length: limit }).map((_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  <TableCell><div className="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-48 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-32 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <div className="h-8 w-8 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div>
+                      <div className="h-8 w-8 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : filteredProducts.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center">No products found.</TableCell></TableRow>
             ) : (
               filteredProducts.map((product) => (
                 <TableRow key={product._id}>
@@ -219,6 +263,34 @@ const Products = () => {
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-slate-500">
+            Page {page} of {totalPages}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
