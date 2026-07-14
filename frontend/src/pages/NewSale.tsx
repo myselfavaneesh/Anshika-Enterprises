@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Trash2, Receipt } from 'lucide-react';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
@@ -279,10 +280,10 @@ export default function NewSale() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 w-full">
-                <div className="w-full">
+                <div className="w-full space-y-2">
                   <Input 
                     list="products-list"
-                    placeholder="Scan or Search Product... (Press Enter to open serials)"
+                    placeholder="Search Product by Name or SKU..."
                     value={productSearch}
                     onChange={e => setProductSearch(e.target.value)}
                     ref={productInputRef}
@@ -291,6 +292,13 @@ export default function NewSale() {
                   <datalist id="products-list">
                     {products.map(p => <option key={p._id} value={p.name}>{p.sku}</option>)}
                   </datalist>
+                  <BarcodeScanner 
+                    onScan={(decodedText) => {
+                      // If it's a barcode, we set it as the product search
+                      setProductSearch(decodedText);
+                    }} 
+                    buttonText="Scan Product SKU / Barcode (Camera)" 
+                  />
                 </div>
                 <Button 
                   onClick={() => setIsSerialsDialogOpen(true)}
@@ -476,6 +484,15 @@ export default function NewSale() {
           <DialogHeader>
             <DialogTitle>Select Serial Numbers</DialogTitle>
           </DialogHeader>
+          <div className="mb-4">
+            <BarcodeScanner 
+              onScan={(decodedText) => {
+                const found = availableSerials.find(s => s.serialNumber === decodedText);
+                if (found) toggleSerialSelection(decodedText);
+              }}
+              buttonText="Scan Serial Number (Camera)"
+            />
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 max-h-[60vh] overflow-y-auto p-2">
             {availableSerials.length === 0 ? (
               <p className="col-span-full text-center text-muted-foreground py-8">No serial numbers in stock</p>

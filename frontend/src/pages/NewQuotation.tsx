@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Trash2, Plus, Receipt } from 'lucide-react';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 
 
 const NewQuotation = () => {
@@ -17,6 +18,8 @@ const NewQuotation = () => {
   
   const [cart, setCart] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const productInputRef = useRef<HTMLInputElement>(null);
   
   // Serial numbers are not needed for quotations since inventory isn't deducted
   const [quantityInput, setQuantityInput] = useState('1');
@@ -41,6 +44,18 @@ const NewQuotation = () => {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const foundProduct = products.find(p => 
+      p.name.toLowerCase() === productSearch.toLowerCase() || 
+      p.sku === productSearch
+    );
+    if (foundProduct) {
+      setSelectedProductId(foundProduct._id);
+    } else {
+      setSelectedProductId('');
+    }
+  }, [productSearch, products]);
 
   const handleProductSelect = (productId: string) => {
     setSelectedProductId(productId);
@@ -75,6 +90,7 @@ const NewQuotation = () => {
     }
     
     setSelectedProductId('');
+    setProductSearch('');
     setQuantityInput('1');
   };
 
@@ -185,15 +201,23 @@ const NewQuotation = () => {
             <CardContent>
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end w-full">
                 <div className="w-full space-y-2">
-                  <label className="text-sm font-medium">Product</label>
-                  <select 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    value={selectedProductId}
-                    onChange={e => handleProductSelect(e.target.value)}
-                  >
-                    <option value="">Select Product...</option>
-                    {products.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-                  </select>
+                  <Input 
+                    list="products-list"
+                    placeholder="Search Product by Name or SKU..."
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                    ref={productInputRef}
+                    className="text-lg font-medium"
+                  />
+                  <datalist id="products-list">
+                    {products.map(p => <option key={p._id} value={p.name}>{p.sku}</option>)}
+                  </datalist>
+                  <BarcodeScanner 
+                    onScan={(decodedText) => {
+                      setProductSearch(decodedText);
+                    }} 
+                    buttonText="Scan Product SKU / Barcode (Camera)" 
+                  />
                 </div>
                 <div className="w-24 space-y-2">
                   <label className="text-sm font-medium">Qty</label>

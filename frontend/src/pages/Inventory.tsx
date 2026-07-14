@@ -4,8 +4,9 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { Search, X, List, Plus, Minus } from 'lucide-react';
+import { Search, X, List, Plus, Minus, Camera } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 
 const Inventory = () => {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -227,6 +228,19 @@ const Inventory = () => {
                 onChange={e => setStockInForm({...stockInForm, serialNumbers: e.target.value})} 
                 placeholder="SN001, SN002, SN003..."
               />
+              <BarcodeScanner 
+                onScan={(decodedText) => {
+                  setStockInForm(prev => {
+                    const current = prev.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+                    if (!current.includes(decodedText)) {
+                      const newSerials = current.length > 0 ? prev.serialNumbers + ',\n' + decodedText : decodedText;
+                      return { ...prev, serialNumbers: newSerials };
+                    }
+                    return prev;
+                  });
+                }} 
+                buttonText="Scan Serial Numbers (Camera)" 
+              />
             </div>
             <Button type="submit" className="w-full">Confirm Stock In</Button>
           </form>
@@ -248,6 +262,19 @@ const Inventory = () => {
                 value={stockOutForm.serialNumbers} 
                 onChange={e => setStockOutForm({...stockOutForm, serialNumbers: e.target.value})} 
                 placeholder="SN001, SN002..."
+              />
+              <BarcodeScanner 
+                onScan={(decodedText) => {
+                  setStockOutForm(prev => {
+                    const current = prev.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+                    if (!current.includes(decodedText)) {
+                      const newSerials = current.length > 0 ? prev.serialNumbers + ',\n' + decodedText : decodedText;
+                      return { ...prev, serialNumbers: newSerials };
+                    }
+                    return prev;
+                  });
+                }} 
+                buttonText="Scan Serial Numbers (Camera)" 
               />
             </div>
             <Button type="submit" variant="destructive" className="w-full">Confirm Stock Out</Button>
