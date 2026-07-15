@@ -4,6 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Search, X, List, Plus, Minus } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { BarcodeScanner } from '../components/BarcodeScanner';
@@ -57,8 +58,31 @@ const Inventory = () => {
     }
   };
 
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
+
+  const fetchSuppliers = async () => {
+    try {
+      const response = await api.get('/suppliers');
+      setSuppliers(response.data.data || response.data);
+    } catch (error) {
+      console.error('Error fetching suppliers', error);
+    }
+  };
+
+  const fetchRecentPurchases = async () => {
+    try {
+      const response = await api.get('/purchases?limit=50');
+      setRecentPurchases(response.data.data || response.data);
+    } catch (error) {
+      console.error('Error fetching recent purchases', error);
+    }
+  };
+
   useEffect(() => {
     fetchInventory();
+    fetchSuppliers();
+    fetchRecentPurchases();
   }, []);
 
   const handleStockIn = async (e: React.FormEvent) => {
@@ -197,11 +221,35 @@ const Inventory = () => {
           <form onSubmit={handleStockIn} className="space-y-4 pt-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Purchase Invoice Number</label>
-              <Input required value={stockInForm.purchaseInvoiceNumber} onChange={e => setStockInForm({...stockInForm, purchaseInvoiceNumber: e.target.value})} />
+              <Input 
+                required 
+                list="recent-purchases"
+                value={stockInForm.purchaseInvoiceNumber} 
+                onChange={e => setStockInForm({...stockInForm, purchaseInvoiceNumber: e.target.value})} 
+                placeholder="Type or select recent..."
+              />
+              <datalist id="recent-purchases">
+                {recentPurchases.map(p => (
+                  <option key={p._id} value={p.purchaseInvoiceNumber}>
+                    {p.supplierId?.name ? `${p.supplierId.name} - ${new Date(p.createdAt).toLocaleDateString()}` : ''}
+                  </option>
+                ))}
+              </datalist>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Supplier Name</label>
-              <Input value={stockInForm.supplierName} onChange={e => setStockInForm({...stockInForm, supplierName: e.target.value})} />
+              <Select value={stockInForm.supplierName} onValueChange={(val) => setStockInForm({...stockInForm, supplierName: val})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Supplier" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map(supplier => (
+                    <SelectItem key={supplier.id} value={supplier.name}>
+                      {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-2 pt-2">
               <input 

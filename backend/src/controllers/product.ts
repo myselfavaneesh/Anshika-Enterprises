@@ -121,15 +121,16 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
 export const deleteProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    
-    const unitCount = await prisma.productUnit.count({ where: { productId: id as string } });
-    if (unitCount > 0) {
-      res.status(400).json({ error: 'Cannot delete product because it has inventory or sales history.' });
-      return;
-    }
-
     try {
-      await prisma.product.delete({ where: { id: id as string } });
+      await prisma.$transaction([
+        prisma.inventoryTransaction.deleteMany({ where: { productId: id as string } }),
+        prisma.inventory.deleteMany({ where: { productId: id as string } }),
+        prisma.productUnit.deleteMany({ where: { productId: id as string } }),
+        prisma.purchaseItem.deleteMany({ where: { productId: id as string } }),
+        prisma.quotationItem.deleteMany({ where: { productId: id as string } }),
+        prisma.saleItem.deleteMany({ where: { productId: id as string } }),
+        prisma.product.delete({ where: { id: id as string } })
+      ]);
       logger.info('Product deleted successfully', { productId: id });
       res.json({ message: 'Product deleted' });
     } catch (e: any) {
