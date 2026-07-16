@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
 import { Trash2, Plus, Receipt } from 'lucide-react';
-import { BarcodeScanner } from '../components/BarcodeScanner';
 
 
 const NewQuotation = () => {
