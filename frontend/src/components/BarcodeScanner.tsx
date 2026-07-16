@@ -33,6 +33,14 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
     }
   };
 
+  const onScanRef = useRef(onScan);
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
+  const lastScannedRef = useRef<string | null>(null);
+  const lastScannedTimeRef = useRef<number>(0);
+
   useEffect(() => {
     let mounted = true;
 
@@ -42,8 +50,16 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
         if (!mounted) return;
         
         if (result) {
+          const text = result.getText();
+          const now = Date.now();
+          if (text === lastScannedRef.current && now - lastScannedTimeRef.current < 2000) {
+            return; // debounce same barcode
+          }
+          lastScannedRef.current = text;
+          lastScannedTimeRef.current = now;
+
           playBeep();
-          onScan(result.getText());
+          onScanRef.current(text);
         }
         if (err && !(err instanceof NotFoundException)) {
           // Ignore not found exceptions, log others
@@ -58,7 +74,7 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
         codeReaderRef.current.reset();
       }
     };
-  }, [isScanning, onScan]);
+  }, [isScanning]);
 
   const stopScanning = () => {
     setIsScanning(false);

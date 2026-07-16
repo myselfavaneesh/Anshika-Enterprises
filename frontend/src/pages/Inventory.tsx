@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Search, X, List, Plus, Minus } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { BarcodeScanner } from '../components/BarcodeScanner';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Inventory = () => {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -32,29 +33,32 @@ const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState('ALL');
 
-  const filteredInventory = inventory.filter(inv => {
-    const product = inv.productId || {};
-    const matchesSearch = 
-      (product.name && product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    const lowStockThreshold = product.lowStockThreshold ?? 5;
-    let matchesStatus = true;
-    if (stockStatusFilter === 'LOW') {
-      matchesStatus = inv.quantity <= lowStockThreshold && inv.quantity > 0;
-    } else if (stockStatusFilter === 'OUT') {
-      matchesStatus = inv.quantity === 0;
-    }
-
-    return matchesSearch && matchesStatus;
-  });
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchInventory = async () => {
+    setIsLoading(true);
     try {
-      const response = await api.get('/inventory');
+      const response = await api.get('/inventory', {
+        params: {
+          page,
+          limit,
+          q: searchTerm || undefined,
+          status: stockStatusFilter !== 'ALL' ? stockStatusFilter : undefined
+        }
+      });
       setInventory(response.data.data || response.data);
+      if (response.data.pagination) {
+        setTotalPages(response.data.pagination.pages);
+      } else {
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error('Error fetching inventory', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -80,7 +84,17 @@ const Inventory = () => {
   };
 
   useEffect(() => {
-    fetchInventory();
+    const timer = setTimeout(() => {
+      fetchInventory();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [page, limit, searchTerm, stockStatusFilter]);
+
+  useEffect(() => {
+    if (page !== 1) setPage(1);
+  }, [searchTerm, stockStatusFilter, limit]);
+
+  useEffect(() => {
     fetchSuppliers();
     fetchRecentPurchases();
   }, []);
@@ -181,10 +195,20 @@ const Inventory = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredInventory.length === 0 ? (
+            {isLoading ? (
+              Array.from({ length: limit }).map((_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  <TableCell><div className="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-48 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell className="text-right"><div className="h-4 w-8 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
+                  <TableCell className="text-right"><div className="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
+                  <TableCell className="text-right"><div className="flex justify-end gap-2"><div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div><div className="h-8 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></div></TableCell>
+                </TableRow>
+              ))
+            ) : inventory.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="text-center">No inventory found.</TableCell></TableRow>
             ) : (
-              filteredInventory.map((inv) => (
+              inventory.map((inv) => (
                 <TableRow key={inv._id}>
                   <TableCell className="font-medium">{inv.productId?.sku}</TableCell>
                   <TableCell>{inv.productId?.name}</TableCell>
@@ -211,6 +235,34 @@ const Inventory = () => {
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-slate-500">
+            Page {page} of {totalPages}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Stock In Dialog */}
       <Dialog open={isOpenStockIn} onOpenChange={setIsOpenStockIn}>

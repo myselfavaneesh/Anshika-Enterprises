@@ -18,22 +18,30 @@ export const getInventory = async (req: Request, res: Response): Promise<void> =
       ];
     }
 
-    const skip = (page && limit) ? (page - 1) * limit : undefined;
-    const take = limit;
+    const status = req.query.status as string;
 
-    const total = await prisma.product.count({ where });
-
-    const products = await prisma.product.findMany({
+    let products = await prisma.product.findMany({
       where,
       include: {
         category: true,
         _count: {
           select: { productUnits: { where: { status: 'IN_STOCK' } } }
         }
-      },
-      skip,
-      take,
+      }
     });
+
+    if (status === 'LOW') {
+      products = products.filter(p => p._count.productUnits <= p.lowStockThreshold && p._count.productUnits > 0);
+    } else if (status === 'OUT') {
+      products = products.filter(p => p._count.productUnits === 0);
+    }
+
+    const total = products.length;
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      products = products.slice(skip, skip + limit);
+    }
 
     const formatted = products.map(item => ({
       _id: item.id,

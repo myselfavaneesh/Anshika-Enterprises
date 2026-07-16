@@ -48,7 +48,7 @@ export default function NewSale() {
       try {
         const [custRes, prodRes] = await Promise.all([
           api.get('/customers'),
-          api.get('/products')
+          api.get('/products?limit=10000')
         ]);
         setCustomers(custRes.data.data || custRes.data);
         setProducts(prodRes.data.data || prodRes.data);
@@ -68,7 +68,19 @@ export default function NewSale() {
 
   // Handle Product Selection
   useEffect(() => {
-    const p = products.find(p => p.name === productSearch || p.sku === productSearch);
+    if (!productSearch) {
+      setSelectedProductId('');
+      setAvailableSerials([]);
+      return;
+    }
+    const searchLower = productSearch.toLowerCase();
+    const p = products.find(prod => {
+      const name = prod.name?.toLowerCase() || '';
+      const sku = prod.sku?.toLowerCase() || '';
+      const combined = prod.sku ? `${name} (${sku})` : name;
+      return name === searchLower || sku === searchLower || combined === searchLower;
+    });
+
     if (p && p._id !== selectedProductId) {
       setSelectedProductId(p._id);
       fetchSerials(p._id);
@@ -290,15 +302,8 @@ export default function NewSale() {
                     className="text-lg font-medium"
                   />
                   <datalist id="products-list">
-                    {products.map(p => <option key={p._id} value={p.name}>{p.sku}</option>)}
+                    {products.map(p => <option key={p._id} value={p.sku ? `${p.name} (${p.sku})` : p.name} />)}
                   </datalist>
-                  <BarcodeScanner 
-                    onScan={(decodedText) => {
-                      // If it's a barcode, we set it as the product search
-                      setProductSearch(decodedText);
-                    }} 
-                    buttonText="Scan Product SKU / Barcode (Camera)" 
-                  />
                 </div>
                 <Button 
                   onClick={() => setIsSerialsDialogOpen(true)}

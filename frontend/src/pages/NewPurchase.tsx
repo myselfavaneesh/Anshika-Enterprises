@@ -50,7 +50,7 @@ export default function NewPurchase() {
       try {
         const [supRes, prodRes] = await Promise.all([
           api.get('/suppliers'),
-          api.get('/products')
+          api.get('/products?limit=10000')
         ]);
         setSuppliers(supRes.data.data || supRes.data);
         setProducts(prodRes.data.data || prodRes.data);
@@ -70,7 +70,18 @@ export default function NewPurchase() {
 
   // Handle Product Selection
   useEffect(() => {
-    const p = products.find(prod => prod.name === productSearch || prod.sku === productSearch);
+    if (!productSearch) {
+      setSelectedProductId('');
+      return;
+    }
+    const searchLower = productSearch.toLowerCase();
+    const p = products.find(prod => {
+      const name = prod.name?.toLowerCase() || '';
+      const sku = prod.sku?.toLowerCase() || '';
+      const combined = prod.sku ? `${name} (${sku})` : name;
+      return name === searchLower || sku === searchLower || combined === searchLower;
+    });
+
     if (p && p._id !== selectedProductId) {
       setSelectedProductId(p._id);
       setIsSerialsDialogOpen(true);
@@ -328,7 +339,7 @@ export default function NewPurchase() {
                 />
                 <datalist id="products-list">
                   {products.map(p => (
-                    <option key={p._id} value={p.name} />
+                    <option key={p._id} value={p.sku ? `${p.name} (${p.sku})` : p.name} />
                   ))}
                 </datalist>
               </div>

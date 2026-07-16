@@ -34,7 +34,7 @@ const NewQuotation = () => {
       try {
         const [custRes, prodRes] = await Promise.all([
           api.get('/customers'),
-          api.get('/products')
+          api.get('/products?limit=10000')
         ]);
         setCustomers(custRes.data.data || custRes.data);
         setProducts(prodRes.data.data || prodRes.data);
@@ -46,10 +46,17 @@ const NewQuotation = () => {
   }, []);
 
   useEffect(() => {
-    const foundProduct = products.find(p => 
-      p.name.toLowerCase() === productSearch.toLowerCase() || 
-      p.sku === productSearch
-    );
+    if (!productSearch) {
+      setSelectedProductId('');
+      return;
+    }
+    const searchLower = productSearch.toLowerCase();
+    const foundProduct = products.find(p => {
+      const name = p.name?.toLowerCase() || '';
+      const sku = p.sku?.toLowerCase() || '';
+      const combined = p.sku ? `${name} (${sku})` : name;
+      return name === searchLower || sku === searchLower || combined === searchLower;
+    });
     if (foundProduct) {
       setSelectedProductId(foundProduct._id);
     } else {
@@ -206,14 +213,8 @@ const NewQuotation = () => {
                     className="text-lg font-medium"
                   />
                   <datalist id="products-list">
-                    {products.map(p => <option key={p._id} value={p.name}>{p.sku}</option>)}
+                    {products.map(p => <option key={p._id} value={p.sku ? `${p.name} (${p.sku})` : p.name} />)}
                   </datalist>
-                  <BarcodeScanner 
-                    onScan={(decodedText) => {
-                      setProductSearch(decodedText);
-                    }} 
-                    buttonText="Scan Product SKU / Barcode (Camera)" 
-                  />
                 </div>
                 <div className="w-24 space-y-2">
                   <label className="text-sm font-medium">Qty</label>
