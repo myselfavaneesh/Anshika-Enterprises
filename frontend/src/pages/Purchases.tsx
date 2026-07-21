@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Trash2, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Search, X, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
 
 const Purchases = () => {
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -124,6 +124,11 @@ const Purchases = () => {
                   <TableCell className="text-right font-bold text-primary">₹{purchase.grandTotal.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" asChild title="Edit Purchase" className="text-slate-500 hover:text-slate-700">
+                        <Link to={`/purchases/${purchase.id || purchase._id}/edit`}>
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                      </Button>
                       <Button variant="ghost" size="icon" title="Delete Purchase" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(purchase._id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>

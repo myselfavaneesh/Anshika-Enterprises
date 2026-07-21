@@ -18,6 +18,8 @@ import PartyLedger from './pages/PartyLedger';
 import Purchases from './pages/Purchases';
 import NewPurchase from './pages/NewPurchase';
 
+import EditPurchase from './pages/EditPurchase';
+
 import TitleUpdater from './components/TitleUpdater';
 
 function App() {
@@ -42,6 +44,7 @@ function App() {
             <Route path="sales/new" element={<NewSale />} />
             <Route path="purchases" element={<Purchases />} />
             <Route path="purchases/new" element={<NewPurchase />} />
+            <Route path="purchases/:id/edit" element={<EditPurchase />} />
             <Route path="quotations" element={<Quotations />} />
             <Route path="quotations/new" element={<NewQuotation />} />
             <Route path="quotations/:id/edit" element={<EditQuotation />} />

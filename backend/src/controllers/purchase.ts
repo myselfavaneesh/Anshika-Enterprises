@@ -135,10 +135,16 @@ export const getPurchaseById = async (req: Request, res: Response): Promise<void
       };
     }));
 
+    const payment = await prisma.payment.findFirst({
+      where: { referenceId: purchase.purchaseInvoiceNumber, entityType: 'SUPPLIER' }
+    });
+
     res.json(mapToMongoose({
       ...purchase,
       supplierId: supplier ? mapToMongoose(supplier) : null,
-      items: items
+      items: items,
+      amountPaid: payment ? payment.amount : 0,
+      paymentMode: payment ? payment.paymentMode : 'CASH'
     }));
   } catch (error: any) {
     logger.error('Error fetching purchase by id', { purchaseId: req.params.id, error: error.message });
@@ -154,5 +160,27 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
   } catch (error: any) {
     logger.error('Error deleting purchase', { purchaseId: req.params.id, error: error.message });
     res.status(500).json({ error: error.message || 'Server error' });
+  }
+};
+
+export const updatePurchase = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const validatedData = PurchaseInputSchema.parse(req.body);
+
+    const purchase = await PurchaseService.updatePurchase(id, validatedData);
+
+    res.status(200).json(mapToMongoose(purchase));
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
+      return;
+    }
+    if (error.code === 'P2002') {
+      res.status(400).json({ error: 'Duplicate serial number detected. One or more serial numbers already exist in the inventory.' });
+      return;
+    }
+    logger.error('Error updating purchase', { error: error.message });
+    res.status(400).json({ error: error.message || 'Error updating purchase' });
   }
 };

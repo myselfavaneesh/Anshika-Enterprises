@@ -161,4 +161,122 @@ export class PurchaseService {
       throw error;
     }
   }
+
+  static async updatePurchase(purchaseId: string, data: PurchaseInput): Promise<any> {
+    try {
+      const updated = await prisma.$transaction(async (tx) => {
+        const { 
+          purchaseInvoiceNumber, supplierId, items, subtotal, discount, 
+          taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, 
+          grandTotal, amountPaid, paymentMode 
+        } = data;
+
+        // 1. Fetch old purchase
+        const oldPurchase = await tx.purchase.findUnique({ where: { id: purchaseId } });
+        if (!oldPurchase) throw new Error('Purchase not found');
+
+        // 2. Find and delete associated old Payment
+        const oldPayment = await tx.payment.findFirst({ where: { referenceId: oldPurchase.purchaseInvoiceNumber, entityType: 'SUPPLIER' } });
+        let oldAmountPaid = 0;
+        if (oldPayment) {
+          oldAmountPaid = oldPayment.amount;
+          await tx.payment.delete({ where: { id: oldPayment.id } });
+        }
+
+        // 3. Revert Old Supplier balance
+        const oldAmountDue = oldPurchase.grandTotal - oldAmountPaid;
+        await tx.supplier.update({
+          where: { id: oldPurchase.supplierId },
+          data: { outstandingBalance: { decrement: oldAmountDue } }
+        });
+
+        // 4. Delete old items and units
+        await tx.productUnit.deleteMany({ where: { purchaseId: oldPurchase.id } });
+        await tx.purchaseItem.deleteMany({ where: { purchaseId: oldPurchase.id } });
+
+        // 5. Update Purchase record
+        const updatedPurchase = await tx.purchase.update({
+          where: { id: purchaseId },
+          data: {
+            purchaseInvoiceNumber,
+            supplierId,
+            subtotal,
+            discount,
+            taxableAmount,
+            taxRate,
+            taxAmount,
+            cgstAmount,
+            sgstAmount,
+            grandTotal,
+            status: amountPaid >= grandTotal ? 'PAID' : 'PENDING',
+          }
+        });
+
+        // 6. Process new items & Create ProductUnits
+        for (const item of items) {
+          if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
+            throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+          }
+
+          const purchaseItem = await tx.purchaseItem.create({
+            data: {
+              purchaseId: updatedPurchase.id,
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.quantity * item.unitPrice,
+              taxableUnitPrice: item.taxableUnitPrice,
+              taxableTotalPrice: item.taxableTotalPrice,
+            }
+          });
+
+          const unitsToInsert = item.serialNumbers.map(sn => ({
+            productId: item.productId,
+            serialNumber: sn,
+            status: 'IN_STOCK',
+            purchaseId: updatedPurchase.id,
+            purchaseItemId: purchaseItem.id,
+            supplierId: supplierId,
+          }));
+          
+          await tx.productUnit.createMany({
+            data: unitsToInsert
+          });
+        }
+
+        // 7. Ledger Logic for New Supplier (Khata Sync)
+        await tx.supplier.update({
+          where: { id: supplierId },
+          data: { outstandingBalance: { increment: grandTotal } }
+        });
+
+        if (amountPaid > 0) {
+          await tx.payment.create({
+            data: {
+              entityType: 'SUPPLIER',
+              entityId: supplierId,
+              type: 'MONEY_OUT',
+              amount: amountPaid,
+              paymentMode: paymentMode || 'CASH',
+              referenceId: purchaseInvoiceNumber,
+              notes: `Payment for Purchase Invoice ${purchaseInvoiceNumber}`,
+            }
+          });
+
+          await tx.supplier.update({
+            where: { id: supplierId },
+            data: { outstandingBalance: { decrement: amountPaid } }
+          });
+        }
+
+        return updatedPurchase;
+      });
+
+      logger.info('Purchase updated successfully', { purchaseId, purchaseInvoiceNumber: updated.purchaseInvoiceNumber });
+      return updated;
+    } catch (error: any) {
+      logger.error('Error updating purchase', { error: error.message });
+      throw error;
+    }
+  }
 }
