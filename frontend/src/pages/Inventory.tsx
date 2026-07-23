@@ -5,7 +5,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Search, X, List, Plus, Minus } from 'lucide-react';
+import { Search, X, List, Plus, Minus, Edit, Trash2 } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -17,6 +17,8 @@ const Inventory = () => {
   const [isOpenSerials, setIsOpenSerials] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [selectedProductSerials, setSelectedProductSerials] = useState<any[]>([]);
+  const [isOpenEditSerial, setIsOpenEditSerial] = useState(false);
+  const [editSerialForm, setEditSerialForm] = useState<any>(null);
   
   const [stockInForm, setStockInForm] = useState({
     purchaseInvoiceNumber: '',
@@ -142,6 +144,47 @@ const Inventory = () => {
       setIsOpenSerials(true);
     } catch (error) {
       console.error('Error fetching serials', error);
+    }
+  };
+
+  const handleEditSerial = (s: any) => {
+    setEditSerialForm({
+      id: s._id,
+      serialNumber: s.serialNumber,
+      purchasePrice: s.purchasePrice || '',
+      status: s.status
+    });
+    setIsOpenEditSerial(true);
+  };
+
+  const handleUpdateSerial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.put(`/inventory/serial/${editSerialForm.id}`, {
+        serialNumber: editSerialForm.serialNumber,
+        purchasePrice: editSerialForm.purchasePrice,
+        status: editSerialForm.status
+      });
+      setIsOpenEditSerial(false);
+      openSerials(selectedProductId); 
+      fetchInventory();
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Error updating serial');
+    }
+  };
+
+  const handleDeleteSerial = async (id: string, status: string) => {
+    if (status === 'SOLD') {
+      alert('Cannot delete a sold serial number.');
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this serial number? This action cannot be undone.')) return;
+    try {
+      await api.delete(`/inventory/serial/${id}`);
+      openSerials(selectedProductId);
+      fetchInventory();
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Error deleting serial');
     }
   };
 
@@ -384,7 +427,7 @@ const Inventory = () => {
 
       {/* View Serials Dialog */}
       <Dialog open={isOpenSerials} onOpenChange={setIsOpenSerials}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>Serial Numbers History</DialogTitle>
           </DialogHeader>
@@ -396,30 +439,101 @@ const Inventory = () => {
                   <TableHead>Status</TableHead>
                   <TableHead>Origin Invoice</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Purchase Price</TableHead>
+                  <TableHead className="text-right">Sale Price</TableHead>
+                  <TableHead className="text-right">Profit</TableHead>
+                  <TableHead className="text-right">Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {selectedProductSerials.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center">No serial numbers found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center">No serial numbers found.</TableCell></TableRow>
                 ) : (
-                  selectedProductSerials.map((s) => (
-                    <TableRow key={s._id}>
-                      <TableCell className="font-medium">{s.serialNumber}</TableCell>
-                      <TableCell>
-                        <Badge variant={s.status === 'IN_STOCK' ? 'default' : s.status === 'SOLD' ? 'secondary' : 'destructive'}>
-                          {s.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{s.purchaseInvoiceNumber || '-'}</TableCell>
-                      <TableCell>{s.supplierName || '-'}</TableCell>
-                      <TableCell>{new Date(s.createdAt).toLocaleDateString()}</TableCell>
-                    </TableRow>
-                  ))
+                  selectedProductSerials.map((s) => {
+                    const purchasePrice = s.purchasePrice || 0;
+                    const salePrice = s.saleItem?.unitPrice || 0;
+                    const profit = s.status === 'SOLD' ? salePrice - purchasePrice : null;
+
+                    return (
+                      <TableRow key={s._id}>
+                        <TableCell className="font-medium">{s.serialNumber}</TableCell>
+                        <TableCell>
+                          <Badge variant={s.status === 'IN_STOCK' ? 'default' : s.status === 'SOLD' ? 'secondary' : 'destructive'}>
+                            {s.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{s.purchaseInvoiceNumber || '-'}</TableCell>
+                        <TableCell>{s.supplierName || '-'}</TableCell>
+                        <TableCell className="text-right">{purchasePrice > 0 ? `₹${purchasePrice.toFixed(2)}` : '-'}</TableCell>
+                        <TableCell className="text-right">{s.status === 'SOLD' && salePrice > 0 ? `₹${salePrice.toFixed(2)}` : '-'}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {profit !== null ? (
+                            <span className={profit > 0 ? 'text-green-600' : profit < 0 ? 'text-red-600' : ''}>
+                              {profit > 0 ? '+₹' : profit < 0 ? '-₹' : '₹'}{Math.abs(profit).toFixed(2)}
+                            </span>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">{new Date(s.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditSerial(s)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDeleteSerial(s._id, s.status)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Serial Dialog */}
+      <Dialog open={isOpenEditSerial} onOpenChange={setIsOpenEditSerial}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Serial Number</DialogTitle>
+          </DialogHeader>
+          {editSerialForm && (
+            <form onSubmit={handleUpdateSerial} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Serial Number</label>
+                <Input 
+                  required 
+                  value={editSerialForm.serialNumber} 
+                  onChange={e => setEditSerialForm({...editSerialForm, serialNumber: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Purchase Price (₹)</label>
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  value={editSerialForm.purchasePrice} 
+                  onChange={e => setEditSerialForm({...editSerialForm, purchasePrice: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Status</label>
+                <Select value={editSerialForm.status} onValueChange={(val) => setEditSerialForm({...editSerialForm, status: val})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IN_STOCK">IN_STOCK</SelectItem>
+                    <SelectItem value="DEFECTIVE">DEFECTIVE</SelectItem>
+                    <SelectItem value="SOLD">SOLD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" className="w-full">Update Serial</Button>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

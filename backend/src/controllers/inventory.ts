@@ -132,6 +132,9 @@ export const getSerials = async (req: Request, res: Response): Promise<void> => 
 
     const serials = await prisma.productUnit.findMany({
       where,
+      include: {
+        saleItem: true
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.json(mapToMongoose(serials));
@@ -168,5 +171,52 @@ export const searchSerials = async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     logger.error('Error searching serials', { query: req.query.q, error: error.message });
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const updateSerial = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { serialNumber, purchasePrice, status } = req.body;
+
+    const updated = await prisma.productUnit.update({
+      where: { id },
+      data: {
+        serialNumber,
+        purchasePrice: purchasePrice !== undefined ? Number(purchasePrice) : undefined,
+        status
+      }
+    });
+
+    res.json(mapToMongoose(updated));
+  } catch (error: any) {
+    logger.error('Error updating serial', { id: req.params.id, error: error.message });
+    res.status(500).json({ error: 'Server error updating serial number' });
+  }
+};
+
+export const deleteSerial = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const unit = await prisma.productUnit.findUnique({ where: { id } });
+    if (!unit) {
+      res.status(404).json({ error: 'Serial not found' });
+      return;
+    }
+    
+    if (unit.status === 'SOLD') {
+      res.status(400).json({ error: 'Cannot delete a sold serial number' });
+      return;
+    }
+
+    await prisma.productUnit.delete({
+      where: { id }
+    });
+
+    res.json({ message: 'Serial number deleted successfully' });
+  } catch (error: any) {
+    logger.error('Error deleting serial', { id: req.params.id, error: error.message });
+    res.status(500).json({ error: 'Server error deleting serial number' });
   }
 };
