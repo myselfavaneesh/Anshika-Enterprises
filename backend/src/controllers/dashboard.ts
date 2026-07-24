@@ -104,7 +104,8 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const chartDataMap = new Map();
 
     for (const sale of filteredSalesQuery) {
-      const revenue = sale.taxableAmount || 0;
+      // Use grandTotal for gross revenue and profit calculation to match purchasePrice (which is inclusive of GST)
+      const revenue = sale.grandTotal || 0;
       filteredTotalRevenue += revenue;
 
       const cost = sale.productUnits.reduce((acc, unit) => acc + (unit.purchasePrice || 0), 0);

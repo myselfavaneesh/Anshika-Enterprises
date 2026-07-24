@@ -442,18 +442,21 @@ const Inventory = () => {
                   <TableHead className="text-right">Purchase Price</TableHead>
                   <TableHead className="text-right">Sale Price</TableHead>
                   <TableHead className="text-right">Profit</TableHead>
+                  <TableHead className="text-right">Profit (Before Tax)</TableHead>
                   <TableHead className="text-right">Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {selectedProductSerials.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center">No serial numbers found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center">No serial numbers found.</TableCell></TableRow>
                 ) : (
                   selectedProductSerials.map((s) => {
                     const purchasePrice = s.purchasePrice || 0;
                     const salePrice = s.saleItem?.unitPrice || 0;
+                    const taxableSalePrice = s.saleItem?.taxableUnitPrice || 0;
                     const profit = s.status === 'SOLD' ? salePrice - purchasePrice : null;
+                    const profitBeforeTax = s.status === 'SOLD' ? taxableSalePrice - purchasePrice : null;
 
                     return (
                       <TableRow key={s._id}>
@@ -471,6 +474,13 @@ const Inventory = () => {
                           {profit !== null ? (
                             <span className={profit > 0 ? 'text-green-600' : profit < 0 ? 'text-red-600' : ''}>
                               {profit > 0 ? '+₹' : profit < 0 ? '-₹' : '₹'}{Math.abs(profit).toFixed(2)}
+                            </span>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {profitBeforeTax !== null ? (
+                            <span className={profitBeforeTax > 0 ? 'text-green-600' : profitBeforeTax < 0 ? 'text-red-600' : ''}>
+                              {profitBeforeTax > 0 ? '+₹' : profitBeforeTax < 0 ? '-₹' : '₹'}{Math.abs(profitBeforeTax).toFixed(2)}
                             </span>
                           ) : '-'}
                         </TableCell>

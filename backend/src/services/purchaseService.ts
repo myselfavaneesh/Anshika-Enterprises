@@ -72,6 +72,7 @@ export class PurchaseService {
           });
 
           // Add ProductUnits to Inventory
+          const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
           const unitsToInsert = item.serialNumbers.map(sn => ({
             productId: item.productId,
             serialNumber: sn,
@@ -79,6 +80,9 @@ export class PurchaseService {
             purchaseId: newPurchase.id,
             purchaseItemId: purchaseItem.id,
             supplierId: supplierId,
+            purchasePrice: item.unitPrice,
+            purchaseInvoiceNumber: purchaseInvoiceNumber,
+            supplierName: supplier?.name || null,
           }));
           
           await tx.productUnit.createMany({
@@ -230,6 +234,7 @@ export class PurchaseService {
             }
           });
 
+          const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
           const unitsToInsert = item.serialNumbers.map(sn => ({
             productId: item.productId,
             serialNumber: sn,
@@ -237,6 +242,9 @@ export class PurchaseService {
             purchaseId: updatedPurchase.id,
             purchaseItemId: purchaseItem.id,
             supplierId: supplierId,
+            purchasePrice: item.unitPrice,
+            purchaseInvoiceNumber: purchaseInvoiceNumber,
+            supplierName: supplier?.name || null,
           }));
           
           await tx.productUnit.createMany({
