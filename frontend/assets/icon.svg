@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <!-- Clipping path to keep the white grid lines perfectly inside the solar panel shape -->
+    <clipPath id="solar-clip">
+      <path d="M190,55 L300,260 L245,260 L195,170 L145,170 L160,135 L180,135 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Outer Ring (Transparent Background) -->
+  <circle cx="200" cy="200" r="190" fill="none" stroke="#024729" stroke-width="12"/>
+
+  <!-- Solar Panel Base (Right Side / Dark Green) -->
+  <path d="M190,55 L300,260 L245,260 L195,170 L145,170 L160,135 L180,135 Z" fill="#024729"/>
+
+  <!-- Solar Grid Lines (White) -->
+  <g clip-path="url(#solar-clip)" stroke="#ffffff" stroke-width="4">
+    <!-- Horizontal Grid Lines -->
+    <line x1="120" y1="150" x2="310" y2="150"/>
+    <line x1="120" y1="175" x2="310" y2="175"/>
+    <line x1="120" y1="200" x2="310" y2="200"/>
+    <line x1="120" y1="225" x2="310" y2="225"/>
+    <line x1="120" y1="250" x2="310" y2="250"/>
+
+    <!-- Slanted Grid Lines -->
+    <line x1="140" y1="50" x2="252" y2="260"/>
+    <line x1="165" y1="50" x2="277" y2="260"/>
+    <line x1="190" y1="50" x2="302" y2="260"/>
+    <line x1="215" y1="50" x2="327" y2="260"/>
+  </g>
+
+  <!-- Lightning Bolt (Left Side / Bright Green) -->
+  <!-- Placed after the solar panel so it overlaps properly at the top peak -->
+  <path d="M 200,40 L 120,200 L 160,200 L 120,280 L 180,160 L 140,160 Z" fill="#108c43" />
+
+  <!-- Text Elements -->
+  <text x="200" y="310" font-family="Montserrat, Arial, sans-serif" font-weight="900" font-size="46" fill="#024729" text-anchor="middle" letter-spacing="1">ANSHIKA</text>
+  <text x="200" y="340" font-family="Montserrat, Arial, sans-serif" font-weight="700" font-size="22" fill="#024729" text-anchor="middle" letter-spacing="4">ENTERPRISES</text>
+  <text x="200" y="365" font-family="Montserrat, Arial, sans-serif" font-weight="600" font-size="14" fill="#024729" text-anchor="middle">Power • Solar • Appliances</text>
+</svg>

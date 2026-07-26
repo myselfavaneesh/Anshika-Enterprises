@@ -11,7 +11,8 @@ import {
   FileText,
   Menu,
   X,
-  ListTree
+  ListTree,
+  Warehouse
 } from 'lucide-react';
 
 const Layout = () => {
@@ -29,6 +30,7 @@ const Layout = () => {
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Products', href: '/products', icon: Package },
     { name: 'Categories', href: '/categories', icon: ListTree },
+    { name: 'Inventory', href: '/inventory', icon: Warehouse },
     { name: 'Khata Book', href: '/parties', icon: Users },
     { name: 'Purchases', href: '/purchases', icon: ShoppingBag },
     { name: 'Sales', href: '/sales', icon: ShoppingCart },

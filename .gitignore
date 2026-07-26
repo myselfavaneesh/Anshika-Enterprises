@@ -8,6 +8,8 @@ dist/
 backend/dist/
 frontend/dist/
 build/
+frontend/android/
+ios/
 
 # Environment variables
 .env
