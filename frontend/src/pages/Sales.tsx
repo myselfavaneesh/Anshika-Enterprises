@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Download, Trash2, Search, X, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { Plus, Download, Trash2, Search, X, ChevronLeft, ChevronRight, MessageCircle, Edit } from 'lucide-react';
 
 const Sales = () => {
   const [sales, setSales] = useState<any[]>([]);
@@ -141,6 +141,11 @@ const Sales = () => {
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title="Print Invoice" onClick={() => handlePrintInvoice(sale._id)}>
                         <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Edit Invoice" asChild>
+                        <Link to={`/sales/${sale._id}/edit`}>
+                          <Edit className="h-4 w-4" />
+                        </Link>
                       </Button>
                       <Button variant="ghost" size="icon" title="Send via WhatsApp" className="text-green-600 hover:text-green-800" onClick={() => handleSendWhatsapp(sale)}>
                         <MessageCircle className="h-4 w-4" />

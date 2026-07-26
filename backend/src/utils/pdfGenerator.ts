@@ -118,7 +118,7 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
             <div class="font-bold text-base">: ${sale.invoiceNumber}</div>
             
             <div class="font-semibold">Invoice Date</div>
-            <div class="font-bold text-base">: ${new Date(sale.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')}</div>
+            <div class="font-bold text-base">: ${new Date(sale.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).split(' ').join('-')}</div>
           </div>
         </div>
       </div>
@@ -154,6 +154,13 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
             <td class="p-2 text-right border-gray-300 font-semibold">- ${sale.discount.toFixed(2)}</td>
           </tr>
           ` : ''}
+          ${(sale.services && sale.services.length > 0) ? sale.services.map((service: any) => `
+          <tr>
+            <td colspan="4" class="border-r border-gray-300"></td>
+            <td class="p-2 text-right border-r border-gray-300 font-semibold text-gray-600">${service.name}</td>
+            <td class="p-2 text-right border-gray-300 font-semibold">+ ${Number(service.amount).toFixed(2)}</td>
+          </tr>
+          `).join('') : ''}
           <tr>
             <td colspan="4" class="border-r border-gray-300"></td>
             <td class="p-2 text-right border-r border-gray-300 font-semibold text-gray-600">CGST (${cgstRate}%)</td>

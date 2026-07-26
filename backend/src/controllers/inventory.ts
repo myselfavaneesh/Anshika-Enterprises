@@ -18,6 +18,11 @@ export const getInventory = async (req: Request, res: Response): Promise<void> =
       ];
     }
 
+    const categoryId = req.query.categoryId as string;
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
     const status = req.query.status as string;
 
     let products = await prisma.product.findMany({
@@ -176,7 +181,7 @@ export const searchSerials = async (req: Request, res: Response): Promise<void> 
 
 export const updateSerial = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { serialNumber, purchasePrice, status } = req.body;
 
     const updated = await prisma.productUnit.update({
@@ -197,7 +202,7 @@ export const updateSerial = async (req: Request, res: Response): Promise<void> =
 
 export const deleteSerial = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const unit = await prisma.productUnit.findUnique({ where: { id } });
     if (!unit) {

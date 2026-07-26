@@ -34,6 +34,7 @@ const Inventory = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState('ALL');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
 
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -48,7 +49,8 @@ const Inventory = () => {
           page,
           limit,
           q: searchTerm || undefined,
-          status: stockStatusFilter !== 'ALL' ? stockStatusFilter : undefined
+          status: stockStatusFilter !== 'ALL' ? stockStatusFilter : undefined,
+          categoryId: selectedCategoryFilter || undefined
         }
       });
       setInventory(response.data.data || response.data);
@@ -66,6 +68,7 @@ const Inventory = () => {
 
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const fetchSuppliers = async () => {
     try {
@@ -85,20 +88,30 @@ const Inventory = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/categories');
+      setCategories(response.data.data || response.data);
+    } catch (error) {
+      console.error('Error fetching categories', error);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchInventory();
     }, 300);
     return () => clearTimeout(timer);
-  }, [page, limit, searchTerm, stockStatusFilter]);
+  }, [page, limit, searchTerm, stockStatusFilter, selectedCategoryFilter]);
 
   useEffect(() => {
     if (page !== 1) setPage(1);
-  }, [searchTerm, stockStatusFilter, limit]);
+  }, [searchTerm, stockStatusFilter, selectedCategoryFilter, limit]);
 
   useEffect(() => {
     fetchSuppliers();
     fetchRecentPurchases();
+    fetchCategories();
   }, []);
 
   const handleStockIn = async (e: React.FormEvent) => {
@@ -210,6 +223,17 @@ const Inventory = () => {
                 <X className="h-3 w-3" />
               </button>
             )}
+          </div>
+          
+          <div className="w-full sm:w-48">
+            <select 
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={selectedCategoryFilter}
+              onChange={e => setSelectedCategoryFilter(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {categories.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>)}
+            </select>
           </div>
           
           <div className="w-full sm:w-48">

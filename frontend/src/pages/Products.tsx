@@ -12,7 +12,8 @@ const Products = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0'
+    name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0',
+    purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0'
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -80,7 +81,11 @@ const Products = () => {
       const payload = {
         ...formData,
         lowStockThreshold: Number(formData.lowStockThreshold),
-        gstRate: Number(formData.gstRate)
+        gstRate: Number(formData.gstRate),
+        purchasePrice: Number(formData.purchasePrice),
+        sellingPrice: Number(formData.sellingPrice),
+        isGstInclusive: formData.isGstInclusive,
+        wattage: Number(formData.wattage)
       };
 
       if (editingId) {
@@ -109,18 +114,22 @@ const Products = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0' });
+    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0', purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0' });
   };
 
   const handleEdit = (product: any) => {
-    setEditingId(product._id);
+    setEditingId(product.id || product._id);
     setFormData({
       name: product.name,
       sku: product.sku,
-      categoryId: product.categoryId?._id || '',
+      categoryId: product.categoryId?.id || product.categoryId?._id || product.categoryId || product.category?.id || product.category?._id || '',
       lowStockThreshold: product.lowStockThreshold.toString(),
       hsnCode: product.hsnCode || '',
-      gstRate: product.gstRate ? product.gstRate.toString() : '0'
+      gstRate: product.gstRate ? product.gstRate.toString() : '0',
+      purchasePrice: product.purchasePrice ? product.purchasePrice.toString() : '0',
+      sellingPrice: product.sellingPrice ? product.sellingPrice.toString() : '0',
+      isGstInclusive: product.isGstInclusive ?? true,
+      wattage: product.wattage ? product.wattage.toString() : '0'
     });
     setIsOpen(true);
   };
@@ -156,7 +165,7 @@ const Products = () => {
                     onChange={e => setFormData({...formData, categoryId: e.target.value})}
                   >
                     <option value="">Select Category...</option>
-                    {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                    {categories.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -170,6 +179,29 @@ const Products = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Low Stock Threshold</label>
                   <Input type="number" required value={formData.lowStockThreshold} onChange={e => setFormData({...formData, lowStockThreshold: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Purchase Price</label>
+                  <Input type="number" min="0" step="0.01" required value={formData.purchasePrice} onChange={e => setFormData({...formData, purchasePrice: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Selling Price</label>
+                  <Input type="number" min="0" step="0.01" required value={formData.sellingPrice} onChange={e => setFormData({...formData, sellingPrice: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Price Type</label>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formData.isGstInclusive ? 'true' : 'false'}
+                    onChange={e => setFormData({...formData, isGstInclusive: e.target.value === 'true'})}
+                  >
+                    <option value="true">GST Inclusive</option>
+                    <option value="false">GST Exclusive</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Panel Wattage (W)</label>
+                  <Input type="number" min="0" required value={formData.wattage} onChange={e => setFormData({...formData, wattage: e.target.value})} placeholder="e.g. 540 (0 if none)" />
                 </div>
               </div>
               <Button type="submit" className="w-full">{editingId ? 'Update' : 'Save'}</Button>
@@ -204,7 +236,7 @@ const Products = () => {
               onChange={e => setSelectedCategoryFilter(e.target.value)}
             >
               <option value="">All Categories</option>
-              {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+              {categories.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>)}
             </select>
           </div>
         </div>
@@ -217,8 +249,11 @@ const Products = () => {
               <TableHead>SKU</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
+              <TableHead>Purch. Price</TableHead>
+              <TableHead>Sell Price</TableHead>
               <TableHead>HSN Code</TableHead>
               <TableHead>GST</TableHead>
+              <TableHead>Price Type</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -247,15 +282,20 @@ const Products = () => {
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.categoryId?.name || 'Unknown'}</TableCell>
+                  <TableCell>₹{product.purchasePrice || 0}</TableCell>
+                  <TableCell>₹{product.sellingPrice || 0}</TableCell>
                   <TableCell>{product.hsnCode || '-'}</TableCell>
                   <TableCell>{product.gstRate ? `${product.gstRate}%` : '0%'}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(product._id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <TableCell>{product.isGstInclusive ? 'Inclusive' : 'Exclusive'}</TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDelete(product.id || product._id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

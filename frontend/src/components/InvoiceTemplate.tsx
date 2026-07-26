@@ -53,6 +53,7 @@ interface InvoiceProps {
     sgstAmount: number;
     grandTotal: number;
     paymentMethod?: string;
+    services?: { name: string; amount: number; }[];
   };
   customer: {
     name: string;
@@ -189,6 +190,13 @@ const InvoiceTemplate: React.FC<InvoiceProps> = ({ sale, customer, items }) => {
                 <span className="font-medium">- ₹{sale.discount.toFixed(2)}</span>
               </div>
             )}
+
+            {sale.services?.map((service: any, index: number) => (
+              <div key={`template-service-${index}`} className="flex justify-between text-sm text-slate-600">
+                <span>{service.name}:</span>
+                <span className="font-medium">₹{service.amount.toFixed(2)}</span>
+              </div>
+            ))}
             
             <div className="flex justify-between text-sm text-slate-600">
               <span>CGST ({(sale.taxRate / 2).toFixed(1)}%):</span>

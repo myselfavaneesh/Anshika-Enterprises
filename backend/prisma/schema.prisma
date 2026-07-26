@@ -38,6 +38,10 @@ model Product {
   hsnCode           String?
   gstRate           Float    @default(0)
   lowStockThreshold Int      @default(5)
+  purchasePrice     Float    @default(0)
+  sellingPrice      Float    @default(0)
+  isGstInclusive    Boolean  @default(true)
+  wattage           Float    @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -145,6 +149,7 @@ model Purchase {
   purchaseInvoiceNumber String
   supplierId            String
   supplier              Supplier @relation(fields: [supplierId], references: [id])
+  invoiceType           String   @default("GST") // 'GST' | 'NON_GST'
   subtotal              Float
   discount              Float    @default(0)
   taxableAmount         Float
@@ -174,6 +179,9 @@ model PurchaseItem {
   taxableUnitPrice  Float
   taxableTotalPrice Float
   totalPrice        Float
+  gstRate           Float    @default(0)
+  cgstAmount        Float    @default(0)
+  sgstAmount        Float    @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -185,6 +193,7 @@ model Quotation {
   quotationNumber String   @unique
   customerId      String
   customer        Customer @relation(fields: [customerId], references: [id])
+  invoiceType     String   @default("GST") // 'GST' | 'NON_GST'
   subtotal        Float
   discount        Float    @default(0)
   taxableAmount   Float
@@ -198,7 +207,8 @@ model Quotation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  quotationItems  QuotationItem[]
+  quotationItems    QuotationItem[]
+  quotationServices QuotationService[]
 }
 
 model QuotationItem {
@@ -212,6 +222,10 @@ model QuotationItem {
   totalPrice        Float
   taxableUnitPrice  Float
   taxableTotalPrice Float
+  gstRate           Float    @default(0)
+  cgstAmount        Float    @default(0)
+  sgstAmount        Float    @default(0)
+  wattage           Float    @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -221,6 +235,7 @@ model Sale {
   invoiceNumber String   @unique
   customerId    String
   customer      Customer @relation(fields: [customerId], references: [id])
+  invoiceType   String   @default("GST") // 'GST' | 'NON_GST'
   subtotal      Float
   discount      Float    @default(0)
   taxableAmount Float
@@ -234,6 +249,7 @@ model Sale {
   updatedAt     DateTime @updatedAt
 
   saleItems     SaleItem[]
+  saleServices  SaleService[]
   saleReturns   SaleReturn[]
   productUnits  ProductUnit[]
 }
@@ -249,6 +265,10 @@ model SaleItem {
   totalPrice        Float
   taxableUnitPrice  Float
   taxableTotalPrice Float
+  gstRate           Float    @default(0)
+  cgstAmount        Float    @default(0)
+  sgstAmount        Float    @default(0)
+  wattage           Float    @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -266,4 +286,34 @@ model SaleReturn {
   notes          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model SaleService {
+  id          String   @id @default(uuid())
+  saleId      String
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  name        String   
+  amount        Float
+  gstRate       Float    @default(0)
+  cgstAmount    Float    @default(0)
+  sgstAmount    Float    @default(0)
+  taxableAmount Float    @default(0)
+  isGstInclusive Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model QuotationService {
+  id          String   @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  name        String   
+  amount        Float
+  gstRate       Float    @default(0)
+  cgstAmount    Float    @default(0)
+  sgstAmount    Float    @default(0)
+  taxableAmount Float    @default(0)
+  isGstInclusive Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

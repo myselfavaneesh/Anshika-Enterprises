@@ -165,7 +165,7 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
 
 export const updatePurchase = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const validatedData = PurchaseInputSchema.parse(req.body);
 
     const purchase = await PurchaseService.updatePurchase(id, validatedData);

@@ -59,7 +59,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate } = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage } = req.body;
     
     const existingSku = await prisma.product.findUnique({ where: { sku } });
     if (existingSku) {
@@ -75,6 +75,10 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : 5,
         hsnCode,
         gstRate: gstRate !== undefined ? Number(gstRate) : 0,
+        purchasePrice: purchasePrice !== undefined ? Number(purchasePrice) : 0,
+        sellingPrice: sellingPrice !== undefined ? Number(sellingPrice) : 0,
+        isGstInclusive: isGstInclusive !== undefined ? Boolean(isGstInclusive) : true,
+        wattage: wattage !== undefined ? Number(wattage) : 0,
       }
     });
 
@@ -89,7 +93,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate } = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage } = req.body;
     
     try {
       const product = await prisma.product.update({
@@ -101,6 +105,10 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
           ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
           hsnCode,
           ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
+          ...(purchasePrice !== undefined && { purchasePrice: Number(purchasePrice) }),
+          ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),
+          ...(isGstInclusive !== undefined && { isGstInclusive: Boolean(isGstInclusive) }),
+          ...(wattage !== undefined && { wattage: Number(wattage) }),
         }
       });
       logger.info('Product updated successfully', { productId: id });

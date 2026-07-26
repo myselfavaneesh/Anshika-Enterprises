@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -11,10 +11,9 @@ import { BarcodeScanner } from '../components/BarcodeScanner';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
-export default function NewSale() {
+export default function EditSale() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const quotationId = searchParams.get('quotationId');
+  const { id } = useParams();
   
   // Data
   const [customers, setCustomers] = useState<any[]>([]);
@@ -34,7 +33,7 @@ export default function NewSale() {
   const [isSerialsDialogOpen, setIsSerialsDialogOpen] = useState(false);
   
   const [discount, setDiscount] = useState('0');
-  const [invoiceType, setInvoiceType] = useState('GST');
+  const [invoiceType, setInvoiceType] = useState('GST'); 
   
   // Dynamic Services selected
   const [selectedServices, setSelectedServices] = useState<{name: string, amount: string, gstRate: string, isGstInclusive: boolean}[]>([]);
@@ -52,56 +51,55 @@ export default function NewSale() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [custRes, prodRes] = await Promise.all([
+        const [custRes, prodRes, saleRes] = await Promise.all([
           api.get('/customers'),
-          api.get('/products?limit=10000')
+          api.get('/products?limit=10000'),
+          api.get(`/sales/${id}`)
         ]);
         setCustomers(custRes.data.data || custRes.data);
         setProducts(prodRes.data.data || prodRes.data);
-
-        if (quotationId) {
-          const quotRes = await api.get(`/quotations/${quotationId}`);
-          const q = quotRes.data;
-          
-          setSelectedCustomerId(q.customerId?._id || q.customerId?.id || q.customerId);
-          setCustomerSearch(q.customerId?.name ? `${q.customerId.name} (${q.customerId.phone})` : '');
-          setDiscount(q.discount.toString());
-          if (q.invoiceType) {
-            setInvoiceType(q.invoiceType);
-          }
-          if (q.services && q.services.length > 0) {
-            setSelectedServices(q.services.map((s: any) => ({
-              name: s.name,
-              amount: s.amount.toString(),
-              gstRate: s.gstRate?.toString() || '0',
-              isGstInclusive: s.isGstInclusive !== undefined ? s.isGstInclusive : true
-            })));
-          }
-          setCart(q.items.map((item: any) => ({
-            productId: item.productId?._id || item.productId?.id || item.productId,
-            name: item.productId?.name,
-            sku: item.productId?.sku,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            serialNumbers: [],
-            gstRate: item.gstRate || item.productId?.gstRate || 0,
-            isGstInclusive: item.productId?.isGstInclusive !== undefined ? item.productId.isGstInclusive : true,
-            wattage: item.wattage || item.productId?.wattage || 0
+        
+        const s = saleRes.data;
+        setSelectedCustomerId(s.customerId?._id || s.customerId?.id || s.customerId);
+        setCustomerSearch(s.customerId?.name ? `${s.customerId.name} (${s.customerId.phone})` : '');
+        setDiscount(s.discount.toString());
+        if (s.invoiceType) {
+          setInvoiceType(s.invoiceType);
+        }
+        if (s.services && s.services.length > 0) {
+          setSelectedServices(s.services.map((serv: any) => ({
+            name: serv.name,
+            amount: serv.amount.toString(),
+            gstRate: serv.gstRate?.toString() || '0',
+            isGstInclusive: serv.isGstInclusive !== undefined ? serv.isGstInclusive : true
           })));
         }
+        setCart(s.items.map((item: any) => ({
+          productId: item.productId?._id || item.productId?.id || item.productId,
+          name: item.productId?.name,
+          sku: item.productId?.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          serialNumbers: item.serialNumbers,
+          gstRate: item.gstRate || item.productId.gstRate || 0,
+          isGstInclusive: item.productId.isGstInclusive !== undefined ? item.productId.isGstInclusive : true,
+          wattage: item.wattage || item.productId.wattage || 0
+        })));
+        setAmountPaid(s.amountPaid?.toString() || '0');
+        setPaymentMode(s.paymentMode || 'CASH');
       } catch (error) {
         console.error('Error fetching data', error);
       }
     };
     fetchData();
-  }, [quotationId]);
+  }, []);
 
   // Handle Customer Selection
   useEffect(() => {
+    if (!customerSearch) return; // don't override on initial load if we manually set it above
     const c = customers.find(c => `${c.name} (${c.phone})` === customerSearch);
     if (c) setSelectedCustomerId(c._id);
-    else setSelectedCustomerId('');
   }, [customerSearch, customers]);
 
   // Handle Product Selection
@@ -305,7 +303,7 @@ export default function NewSale() {
   
   const grandTotal = subtotal - discountAmount + servicesTotal;
 
-  const handleGenerateInvoice = async () => {
+  const handleUpdateSale = async () => {
     if (!selectedCustomerId) {
       alert('Please select a customer');
       return;
@@ -354,18 +352,13 @@ export default function NewSale() {
         paymentMode
       };
 
-      let response;
-      if (quotationId) {
-        response = await api.post(`/quotations/${quotationId}/convert`, payload);
-      } else {
-        response = await api.post('/sales', payload);
-      }
+      const response = await api.put(`/sales/${id}`, payload);
       const saleId = response.data._id;
       
       window.open(`/sales/${saleId}/print`, '_blank');
-      navigate('/parties');
+      navigate('/sales');
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error creating sale');
+      alert(error.response?.data?.error || 'Error updating sale');
     } finally {
       setIsSubmitting(false);
     }
@@ -389,7 +382,7 @@ export default function NewSale() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight">POS / New Sale</h2>
+        <h2 className="text-3xl font-bold tracking-tight">POS / Edit Sale</h2>
         
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg border">
@@ -561,6 +554,7 @@ export default function NewSale() {
                   />
                 </div>
               </div>
+              
               <div className="space-y-4">
               {selectedServices.map((service, index) => (
                 <div key={index} className="flex flex-col sm:flex-row gap-2 p-3 bg-slate-50 rounded border">
@@ -721,11 +715,11 @@ export default function NewSale() {
               <Button 
                 ref={submitBtnRef}
                 className="w-full h-14 text-lg font-bold mt-4 shadow-md" 
-                onClick={handleGenerateInvoice}
+                onClick={handleUpdateSale}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
                 <Receipt className="mr-2 h-6 w-6" />
-                Complete Sale (F9)
+                Update Sale (F9)
               </Button>
             </CardContent>
           </Card>

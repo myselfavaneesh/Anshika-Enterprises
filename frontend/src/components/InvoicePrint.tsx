@@ -43,8 +43,13 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
       return str;
     };
 
-    const wholePart = Math.round(num);
-    return `Rupees ${inWords(wholePart)}Only`.replace(/\s+/g, ' ');
+    const wholePart = Math.floor(num);
+    const decimalPart = Math.round((num - wholePart) * 100);
+    let result = `Rupees ${inWords(wholePart)}`;
+    if (decimalPart > 0) {
+      result += `and ${inWords(decimalPart)}Paise `;
+    }
+    return `${result}Only`.replace(/\s+/g, ' ');
   };
 
 
@@ -60,9 +65,6 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
     };
   }, [type, data]);
 
-  const computedTaxableAmount = React.useMemo(() => {
-    return data?.items?.reduce((sum: number, item: any) => sum + (item.taxableTotalPrice || 0), 0) || 0;
-  }, [data]);
 
 
   return (
@@ -79,7 +81,9 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
       `}</style>
 
       {/* Header */}
-      <h1 className="text-center font-bold text-xl uppercase mb-2">{type}</h1>
+      <h1 className="text-center font-bold text-xl uppercase mb-2">
+        {type === 'TAX INVOICE' ? (data?.invoiceType === 'NON_GST' ? 'INVOICE' : 'TAX INVOICE') : 'QUOTATION'}
+      </h1>
 
       {/* Two Column Layout for Header Details */}
       <div className="grid grid-cols-2 border border-black mb-4">
@@ -93,11 +97,14 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
             <p>Contact: 9598522526</p>
           </div>
           <div className="p-2 flex-1">
-            <h3 className="font-semibold mb-1">Buyer (Bill to)</h3>
-            <p className="font-bold">{data?.customerId?.name || 'Customer Name'}</p>
+            <h3 className="font-semibold mb-1 text-gray-600">Buyer (Bill to)</h3>
+            <p className="font-bold text-sm">{data?.customerId?.name || 'Customer Name'}</p>
             <p>{data?.customerId?.address || 'Address Line 1'}</p>
             <p>State Name: {data?.customerId?.state || 'Uttar Pradesh'}, Code: {data?.customerId?.stateCode || '09'}</p>
             <p>Contact: {data?.customerId?.phone || '-'}</p>
+            {data?.customerId?.gstNumber && (
+              <p>GSTIN/UIN: <span className="font-bold">{data?.customerId?.gstNumber}</span></p>
+            )}
           </div>
         </div>
 
@@ -105,44 +112,15 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
         {type === 'TAX INVOICE' ? (
           <div className="grid grid-cols-2">
             <div className="p-2 border-r border-b border-black">
-              <p className="font-semibold">Invoice No.</p>
+              <p className="font-semibold text-gray-600">Invoice No.</p>
               <p className="font-bold">{data?.invoiceNumber || '-'}</p>
             </div>
             <div className="p-2 border-b border-black">
-              <p className="font-semibold">Dated</p>
+              <p className="font-semibold text-gray-600">Dated</p>
               <p className="font-bold">{new Date(data?.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</p>
             </div>
-            <div className="p-2 border-r border-b border-black">
-              <p className="font-semibold">Delivery Note</p>
-              <p>-</p>
-            </div>
-            <div className="p-2 border-b border-black">
-              <p className="font-semibold">Reference No. & Date.</p>
-              <p>-</p>
-            </div>
-            <div className="p-2 border-r border-b border-black">
-              <p className="font-semibold">Buyer's Order No.</p>
-              <p>-</p>
-            </div>
-            <div className="p-2 border-b border-black">
-              <p className="font-semibold">Dated</p>
-              <p>-</p>
-            </div>
-            <div className="p-2 border-r border-b border-black">
-              <p className="font-semibold">Dispatch Doc No.</p>
-              <p>-</p>
-            </div>
-            <div className="p-2 border-b border-black">
-              <p className="font-semibold">Delivery Note Date</p>
-              <p>-</p>
-            </div>
-            <div className="p-2 border-r border-black">
-              <p className="font-semibold">Dispatched through</p>
-              <p>-</p>
-            </div>
-            <div className="p-2">
-              <p className="font-semibold">Destination</p>
-              <p>-</p>
+            <div className="p-2 col-span-2">
+              {/* Optional space for future fields */}
             </div>
           </div>
         ) : (
@@ -173,8 +151,8 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
             <th className="text-left">Description of Goods</th>
             <th>HSN/SAC</th>
             <th>Quantity</th>
-            <th>Rate</th>
-            <th>GST %</th>
+            <th>{data?.invoiceType === 'NON_GST' ? 'Rate' : 'Taxable Rate'}</th>
+            {data?.invoiceType !== 'NON_GST' && <th>GST %</th>}
             <th className="text-right">Amount</th>
           </tr>
         </thead>
@@ -184,47 +162,86 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
               <td className="text-center align-top border-b-0">{index + 1}</td>
               <td className="border-b-0">
                 <p className="font-bold">{item.productId?.name}</p>
+                {item.wattage > 0 && (
+                  <p className="text-[10px] text-gray-500 mt-0.5">({item.quantity} units × {item.wattage}W = {item.quantity * item.wattage}W @ ₹{item.unitPrice || (item.taxableUnitPrice / (item.quantity * item.wattage)).toFixed(2)}/W)</p>
+                )}
                 {item.serialNumbers && item.serialNumbers.length > 0 && (
-                  <p className="italic text-[10px]">SN: {item.serialNumbers.join(', ')}</p>
+                  <p className="text-[10px] text-gray-500 mt-1">SN: {item.serialNumbers.join(', ')}</p>
                 )}
               </td>
               <td className="text-center align-top border-b-0">{item.productId?.hsnCode || '-'}</td>
               <td className="text-center align-top border-b-0 font-bold">{item.quantity} PC</td>
               <td className="text-right align-top border-b-0">{item.taxableUnitPrice?.toFixed(2)}</td>
-              <td className="text-center align-top border-b-0">{data?.taxRate || 0}%</td>
+              {data?.invoiceType !== 'NON_GST' && (
+                <td className="text-center align-top border-b-0">{item.gstRate || data?.taxRate || 0}%</td>
+              )}
               <td className="text-right align-top border-b-0 font-bold">{item.taxableTotalPrice?.toFixed(2)}</td>
             </tr>
           ))}
           {/* Fill empty space if few items */}
-          <tr className="h-24">
-            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>
+          <tr className="h-40">
+            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>{data?.invoiceType !== 'NON_GST' && <td className="border-y-0"></td>}<td className="border-y-0"></td>
           </tr>
 
+          {/* Custom Extra Costs (Services) */}
+          {data?.services?.map((service: any, index: number) => (
+            <tr key={`service-${index}`}>
+              <td colSpan={data?.invoiceType === 'NON_GST' ? 5 : 6} className="text-right italic border-y-0 font-semibold pt-2">
+                {service.name} {data?.invoiceType !== 'NON_GST' && service.gstRate ? `(${service.gstRate}%)` : ''}
+              </td>
+              <td className="text-right border-y-0 font-bold pt-2">
+                {service.taxableAmount ? service.taxableAmount.toFixed(2) : service.amount?.toFixed(2)}
+              </td>
+            </tr>
+          ))}
+
           {/* Tax Totals */}
-          <tr>
-            <td colSpan={6} className="text-right italic border-y-0 font-semibold pt-4">
-              CGST {data?.taxRate ? `(${(data.taxRate / 2)}%)` : ''}
-            </td>
-            <td className="text-right border-y-0 font-bold pt-4">{data?.cgstAmount?.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td colSpan={6} className="text-right italic border-y-0 font-semibold">
-              SGST {data?.taxRate ? `(${(data.taxRate / 2)}%)` : ''}
-            </td>
-            <td className="text-right border-y-0 font-bold">{data?.sgstAmount?.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td colSpan={6} className="text-right italic border-y-0 font-semibold pb-4">Round Off</td>
-            <td className="text-right border-y-0 font-bold pb-4">
-              {data ? (data.grandTotal - (computedTaxableAmount + (data.cgstAmount || 0) + (data.sgstAmount || 0) + (data.igstAmount || 0))).toFixed(2) : '0.00'}
-            </td>
-          </tr>
-          <tr>
-            <td colSpan={6} className="text-right font-bold">Total</td>
-            <td className="text-right font-bold text-sm">₹ {data?.grandTotal?.toFixed(2)}</td>
+          {data?.invoiceType !== 'NON_GST' && (
+            <>
+              <tr>
+                <td colSpan={6} className="text-right italic border-y-0 font-semibold pt-4">
+                  Taxable Value
+                </td>
+                <td className="text-right border-y-0 font-bold pt-4">{data?.taxableAmount?.toFixed(2) || '0.00'}</td>
+              </tr>
+              <tr>
+                <td colSpan={6} className="text-right italic border-y-0 font-semibold pt-1">
+                  CGST
+                </td>
+                <td className="text-right border-y-0 font-bold pt-1">{data?.cgstAmount?.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td colSpan={6} className="text-right italic border-y-0 font-semibold pb-4">
+                  SGST
+                </td>
+                <td className="text-right border-y-0 font-bold pb-4">{data?.sgstAmount?.toFixed(2)}</td>
+              </tr>
+            </>
+          )}
+          <tr className="bg-slate-100/50">
+            <td colSpan={data?.invoiceType === 'NON_GST' ? 5 : 6} className="text-right font-bold py-2">Grand Total</td>
+            <td className="text-right font-bold text-base py-2">₹ {data?.grandTotal?.toFixed(2) || '0.00'}</td>
           </tr>
         </tbody>
       </table>
+
+      {/* Summary Box */}
+      <div className="border border-t-0 border-black p-4 flex justify-between bg-slate-50/50">
+        <div className="space-y-1 text-[11px]">
+          <p><span className="font-semibold inline-block w-24">Total Items:</span> {data?.items?.length || 0}</p>
+          <p><span className="font-semibold inline-block w-24">Total Qty:</span> {data?.items?.reduce((sum: number, i: any) => sum + i.quantity, 0) || 0} PC</p>
+        </div>
+        <div className="space-y-1 text-[11px] text-right">
+          {data?.invoiceType !== 'NON_GST' && (
+            <>
+              <p><span className="font-semibold inline-block w-32">Taxable Amount:</span> ₹ {data?.taxableAmount?.toFixed(2) || '0.00'}</p>
+              <p><span className="font-semibold inline-block w-32">CGST:</span> ₹ {data?.cgstAmount?.toFixed(2) || '0.00'}</p>
+              <p><span className="font-semibold inline-block w-32">SGST:</span> ₹ {data?.sgstAmount?.toFixed(2) || '0.00'}</p>
+            </>
+          )}
+          <p className="text-sm mt-1"><span className="font-bold inline-block w-32">Grand Total:</span> <span className="font-bold">₹ {data?.grandTotal?.toFixed(2) || '0.00'}</span></p>
+        </div>
+      </div>
 
       <div className="border border-t-0 border-black p-2 flex justify-between">
         <div>
@@ -246,10 +263,14 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
           </div>
         </div>
         <div className="w-1/2 p-2">
-          <p className="font-bold mb-1 underline">Company's Bank Details</p>
-          <p>Bank Name <span className="float-right">: Union Bank Of India</span></p>
-          <p>A/c No. <span className="float-right">: 359701010036291</span></p>
-          <p>IFSC Code <span className="float-right">: UBIN0535974</span></p>
+          <p className="font-bold mb-2 underline">Company's Bank Details</p>
+          <table className="w-full border-none">
+            <tbody>
+              <tr><td className="border-none py-0.5 px-0 w-24">Bank Name</td><td className="border-none py-0.5 px-0 font-semibold">: Union Bank of India</td></tr>
+              <tr><td className="border-none py-0.5 px-0 w-24">A/c No.</td><td className="border-none py-0.5 px-0 font-semibold">: 359701010036291</td></tr>
+              <tr><td className="border-none py-0.5 px-0 w-24">IFSC Code</td><td className="border-none py-0.5 px-0 font-semibold">: UBIN0535974</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -28,13 +28,14 @@ const generateQuotationNumber = async (): Promise<string> => {
 
 export const createQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { customerId, items, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = req.body;
+    const { customerId, invoiceType, items, services = [], subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = req.body;
 
     const quotationNumber = await generateQuotationNumber();
 
     const quotation = await prisma.quotation.create({
       data: {
         quotationNumber,
+        invoiceType: invoiceType || 'GST',
         customerId,
         subtotal: Number(subtotal),
         discount: Number(discount),
@@ -45,7 +46,6 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
         sgstAmount: Number(sgstAmount),
         grandTotal: Number(grandTotal),
         validUntil: validUntil ? new Date(validUntil) : null,
-        status: 'DRAFT',
         quotationItems: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -54,11 +54,27 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
             totalPrice: Number(item.totalPrice),
             taxableUnitPrice: Number(item.taxableUnitPrice),
             taxableTotalPrice: Number(item.taxableTotalPrice),
+            gstRate: Number(item.gstRate || 0),
+            cgstAmount: Number(item.cgstAmount || 0),
+            sgstAmount: Number(item.sgstAmount || 0),
+            wattage: Number(item.wattage || 0),
+          }))
+        },
+        quotationServices: {
+          create: services.map((service: any) => ({
+            name: service.name,
+            amount: Number(service.amount),
+            gstRate: Number(service.gstRate || 0),
+            cgstAmount: Number(service.cgstAmount || 0),
+            sgstAmount: Number(service.sgstAmount || 0),
+            taxableAmount: Number(service.taxableAmount || 0),
+            isGstInclusive: Boolean(service.isGstInclusive)
           }))
         }
       },
       include: {
-        quotationItems: true
+        quotationItems: true,
+        quotationServices: true
       }
     });
 
@@ -143,7 +159,8 @@ export const getQuotationById = async (req: Request, res: Response): Promise<voi
           include: {
             product: true
           }
-        }
+        },
+        quotationServices: true
       }
     });
 
@@ -152,7 +169,7 @@ export const getQuotationById = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const { customer, quotationItems, ...restQuotation } = quotation as any;
+    const { customer, quotationItems, quotationServices, ...restQuotation } = quotation as any;
     
     // Map items so productId is populated
     const mappedItems = quotationItems.map((item: any) => {
@@ -160,7 +177,7 @@ export const getQuotationById = async (req: Request, res: Response): Promise<voi
       return mapToMongoose({ ...restItem, productId: product });
     });
 
-    res.json(mapToMongoose({ ...restQuotation, customerId: customer, items: mappedItems }));
+    res.json(mapToMongoose({ ...restQuotation, customerId: customer, items: mappedItems, services: quotationServices }));
   } catch (error: any) {
     logger.error('Error fetching quotation details', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -178,6 +195,7 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
     }
 
     await prisma.$transaction(async (tx) => {
+      await tx.quotationService.deleteMany({ where: { quotationId: id as string } });
       await tx.quotationItem.deleteMany({ where: { quotationId: id as string } });
       await tx.quotation.delete({ where: { id: id as string } });
     });
@@ -192,7 +210,7 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
 export const updateQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { customerId, items, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = req.body;
+    const { customerId, invoiceType, items, services = [], subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = req.body;
 
     const quotation = await prisma.quotation.findUnique({ where: { id: id as string } });
     if (!quotation) {
@@ -204,11 +222,14 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
       // Delete old items
       await tx.quotationItem.deleteMany({ where: { quotationId: id as string } });
 
+      await tx.quotationService.deleteMany({ where: { quotationId: id as string } });
+
       // Update quotation and recreate items
       return await tx.quotation.update({
         where: { id: id as string },
         data: {
           customerId,
+          invoiceType: invoiceType || 'GST',
           subtotal: Number(subtotal),
           discount: Number(discount),
           taxableAmount: Number(taxableAmount),
@@ -226,11 +247,27 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
               totalPrice: Number(item.totalPrice),
               taxableUnitPrice: Number(item.taxableUnitPrice),
               taxableTotalPrice: Number(item.taxableTotalPrice),
+              gstRate: Number(item.gstRate || 0),
+              cgstAmount: Number(item.cgstAmount || 0),
+              sgstAmount: Number(item.sgstAmount || 0),
+              wattage: Number(item.wattage || 0),
+            }))
+          },
+          quotationServices: {
+            create: services.map((service: any) => ({
+              name: service.name,
+              amount: Number(service.amount),
+              gstRate: Number(service.gstRate || 0),
+              cgstAmount: Number(service.cgstAmount || 0),
+              sgstAmount: Number(service.sgstAmount || 0),
+              taxableAmount: Number(service.taxableAmount || 0),
+              isGstInclusive: Boolean(service.isGstInclusive)
             }))
           }
         },
         include: {
-          quotationItems: true
+          quotationItems: true,
+          quotationServices: true
         }
       });
     });
@@ -239,5 +276,44 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
   } catch (error: any) {
     logger.error('Error updating quotation', { error: error.message, stack: error.stack });
     res.status(400).json({ error: error.message || 'Error updating quotation' });
+  }
+};
+
+export const convertQuotation = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const quotation = await prisma.quotation.findUnique({
+      where: { id: id as string }
+    });
+
+    if (!quotation) {
+      res.status(404).json({ error: 'Quotation not found' });
+      return;
+    }
+
+    if (quotation.status === 'ACCEPTED') {
+      res.status(400).json({ error: 'Quotation is already accepted and converted' });
+      return;
+    }
+
+    if (!req.body || !req.body.customerId) {
+      res.status(400).json({ error: 'Invalid payload. Please initiate the conversion from the frontend again (refresh the page).' });
+      return;
+    }
+
+    // Call SaleService with the provided payload from NewSale.tsx
+    const { SaleService } = await import('../services/saleService');
+    const newSale = await SaleService.createSale(req.body);
+
+    await prisma.quotation.update({
+      where: { id: quotation.id },
+      data: { status: 'ACCEPTED' }
+    });
+
+    res.json(mapToMongoose(newSale));
+  } catch (error: any) {
+    logger.error('Error converting quotation', { error: error.message, stack: error.stack });
+    res.status(400).json({ error: error.message || 'Error converting quotation' });
   }
 };

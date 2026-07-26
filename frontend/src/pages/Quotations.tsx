@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Download, Trash2, Edit, Search, X, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { Plus, Download, Trash2, Edit, Search, X, ChevronLeft, ChevronRight, MessageCircle, FileOutput } from 'lucide-react';
 
 const Quotations = () => {
+  const navigate = useNavigate();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -65,6 +66,10 @@ const Quotations = () => {
         alert(error.response?.data?.error || 'Failed to delete quotation');
       }
     }
+  };
+
+  const handleConvertToInvoice = (quotationId: string) => {
+    navigate(`/sales/new?quotationId=${quotationId}`);
   };
 
   return (
@@ -141,6 +146,9 @@ const Quotations = () => {
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title="Print Quotation" onClick={() => handlePrintQuotation(quotation._id)}>
                         <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Convert to Invoice" className="text-purple-600 hover:text-purple-800" onClick={() => handleConvertToInvoice(quotation._id)}>
+                        <FileOutput className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Send via WhatsApp" className="text-green-600 hover:text-green-800" onClick={() => handleSendWhatsapp(quotation)}>
                         <MessageCircle className="h-4 w-4" />

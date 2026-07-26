@@ -9,6 +9,7 @@ import Inventory from './pages/Inventory';
 import Customers from './pages/Customers';
 import Sales from './pages/Sales';
 import NewSale from './pages/NewSale';
+import EditSale from './pages/EditSale';
 import Quotations from './pages/Quotations';
 import NewQuotation from './pages/NewQuotation';
 import EditQuotation from './pages/EditQuotation';
@@ -42,6 +43,7 @@ function App() {
             <Route path="parties/:type/:id/ledger" element={<PartyLedger />} />
             <Route path="sales" element={<Sales />} />
             <Route path="sales/new" element={<NewSale />} />
+            <Route path="sales/:id/edit" element={<EditSale />} />
             <Route path="purchases" element={<Purchases />} />
             <Route path="purchases/new" element={<NewPurchase />} />
             <Route path="purchases/:id/edit" element={<EditPurchase />} />
