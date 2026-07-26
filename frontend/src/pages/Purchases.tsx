@@ -82,8 +82,8 @@ const Purchases = () => {
         </div>
       </div>
 
-      <div className="rounded-md border bg-white dark:bg-slate-950">
-        <Table>
+      <div className="rounded-md border bg-white dark:bg-slate-950 overflow-x-auto">
+        <Table className="min-w-[800px]">
           <TableHeader>
             <TableRow>
               <TableHead>Invoice #</TableHead>

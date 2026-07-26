@@ -169,8 +169,8 @@ const Categories = () => {
       </div>
 
       {/* Main Table */}
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
-        <Table>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
+        <Table className="min-w-[500px]">
           <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
             <TableRow>
               <TableHead className="w-1/3">Name</TableHead>

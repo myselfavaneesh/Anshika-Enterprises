@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import authRoutes from './routes/auth';
 import categoryRoutes from './routes/category';
 import productRoutes from './routes/product';
@@ -60,9 +61,21 @@ app.use('/api/returns', returnRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 
-// Basic Route
-app.get('/', (req, res) => {
+// Basic Route (API Health check)
+app.get('/api/health', (req, res) => {
   res.send('Anshika Enterprises API is running');
+});
+
+// Serve frontend static files in production
+const frontendPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendPath));
+
+// Catch-all route for React Router
+app.get(/.*/, (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // Global Error Handling Middleware

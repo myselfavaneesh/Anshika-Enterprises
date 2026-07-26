@@ -139,8 +139,8 @@ const Customers = () => {
         )}
       </div>
 
-      <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
-        <Table>
+      <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>

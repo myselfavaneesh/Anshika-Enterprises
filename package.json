@@ -1,0 +1,33 @@
+{
+  "name": "anshika-enterprises-desktop",
+  "version": "1.0.0",
+  "description": "Desktop application for Anshika Enterprises",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:electron": "npm run build:frontend && npm run build:backend && electron-builder --win",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build"
+  },
+  "build": {
+    "appId": "com.anshika.enterprises",
+    "productName": "Anshika Enterprises",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "backend/**/*",
+      "frontend/dist/**/*",
+      "node_modules/**/*"
+    ],
+    "extraMetadata": {
+      "main": "main.js"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

@@ -8,11 +8,10 @@ import {
   ShoppingCart, 
   ShoppingBag,
   LogOut,
-  Boxes,
-  FolderOpen,
   FileText,
   Menu,
-  X
+  X,
+  ListTree
 } from 'lucide-react';
 
 const Layout = () => {
@@ -29,9 +28,8 @@ const Layout = () => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Products', href: '/products', icon: Package },
-    { name: 'Categories', href: '/categories', icon: FolderOpen },
-    { name: 'Inventory', href: '/inventory', icon: Boxes },
-    { name: 'Parties (Khata)', href: '/parties', icon: Users },
+    { name: 'Categories', href: '/categories', icon: ListTree },
+    { name: 'Khata Book', href: '/parties', icon: Users },
     { name: 'Purchases', href: '/purchases', icon: ShoppingBag },
     { name: 'Sales', href: '/sales', icon: ShoppingCart },
     { name: 'Quotations', href: '/quotations', icon: FileText },

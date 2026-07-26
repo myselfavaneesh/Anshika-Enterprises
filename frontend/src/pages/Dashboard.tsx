@@ -255,24 +255,26 @@ const Dashboard = () => {
             {stats.recentSales.length === 0 ? (
               <p className="text-sm text-muted-foreground">No recent sales.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stats.recentSales.map((sale) => (
-                    <TableRow key={sale._id}>
-                      <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
-                      <TableCell>{sale.customerId?.name || 'Unknown'}</TableCell>
-                      <TableCell className="text-right">₹{sale.grandTotal.toFixed(2)}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.recentSales.map((sale) => (
+                      <TableRow key={sale._id}>
+                        <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
+                        <TableCell>{sale.customerId?.name || 'Unknown'}</TableCell>
+                        <TableCell className="text-right">₹{sale.grandTotal.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

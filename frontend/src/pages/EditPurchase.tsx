@@ -380,7 +380,7 @@ export default function EditPurchase() {
 
               {/* Cart Table */}
               <div className="rounded-md border mt-4 overflow-x-auto">
-                <Table>
+                <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>

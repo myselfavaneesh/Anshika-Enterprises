@@ -47,9 +47,9 @@ function App() {
             <Route path="purchases" element={<Purchases />} />
             <Route path="purchases/new" element={<NewPurchase />} />
             <Route path="purchases/:id/edit" element={<EditPurchase />} />
-            <Route path="quotations" element={<Quotations />} />
-            <Route path="quotations/new" element={<NewQuotation />} />
-            <Route path="quotations/:id/edit" element={<EditQuotation />} />
+            <Route path="/quotations" element={<Quotations />} />
+            <Route path="/quotations/new" element={<NewQuotation />} />
+            <Route path="/quotations/:id" element={<EditQuotation />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />

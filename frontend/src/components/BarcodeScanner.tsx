@@ -98,23 +98,25 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
   }
 
   return (
-    <div className="space-y-4">
-      <div className="w-full max-w-sm mx-auto overflow-hidden rounded-md border bg-black relative">
+    <div className="space-y-4 w-full">
+      <div className="w-full max-w-xs sm:max-w-sm mx-auto overflow-hidden rounded-md border bg-black relative aspect-square">
         <video 
           ref={videoRef} 
-          className="w-full h-auto"
+          className="w-full h-full object-cover"
           autoPlay 
           muted 
           playsInline
         />
         {/* Visual indicator / crosshair for better scanning UX */}
-        <div className="absolute inset-0 border-2 border-red-500 opacity-50 m-8 rounded pointer-events-none"></div>
+        <div className="absolute inset-8 border-2 border-red-500/50 rounded-lg pointer-events-none shadow-[0_0_0_4000px_rgba(0,0,0,0.5)]">
+           <div className="absolute top-1/2 left-0 w-full h-[1px] bg-red-500/50 shadow-[0_0_4px_rgba(255,0,0,0.5)]"></div>
+        </div>
       </div>
       <Button 
         type="button" 
         variant="destructive" 
         onClick={stopScanning}
-        className="w-full"
+        className="w-full max-w-xs sm:max-w-sm mx-auto block"
       >
         Stop Scanning
       </Button>

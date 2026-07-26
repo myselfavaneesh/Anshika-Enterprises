@@ -97,8 +97,8 @@ export default function Parties() {
 
   const renderTable = (data: any[], type: 'customers' | 'suppliers') => {
     return (
-      <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm mt-4">
-        <Table>
+      <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm mt-4 overflow-x-auto">
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
