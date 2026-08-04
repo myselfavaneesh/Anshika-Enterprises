@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Edit, Search, X, Trash2 } from 'lucide-react';
+import { Plus, Edit, Search, X, Trash2, Copy, Download } from 'lucide-react';
 
 const Customers = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -77,14 +77,49 @@ const Customers = () => {
     }
   };
 
+  const handleExportVCF = () => {
+    const vcfData = customers.filter(c => c.phone).map(c => 
+      `BEGIN:VCARD\nVERSION:3.0\nFN:${c.name}\nTEL;TYPE=CELL:${c.phone}\nEND:VCARD`
+    ).join('\n');
+    
+    if (!vcfData) {
+      alert('No customers with phone numbers found.');
+      return;
+    }
+    const blob = new Blob([vcfData], { type: 'text/vcard' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'customers_contacts.vcf';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyNumbers = () => {
+    const numbers = customers.filter(c => c.phone).map(c => c.phone).join(', ');
+    if (numbers) {
+      navigator.clipboard.writeText(numbers);
+      alert('Copied all phone numbers to clipboard!');
+    } else {
+      alert('No phone numbers found.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Customers</h2>
-        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Customer</Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleCopyNumbers} title="Copy comma separated numbers for WhatsApp Web Extensions">
+            <Copy className="mr-2 h-4 w-4" /> Copy Numbers
+          </Button>
+          <Button variant="outline" onClick={handleExportVCF} title="Download Contacts for Phone Import to create WhatsApp Broadcast Lists">
+            <Download className="mr-2 h-4 w-4" /> Export Contacts (VCF)
+          </Button>
+          <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" /> Add Customer</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingId ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
@@ -120,6 +155,7 @@ const Customers = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Search Filter */}

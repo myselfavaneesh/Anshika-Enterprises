@@ -31,14 +31,21 @@ export const getInventory = async (req: Request, res: Response): Promise<void> =
         category: true,
         _count: {
           select: { productUnits: { where: { status: 'IN_STOCK' } } }
-        }
+        },
+        inventories: true
       }
     });
 
     if (status === 'LOW') {
-      products = products.filter(p => p._count.productUnits <= p.lowStockThreshold && p._count.productUnits > 0);
+      products = products.filter(p => {
+        const qty = p.trackSerials ? p._count.productUnits : (p.inventories?.quantity || 0);
+        return qty <= p.lowStockThreshold && qty > 0;
+      });
     } else if (status === 'OUT') {
-      products = products.filter(p => p._count.productUnits === 0);
+      products = products.filter(p => {
+        const qty = p.trackSerials ? p._count.productUnits : (p.inventories?.quantity || 0);
+        return qty === 0;
+      });
     }
 
     const total = products.length;
@@ -55,9 +62,10 @@ export const getInventory = async (req: Request, res: Response): Promise<void> =
         name: item.name,
         sku: item.sku,
         lowStockThreshold: item.lowStockThreshold,
+        trackSerials: item.trackSerials,
         categoryId: item.category ? mapToMongoose(item.category) : null
       },
-      quantity: item._count.productUnits,
+      quantity: item.trackSerials ? item._count.productUnits : (item.inventories?.quantity || 0),
       updatedAt: item.updatedAt
     }));
 
@@ -82,18 +90,15 @@ export const getInventory = async (req: Request, res: Response): Promise<void> =
 
 export const stockIn = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { productId, purchaseInvoiceNumber, supplierName, serialNumbers, purchasePrice } = req.body;
+    const { productId, purchaseInvoiceNumber, supplierName, serialNumbers, quantity, purchasePrice } = req.body;
     
-    if (!Array.isArray(serialNumbers) || serialNumbers.length === 0) {
-      res.status(400).json({ error: 'serialNumbers array is required' });
-      return;
-    }
-
+    // We pass both serialNumbers and quantity to service. It handles validation.
     await InventoryService.stockIn({
       productId,
       purchaseInvoiceNumber,
       supplierName,
       serialNumbers,
+      quantity: quantity ? Number(quantity) : undefined,
       purchasePrice
     });
 
@@ -110,14 +115,12 @@ export const stockIn = async (req: Request, res: Response): Promise<void> => {
 
 export const stockOut = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { productId, serialNumbers } = req.body;
+    const { productId, serialNumbers, quantity } = req.body;
 
-    if (!Array.isArray(serialNumbers) || serialNumbers.length === 0) {
-      res.status(400).json({ error: 'serialNumbers array is required' });
-      return;
-    }
-
-    await InventoryService.stockOut(productId, serialNumbers);
+    await InventoryService.stockOut(productId, {
+      serialNumbers,
+      quantity: quantity ? Number(quantity) : undefined
+    });
     res.json({ message: 'Stock removed successfully' });
   } catch (error: any) {
     logger.error('Error stocking out', { productId: req.body.productId, error: error.message });

@@ -82,7 +82,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
 
       {/* Header */}
       <h1 className="text-center font-bold text-xl uppercase mb-2">
-        {type === 'TAX INVOICE' ? (data?.invoiceType === 'NON_GST' ? 'INVOICE' : 'TAX INVOICE') : 'QUOTATION'}
+        {type === 'TAX INVOICE' ? (data?.invoiceType === 'NON_GST' ? 'ESTIMATE' : 'TAX INVOICE') : 'QUOTATION'}
       </h1>
 
       {/* Two Column Layout for Header Details */}

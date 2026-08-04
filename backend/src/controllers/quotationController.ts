@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
+import { generateQuotationPDF } from '../utils/pdfGenerator';
 
 const generateQuotationNumber = async (): Promise<string> => {
   const date = new Date();
@@ -315,5 +316,38 @@ export const convertQuotation = async (req: Request, res: Response): Promise<voi
   } catch (error: any) {
     logger.error('Error converting quotation', { error: error.message, stack: error.stack });
     res.status(400).json({ error: error.message || 'Error converting quotation' });
+  }
+};
+
+export const downloadQuotationPDF = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const quotation = await prisma.quotation.findUnique({ where: { id: id as string } });
+    if (!quotation) {
+      res.status(404).json({ error: 'Quotation not found' });
+      return;
+    }
+
+    const rawItems = await prisma.quotationItem.findMany({
+      where: { quotationId: id as string },
+      include: { product: true }
+    });
+
+    const customer = await prisma.customer.findUnique({ where: { id: quotation.customerId } });
+
+    const items = rawItems.map((item: any) => ({
+      ...mapToMongoose(item),
+      productId: item.product ? mapToMongoose(item.product) : null,
+      serialNumbers: []
+    }));
+
+    const pdfBuffer = await generateQuotationPDF(mapToMongoose(quotation), items, mapToMongoose(customer));
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="quotation-${quotation.quotationNumber.replace(/\//g, '-')}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    logger.error('Error generating quotation PDF', { quotationId: req.params.id, error: error.message });
+    res.status(500).json({ error: 'Error generating quotation PDF' });
   }
 };

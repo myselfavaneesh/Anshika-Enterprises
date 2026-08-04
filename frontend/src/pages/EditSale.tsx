@@ -32,6 +32,9 @@ export default function EditSale() {
   const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
   const [isSerialsDialogOpen, setIsSerialsDialogOpen] = useState(false);
   
+  const [isQuantityDialogOpen, setIsQuantityDialogOpen] = useState(false);
+  const [selectedQuantity, setSelectedQuantity] = useState('1');
+  
   const [discount, setDiscount] = useState('0');
   const [invoiceType, setInvoiceType] = useState('GST'); 
   
@@ -119,7 +122,12 @@ export default function EditSale() {
 
     if (p && p._id !== selectedProductId) {
       setSelectedProductId(p._id);
-      fetchSerials(p._id);
+      if (p.trackSerials === false) {
+        setIsQuantityDialogOpen(true);
+        setSelectedQuantity('1');
+      } else {
+        fetchSerials(p._id);
+      }
     } else if (!p) {
       setSelectedProductId('');
       setAvailableSerials([]);
@@ -147,12 +155,15 @@ export default function EditSale() {
   };
 
   const addToCart = () => {
-    if (!selectedProductId || selectedSerials.length === 0) return;
+    if (!selectedProductId) return;
     
     const product = products.find(p => p._id === selectedProductId);
     if (!product) return;
     
-    const qty = selectedSerials.length;
+    if (product.trackSerials !== false && selectedSerials.length === 0) return;
+    
+    const qty = product.trackSerials === false ? Number(selectedQuantity) : selectedSerials.length;
+    if (qty <= 0) return;
 
     const existingItemIndex = cart.findIndex(item => item.productId === product._id);
     if (existingItemIndex >= 0) {
@@ -160,7 +171,9 @@ export default function EditSale() {
       newCart[existingItemIndex].quantity += qty;
       const calcQty = (newCart[existingItemIndex].wattage || 0) > 0 ? newCart[existingItemIndex].quantity * newCart[existingItemIndex].wattage : newCart[existingItemIndex].quantity;
       newCart[existingItemIndex].totalPrice = calcQty * newCart[existingItemIndex].unitPrice;
-      newCart[existingItemIndex].serialNumbers = Array.from(new Set([...newCart[existingItemIndex].serialNumbers, ...selectedSerials]));
+      if (product.trackSerials !== false) {
+        newCart[existingItemIndex].serialNumbers = Array.from(new Set([...newCart[existingItemIndex].serialNumbers, ...selectedSerials]));
+      }
       setCart(newCart);
     } else {
       const wattage = product.wattage || 0;
@@ -172,7 +185,7 @@ export default function EditSale() {
         quantity: qty,
         unitPrice: product.sellingPrice || 0,
         totalPrice: calcQty * (product.sellingPrice || 0),
-        serialNumbers: selectedSerials,
+        serialNumbers: product.trackSerials === false ? [] : selectedSerials,
         gstRate: product.gstRate || 0,
         isGstInclusive: product.isGstInclusive !== undefined ? product.isGstInclusive : true,
         wattage: wattage
@@ -185,6 +198,8 @@ export default function EditSale() {
     setSelectedSerials([]);
     setAvailableSerials([]);
     setIsSerialsDialogOpen(false);
+    setIsQuantityDialogOpen(false);
+    setSelectedQuantity('1');
     
     // Focus back to product search for next item
     setTimeout(() => productInputRef.current?.focus(), 100);
@@ -768,6 +783,33 @@ export default function EditSale() {
           <DialogFooter className="mt-6 flex justify-between items-center border-t pt-4">
             <span className="text-lg font-bold text-primary">Selected: {selectedSerials.length}</span>
             <Button onClick={addToCart} size="lg" className="px-8">Confirm & Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isQuantityDialogOpen} onOpenChange={setIsQuantityDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enter Quantity</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Quantity</label>
+            <Input 
+              type="number" 
+              min="1"
+              value={selectedQuantity}
+              onChange={e => setSelectedQuantity(e.target.value)}
+              className="text-lg"
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addToCart();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={addToCart} size="lg" className="w-full">Confirm & Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

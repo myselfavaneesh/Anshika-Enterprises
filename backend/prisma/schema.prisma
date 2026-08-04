@@ -37,6 +37,7 @@ model Product {
   sku               String   @unique
   hsnCode           String?
   gstRate           Float    @default(0)
+  trackSerials      Boolean  @default(true) // true=serial tracked, false=quantity only
   lowStockThreshold Int      @default(5)
   purchasePrice     Float    @default(0)
   sellingPrice      Float    @default(0)

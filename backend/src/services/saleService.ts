@@ -12,7 +12,7 @@ export interface SaleItemInput {
   cgstAmount: number;
   sgstAmount: number;
   wattage: number;
-  serialNumbers: string[];
+  serialNumbers?: string[];
 }
 
 export interface SaleServiceInput {
@@ -165,8 +165,11 @@ export class SaleService {
 
         // 2. Process items & Update ProductUnits
         for (const item of items) {
-          if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
-            throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+          const product = await tx.product.findUnique({ where: { id: item.productId } });
+          if (product?.trackSerials) {
+            if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
+              throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+            }
           }
 
           const saleItem = await tx.saleItem.create({
@@ -185,15 +188,26 @@ export class SaleService {
             }
           });
 
-          for (const serial of item.serialNumbers) {
-            const updatedUnit = await tx.productUnit.updateMany({
-              where: { serialNumber: serial, status: 'IN_STOCK' },
-              data: { status: 'SOLD', saleId: newSale.id, saleItemId: saleItem.id }
-            });
+          if (product?.trackSerials) {
+            for (const serial of item.serialNumbers!) {
+              const updatedUnit = await tx.productUnit.updateMany({
+                where: { serialNumber: serial, status: 'IN_STOCK' },
+                data: { status: 'SOLD', saleId: newSale.id, saleItemId: saleItem.id }
+              });
 
-            if (updatedUnit.count === 0) {
-              throw new Error(`Serial number ${serial} is already sold or unavailable.`);
+              if (updatedUnit.count === 0) {
+                throw new Error(`Serial number ${serial} is already sold or unavailable.`);
+              }
             }
+          } else {
+            const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
+            if (!inventory || inventory.quantity < item.quantity) {
+              throw new Error(`Insufficient stock for product ID: ${item.productId}`);
+            }
+            await tx.inventory.update({
+              where: { productId: item.productId },
+              data: { quantity: { decrement: item.quantity } }
+            });
           }
         }
 
@@ -238,7 +252,10 @@ export class SaleService {
   static async updateSale(saleId: string, data: SaleInput): Promise<any> {
     try {
       const updatedSale = await prisma.$transaction(async (tx) => {
-        const existingSale = await tx.sale.findUnique({ where: { id: saleId } });
+        const existingSale = await tx.sale.findUnique({ 
+          where: { id: saleId },
+          include: { saleItems: { include: { product: true } } }
+        });
         if (!existingSale) throw new Error('Sale not found');
 
         const { customerId, invoiceType, items, services = [], discount, grandTotal, amountPaid, paymentMode } = data;
@@ -311,6 +328,17 @@ export class SaleService {
           data: { status: 'IN_STOCK', saleId: null, saleItemId: null }
         });
 
+        // 1.5 Revert non-serialized inventory
+        for (const oldItem of existingSale.saleItems) {
+          if (!oldItem.product.trackSerials) {
+            await tx.inventory.upsert({
+              where: { productId: oldItem.productId },
+              create: { productId: oldItem.productId, quantity: oldItem.quantity },
+              update: { quantity: { increment: oldItem.quantity } }
+            });
+          }
+        }
+
         // 2. Delete existing items and services
         await tx.saleItem.deleteMany({ where: { saleId: existingSale.id } });
         await tx.saleService.deleteMany({ where: { saleId: existingSale.id } });
@@ -363,8 +391,11 @@ export class SaleService {
         }
 
         for (const item of items) {
-          if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
-            throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+          const product = await tx.product.findUnique({ where: { id: item.productId } });
+          if (product?.trackSerials) {
+            if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
+              throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+            }
           }
 
           const saleItem = await tx.saleItem.create({
@@ -383,14 +414,25 @@ export class SaleService {
             }
           });
 
-          for (const serial of item.serialNumbers) {
-            const updatedUnit = await tx.productUnit.updateMany({
-              where: { serialNumber: serial, status: 'IN_STOCK' },
-              data: { status: 'SOLD', saleId: sale.id, saleItemId: saleItem.id }
-            });
-            if (updatedUnit.count === 0) {
-              throw new Error(`Serial number ${serial} is already sold or unavailable.`);
+          if (product?.trackSerials) {
+            for (const serial of item.serialNumbers!) {
+              const updatedUnit = await tx.productUnit.updateMany({
+                where: { serialNumber: serial, status: 'IN_STOCK' },
+                data: { status: 'SOLD', saleId: sale.id, saleItemId: saleItem.id }
+              });
+              if (updatedUnit.count === 0) {
+                throw new Error(`Serial number ${serial} is already sold or unavailable.`);
+              }
             }
+          } else {
+            const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
+            if (!inventory || inventory.quantity < item.quantity) {
+              throw new Error(`Insufficient stock for product ID: ${item.productId}`);
+            }
+            await tx.inventory.update({
+              where: { productId: item.productId },
+              data: { quantity: { decrement: item.quantity } }
+            });
           }
         }
 
@@ -433,7 +475,10 @@ export class SaleService {
   static async deleteSale(saleId: string): Promise<void> {
     try {
       await prisma.$transaction(async (tx) => {
-        const sale = await tx.sale.findUnique({ where: { id: saleId } });
+        const sale = await tx.sale.findUnique({ 
+          where: { id: saleId },
+          include: { saleItems: { include: { product: true } } }
+        });
         if (!sale) throw new Error('Sale not found');
 
         // 1. Revert ProductUnit statuses
@@ -441,6 +486,17 @@ export class SaleService {
           where: { saleId: sale.id },
           data: { status: 'IN_STOCK', saleId: null, saleItemId: null }
         });
+
+        // 1.5 Revert non-serialized inventory
+        for (const oldItem of sale.saleItems) {
+          if (!oldItem.product.trackSerials) {
+            await tx.inventory.upsert({
+              where: { productId: oldItem.productId },
+              create: { productId: oldItem.productId, quantity: oldItem.quantity },
+              update: { quantity: { increment: oldItem.quantity } }
+            });
+          }
+        }
 
         // 2. Delete SaleItems and SaleServices
         await tx.saleItem.deleteMany({ where: { saleId: sale.id } });

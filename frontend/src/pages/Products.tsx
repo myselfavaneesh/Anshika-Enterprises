@@ -13,7 +13,7 @@ const Products = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0',
-    purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0'
+    purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0', trackSerials: true
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -85,7 +85,8 @@ const Products = () => {
         purchasePrice: Number(formData.purchasePrice),
         sellingPrice: Number(formData.sellingPrice),
         isGstInclusive: formData.isGstInclusive,
-        wattage: Number(formData.wattage)
+        wattage: Number(formData.wattage),
+        trackSerials: formData.trackSerials
       };
 
       if (editingId) {
@@ -114,7 +115,7 @@ const Products = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0', purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0' });
+    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0', purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0', trackSerials: true });
   };
 
   const handleEdit = (product: any) => {
@@ -129,7 +130,8 @@ const Products = () => {
       purchasePrice: product.purchasePrice ? product.purchasePrice.toString() : '0',
       sellingPrice: product.sellingPrice ? product.sellingPrice.toString() : '0',
       isGstInclusive: product.isGstInclusive ?? true,
-      wattage: product.wattage ? product.wattage.toString() : '0'
+      wattage: product.wattage ? product.wattage.toString() : '0',
+      trackSerials: product.trackSerials ?? true
     });
     setIsOpen(true);
   };
@@ -203,6 +205,17 @@ const Products = () => {
                   <label className="text-sm font-medium">Panel Wattage (W)</label>
                   <Input type="number" min="0" required value={formData.wattage} onChange={e => setFormData({...formData, wattage: e.target.value})} placeholder="e.g. 540 (0 if none)" />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tracking Type</label>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formData.trackSerials ? 'true' : 'false'}
+                    onChange={e => setFormData({...formData, trackSerials: e.target.value === 'true'})}
+                  >
+                    <option value="true">Track Serials (Battery/Inverter)</option>
+                    <option value="false">Quantity Only (Accessories)</option>
+                  </select>
+                </div>
               </div>
               <Button type="submit" className="w-full">{editingId ? 'Update' : 'Save'}</Button>
             </form>
@@ -254,6 +267,7 @@ const Products = () => {
               <TableHead>HSN Code</TableHead>
               <TableHead>GST</TableHead>
               <TableHead>Price Type</TableHead>
+              <TableHead>Tracking</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -287,6 +301,7 @@ const Products = () => {
                   <TableCell>{product.hsnCode || '-'}</TableCell>
                   <TableCell>{product.gstRate ? `${product.gstRate}%` : '0%'}</TableCell>
                   <TableCell>{product.isGstInclusive ? 'Inclusive' : 'Exclusive'}</TableCell>
+                  <TableCell>{product.trackSerials ? 'Serialized' : 'Quantity'}</TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>

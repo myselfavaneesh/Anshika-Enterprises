@@ -33,6 +33,9 @@ export default function EditPurchase() {
   const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
   const [isSerialsDialogOpen, setIsSerialsDialogOpen] = useState(false);
   
+  const [isQuantityDialogOpen, setIsQuantityDialogOpen] = useState(false);
+  const [selectedQuantity, setSelectedQuantity] = useState('1');
+  
   const [purchaseInvoiceNumber, setPurchaseInvoiceNumber] = useState('');
   const [discount, setDiscount] = useState('0');
   const [taxRate, setTaxRate] = useState('18'); 
@@ -114,7 +117,12 @@ export default function EditPurchase() {
 
     if (p && p._id !== selectedProductId) {
       setSelectedProductId(p._id);
-      setIsSerialsDialogOpen(true);
+      if (p.trackSerials === false) {
+        setIsQuantityDialogOpen(true);
+        setSelectedQuantity('1');
+      } else {
+        setIsSerialsDialogOpen(true);
+      }
     } else if (!p) {
       setSelectedProductId('');
     }
@@ -143,18 +151,23 @@ export default function EditPurchase() {
   };
 
   const addToCart = () => {
-    if (!selectedProductId || selectedSerials.length === 0) return;
+    if (!selectedProductId) return;
     
     const product = products.find(p => p._id === selectedProductId);
     if (!product) return;
     
-    const qty = selectedSerials.length;
+    if (product.trackSerials !== false && selectedSerials.length === 0) return;
+    
+    const qty = product.trackSerials === false ? Number(selectedQuantity) : selectedSerials.length;
+    if (qty <= 0) return;
 
     const existingItemIndex = cart.findIndex(item => item.productId === product._id);
     if (existingItemIndex >= 0) {
       const newCart = [...cart];
       newCart[existingItemIndex].quantity += qty;
-      newCart[existingItemIndex].serialNumbers = Array.from(new Set([...newCart[existingItemIndex].serialNumbers, ...selectedSerials]));
+      if (product.trackSerials !== false) {
+        newCart[existingItemIndex].serialNumbers = Array.from(new Set([...newCart[existingItemIndex].serialNumbers, ...selectedSerials]));
+      }
       newCart[existingItemIndex].totalPrice = newCart[existingItemIndex].quantity * newCart[existingItemIndex].unitPrice;
       setCart(newCart);
     } else {
@@ -165,7 +178,7 @@ export default function EditPurchase() {
         quantity: qty,
         unitPrice: 0,
         totalPrice: 0,
-        serialNumbers: selectedSerials
+        serialNumbers: product.trackSerials === false ? [] : selectedSerials
       }]);
     }
     
@@ -175,6 +188,8 @@ export default function EditPurchase() {
     setSelectedSerials([]);
     setSerialInput('');
     setIsSerialsDialogOpen(false);
+    setIsQuantityDialogOpen(false);
+    setSelectedQuantity('1');
     
     setTimeout(() => productInputRef.current?.focus(), 100);
   };
@@ -578,6 +593,34 @@ export default function EditPurchase() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSerialsDialogOpen(false)}>Cancel</Button>
             <Button onClick={addToCart} disabled={selectedSerials.length === 0}>Add to Invoice</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isQuantityDialogOpen} onOpenChange={setIsQuantityDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enter Quantity</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Quantity</label>
+            <Input 
+              type="number" 
+              min="1"
+              value={selectedQuantity}
+              onChange={e => setSelectedQuantity(e.target.value)}
+              className="text-lg"
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addToCart();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={addToCart} size="lg" className="w-full">Confirm & Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

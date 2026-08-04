@@ -51,7 +51,8 @@ const Quotations = () => {
       alert('No phone number found for this customer.');
       return;
     }
-    const message = `Hello ${quotation.customerId.name},\n\nYour quotation ${quotation.quotationNumber} for ₹${quotation.grandTotal.toFixed(2)} has been generated.\n\nPlease find the details attached (or contact us if you haven't received the PDF).`;
+    const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
+    const message = `Hello ${quotation.customerId.name},\n\nAapka ${docType} *${quotation.quotationNumber}* generate ho gaya hai.\nKul Raqam: *₹${quotation.grandTotal.toFixed(2)}*\n\nPDF attach kar di gayi hai. Koi sawaal ho to batayein.\n\n- Anshika Enterprises`;
     const encodedMessage = encodeURIComponent(message);
     const phone = quotation.customerId.phone.replace(/\D/g, '');
     window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');

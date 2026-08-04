@@ -15,7 +15,7 @@ const Inventory = () => {
   const [isOpenStockIn, setIsOpenStockIn] = useState(false);
   const [isOpenStockOut, setIsOpenStockOut] = useState(false);
   const [isOpenSerials, setIsOpenSerials] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedProductSerials, setSelectedProductSerials] = useState<any[]>([]);
   const [isOpenEditSerial, setIsOpenEditSerial] = useState(false);
   const [editSerialForm, setEditSerialForm] = useState<any>(null);
@@ -23,13 +23,15 @@ const Inventory = () => {
   const [stockInForm, setStockInForm] = useState({
     purchaseInvoiceNumber: '',
     supplierName: '',
-    serialNumbers: '',
     purchasePrice: '',
-    isFOC: false
+    isFOC: false,
+    quantity: '',
+    serialNumbers: ''
   });
   
   const [stockOutForm, setStockOutForm] = useState({
-    serialNumbers: ''
+    serialNumbers: '',
+    quantity: ''
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -117,17 +119,21 @@ const Inventory = () => {
   const handleStockIn = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const serials = stockInForm.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+      const serials = selectedProduct?.productId?.trackSerials 
+        ? stockInForm.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s) 
+        : [];
+        
       await api.post('/inventory/stock-in', {
-        productId: selectedProductId,
+        productId: selectedProduct.productId._id,
         purchaseInvoiceNumber: stockInForm.purchaseInvoiceNumber,
         supplierName: stockInForm.supplierName,
         serialNumbers: serials,
+        quantity: selectedProduct?.productId?.trackSerials ? undefined : Number(stockInForm.quantity),
         purchasePrice: stockInForm.isFOC ? 0 : (Number(stockInForm.purchasePrice) || undefined)
       });
       setIsOpenStockIn(false);
       fetchInventory();
-      setStockInForm({ purchaseInvoiceNumber: '', supplierName: '', serialNumbers: '', purchasePrice: '', isFOC: false });
+      setStockInForm({ purchaseInvoiceNumber: '', supplierName: '', serialNumbers: '', quantity: '', purchasePrice: '', isFOC: false });
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error adding stock');
     }
@@ -136,23 +142,26 @@ const Inventory = () => {
   const handleStockOut = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const serials = stockOutForm.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+      const serials = selectedProduct?.productId?.trackSerials 
+        ? stockOutForm.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s)
+        : [];
       await api.post('/inventory/stock-out', {
-        productId: selectedProductId,
-        serialNumbers: serials
+        productId: selectedProduct.productId._id,
+        serialNumbers: serials,
+        quantity: selectedProduct?.productId?.trackSerials ? undefined : Number(stockOutForm.quantity)
       });
       setIsOpenStockOut(false);
       fetchInventory();
-      setStockOutForm({ serialNumbers: '' });
+      setStockOutForm({ serialNumbers: '', quantity: '' });
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error removing stock');
     }
   };
 
-  const openSerials = async (productId: string) => {
-    setSelectedProductId(productId);
+  const openSerials = async (inv: any) => {
+    setSelectedProduct(inv);
     try {
-      const res = await api.get(`/inventory/serials/${productId}`);
+      const res = await api.get(`/inventory/serials/${inv.productId._id}`);
       setSelectedProductSerials(res.data);
       setIsOpenSerials(true);
     } catch (error) {
@@ -179,7 +188,7 @@ const Inventory = () => {
         status: editSerialForm.status
       });
       setIsOpenEditSerial(false);
-      openSerials(selectedProductId); 
+      openSerials(selectedProduct); 
       fetchInventory();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error updating serial');
@@ -194,7 +203,7 @@ const Inventory = () => {
     if (!confirm('Are you sure you want to delete this serial number? This action cannot be undone.')) return;
     try {
       await api.delete(`/inventory/serial/${id}`);
-      openSerials(selectedProductId);
+      openSerials(selectedProduct);
       fetchInventory();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error deleting serial');
@@ -286,13 +295,15 @@ const Inventory = () => {
                   </TableCell>
                   <TableCell className="text-right">{new Date(inv.updatedAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openSerials(inv.productId?._id)}>
-                      <List className="mr-2 h-4 w-4" /> Serials
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => { setSelectedProductId(inv.productId?._id); setIsOpenStockIn(true); }}>
+                    {inv.productId?.trackSerials && (
+                      <Button variant="outline" size="sm" onClick={() => openSerials(inv)}>
+                        <List className="mr-2 h-4 w-4" /> Serials
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedProduct(inv); setIsOpenStockIn(true); }}>
                       <Plus className="mr-2 h-4 w-4" /> In
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => { setSelectedProductId(inv.productId?._id); setIsOpenStockOut(true); }}>
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedProduct(inv); setIsOpenStockOut(true); }}>
                       <Minus className="mr-2 h-4 w-4" /> Out
                     </Button>
                   </TableCell>
@@ -382,33 +393,40 @@ const Inventory = () => {
             </div>
             {!stockInForm.isFOC && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Purchase Price (₹)</label>
+                <label className="text-sm font-medium">Purchase Price (₹, Per Unit)</label>
                 <Input type="number" step="0.01" value={stockInForm.purchasePrice} onChange={e => setStockInForm({...stockInForm, purchasePrice: e.target.value})} />
               </div>
             )}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Serial Numbers (comma or newline separated)</label>
-              <textarea 
-                required
-                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background" 
-                value={stockInForm.serialNumbers} 
-                onChange={e => setStockInForm({...stockInForm, serialNumbers: e.target.value})} 
-                placeholder="SN001, SN002, SN003..."
-              />
-              <BarcodeScanner 
-                onScan={(decodedText) => {
-                  setStockInForm(prev => {
-                    const current = prev.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
-                    if (!current.includes(decodedText)) {
-                      const newSerials = current.length > 0 ? prev.serialNumbers + ',\n' + decodedText : decodedText;
-                      return { ...prev, serialNumbers: newSerials };
-                    }
-                    return prev;
-                  });
-                }} 
-                buttonText="Scan Serial Numbers (Camera)" 
-              />
-            </div>
+            {selectedProduct?.productId?.trackSerials ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Serial Numbers (comma or newline separated)</label>
+                <textarea 
+                  required
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background" 
+                  value={stockInForm.serialNumbers} 
+                  onChange={e => setStockInForm({...stockInForm, serialNumbers: e.target.value})} 
+                  placeholder="SN001, SN002, SN003..."
+                />
+                <BarcodeScanner 
+                  onScan={(decodedText) => {
+                    setStockInForm(prev => {
+                      const current = prev.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+                      if (!current.includes(decodedText)) {
+                        const newSerials = current.length > 0 ? prev.serialNumbers + ',\n' + decodedText : decodedText;
+                        return { ...prev, serialNumbers: newSerials };
+                      }
+                      return prev;
+                    });
+                  }} 
+                  buttonText="Scan Serial Numbers (Camera)" 
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Quantity to Stock In</label>
+                <Input type="number" required min="1" value={stockInForm.quantity} onChange={e => setStockInForm({...stockInForm, quantity: e.target.value})} placeholder="e.g. 10" />
+              </div>
+            )}
             <Button type="submit" className="w-full">Confirm Stock In</Button>
           </form>
         </DialogContent>
@@ -421,29 +439,36 @@ const Inventory = () => {
             <DialogTitle>Stock Out - Remove Serial Numbers (Damage/Loss)</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleStockOut} className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Serial Numbers to Remove (comma or newline separated)</label>
-              <textarea 
-                required
-                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background" 
-                value={stockOutForm.serialNumbers} 
-                onChange={e => setStockOutForm({...stockOutForm, serialNumbers: e.target.value})} 
-                placeholder="SN001, SN002..."
-              />
-              <BarcodeScanner 
-                onScan={(decodedText) => {
-                  setStockOutForm(prev => {
-                    const current = prev.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
-                    if (!current.includes(decodedText)) {
-                      const newSerials = current.length > 0 ? prev.serialNumbers + ',\n' + decodedText : decodedText;
-                      return { ...prev, serialNumbers: newSerials };
-                    }
-                    return prev;
-                  });
-                }} 
-                buttonText="Scan Serial Numbers (Camera)" 
-              />
-            </div>
+            {selectedProduct?.productId?.trackSerials ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Serial Numbers to Remove (comma or newline separated)</label>
+                <textarea 
+                  required
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background" 
+                  value={stockOutForm.serialNumbers} 
+                  onChange={e => setStockOutForm({...stockOutForm, serialNumbers: e.target.value})} 
+                  placeholder="SN001, SN002..."
+                />
+                <BarcodeScanner 
+                  onScan={(decodedText) => {
+                    setStockOutForm(prev => {
+                      const current = prev.serialNumbers.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+                      if (!current.includes(decodedText)) {
+                        const newSerials = current.length > 0 ? prev.serialNumbers + ',\n' + decodedText : decodedText;
+                        return { ...prev, serialNumbers: newSerials };
+                      }
+                      return prev;
+                    });
+                  }} 
+                  buttonText="Scan Serial Numbers (Camera)" 
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Quantity to Remove</label>
+                <Input type="number" required min="1" max={selectedProduct?.quantity || 1} value={stockOutForm.quantity} onChange={e => setStockOutForm({...stockOutForm, quantity: e.target.value})} placeholder="e.g. 5" />
+              </div>
+            )}
             <Button type="submit" variant="destructive" className="w-full">Confirm Stock Out</Button>
           </form>
         </DialogContent>

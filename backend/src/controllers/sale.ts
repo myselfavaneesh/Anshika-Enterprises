@@ -17,7 +17,7 @@ const SaleItemSchema = z.object({
   cgstAmount: z.number().min(0).default(0),
   sgstAmount: z.number().min(0).default(0),
   wattage: z.number().min(0).default(0),
-  serialNumbers: z.array(z.string()),
+  serialNumbers: z.array(z.string()).optional(),
 });
 
 const SaleServiceSchema = z.object({

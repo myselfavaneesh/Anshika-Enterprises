@@ -11,7 +11,7 @@ const PurchaseItemSchema = z.object({
   unitPrice: z.number().min(0),
   taxableUnitPrice: z.number().min(0),
   taxableTotalPrice: z.number().min(0),
-  serialNumbers: z.array(z.string()),
+  serialNumbers: z.array(z.string()).optional(),
 });
 
 const PurchaseInputSchema = z.object({

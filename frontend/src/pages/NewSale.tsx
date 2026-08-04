@@ -33,6 +33,9 @@ export default function NewSale() {
   const [selectedSerials, setSelectedSerials] = useState<string[]>([]);
   const [isSerialsDialogOpen, setIsSerialsDialogOpen] = useState(false);
   
+  const [isQuantityDialogOpen, setIsQuantityDialogOpen] = useState(false);
+  const [selectedQuantity, setSelectedQuantity] = useState('1');
+  
   const [discount, setDiscount] = useState('0');
   const [invoiceType, setInvoiceType] = useState('GST');
   
@@ -121,7 +124,12 @@ export default function NewSale() {
 
     if (p && p._id !== selectedProductId) {
       setSelectedProductId(p._id);
-      fetchSerials(p._id);
+      if (p.trackSerials === false) {
+        setIsQuantityDialogOpen(true);
+        setSelectedQuantity('1');
+      } else {
+        fetchSerials(p._id);
+      }
     } else if (!p) {
       setSelectedProductId('');
       setAvailableSerials([]);
@@ -149,12 +157,15 @@ export default function NewSale() {
   };
 
   const addToCart = () => {
-    if (!selectedProductId || selectedSerials.length === 0) return;
+    if (!selectedProductId) return;
     
     const product = products.find(p => p._id === selectedProductId);
     if (!product) return;
     
-    const qty = selectedSerials.length;
+    if (product.trackSerials !== false && selectedSerials.length === 0) return;
+    
+    const qty = product.trackSerials === false ? Number(selectedQuantity) : selectedSerials.length;
+    if (qty <= 0) return;
 
     const existingItemIndex = cart.findIndex(item => item.productId === product._id);
     if (existingItemIndex >= 0) {
@@ -187,6 +198,8 @@ export default function NewSale() {
     setSelectedSerials([]);
     setAvailableSerials([]);
     setIsSerialsDialogOpen(false);
+    setIsQuantityDialogOpen(false);
+    setSelectedQuantity('1');
     
     // Focus back to product search for next item
     setTimeout(() => productInputRef.current?.focus(), 100);
@@ -470,12 +483,19 @@ export default function NewSale() {
                   </datalist>
                 </div>
                 <Button 
-                  onClick={() => setIsSerialsDialogOpen(true)}
-                  disabled={!selectedProductId || availableSerials.length === 0}
+                  onClick={() => {
+                    const p = products.find(prod => prod._id === selectedProductId);
+                    if (p?.trackSerials === false) {
+                      setIsQuantityDialogOpen(true);
+                    } else {
+                      setIsSerialsDialogOpen(true);
+                    }
+                  }}
+                  disabled={!selectedProductId || (products.find(p => p._id === selectedProductId)?.trackSerials !== false && availableSerials.length === 0)}
                   variant="secondary"
                   className="h-10 w-full sm:w-auto"
                 >
-                  Serials ({selectedSerials.length})
+                  {products.find(p => p._id === selectedProductId)?.trackSerials === false ? `Quantity (${selectedQuantity})` : `Serials (${selectedSerials.length})`}
                 </Button>
               </div>
 
@@ -498,9 +518,11 @@ export default function NewSale() {
                         <TableRow key={item.productId} className="hover:bg-slate-50">
                           <TableCell className="font-medium">
                             <div>{item.name}</div>
-                            <div className="text-xs font-mono text-slate-500 mt-1 truncate max-w-[250px]">
-                              {item.serialNumbers.join(', ')}
-                            </div>
+                            {item.serialNumbers.length > 0 && (
+                              <div className="text-xs font-mono text-slate-500 mt-1 truncate max-w-[250px]">
+                                {item.serialNumbers.join(', ')}
+                              </div>
+                            )}
                             {item.wattage > 0 && (
                               <div className="text-xs text-blue-600 font-semibold mt-1">
                                 Panel Wattage: {item.wattage}W | Total: {item.wattage * item.quantity}W
@@ -774,6 +796,34 @@ export default function NewSale() {
           <DialogFooter className="mt-6 flex justify-between items-center border-t pt-4">
             <span className="text-lg font-bold text-primary">Selected: {selectedSerials.length}</span>
             <Button onClick={addToCart} size="lg" className="px-8">Confirm & Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isQuantityDialogOpen} onOpenChange={setIsQuantityDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enter Quantity</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Quantity</label>
+            <Input 
+              type="number" 
+              min="1"
+              value={selectedQuantity}
+              onChange={e => setSelectedQuantity(e.target.value)}
+              className="text-lg"
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addToCart();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={addToCart} size="lg" className="w-full">Confirm & Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

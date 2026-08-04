@@ -50,7 +50,8 @@ const Sales = () => {
       alert('No phone number found for this customer.');
       return;
     }
-    const message = `Hello ${sale.customerId.name},\n\nYour invoice ${sale.invoiceNumber} for ₹${sale.grandTotal.toFixed(2)} has been generated.\n\nPlease find the details attached (or contact us if you haven't received the PDF).`;
+    const docType = sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Invoice';
+    const message = `Hello ${sale.customerId.name},\n\nAapka ${docType} *${sale.invoiceNumber}* generate ho gaya hai.\nKul Raqam: *₹${sale.grandTotal.toFixed(2)}*\n\nPDF attach kar di gayi hai. Koi sawaal ho to batayein.\n\n- Anshika Enterprises`;
     const encodedMessage = encodeURIComponent(message);
     const phone = sale.customerId.phone.replace(/\D/g, '');
     window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');

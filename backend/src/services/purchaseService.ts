@@ -7,7 +7,7 @@ export interface PurchaseItemInput {
   unitPrice: number;
   taxableUnitPrice: number;
   taxableTotalPrice: number;
-  serialNumbers: string[];
+  serialNumbers?: string[];
 }
 
 export interface PurchaseInput {
@@ -55,8 +55,11 @@ export class PurchaseService {
 
         // 2. Process items & Create ProductUnits
         for (const item of items) {
-          if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
-            throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+          const product = await tx.product.findUnique({ where: { id: item.productId } });
+          if (product?.trackSerials) {
+            if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
+              throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+            }
           }
 
           const purchaseItem = await tx.purchaseItem.create({
@@ -71,23 +74,30 @@ export class PurchaseService {
             }
           });
 
-          // Add ProductUnits to Inventory
-          const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
-          const unitsToInsert = item.serialNumbers.map(sn => ({
-            productId: item.productId,
-            serialNumber: sn,
-            status: 'IN_STOCK',
-            purchaseId: newPurchase.id,
-            purchaseItemId: purchaseItem.id,
-            supplierId: supplierId,
-            purchasePrice: item.unitPrice,
-            purchaseInvoiceNumber: purchaseInvoiceNumber,
-            supplierName: supplier?.name || null,
-          }));
-          
-          await tx.productUnit.createMany({
-            data: unitsToInsert
-          });
+          if (product?.trackSerials) {
+            const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
+            const unitsToInsert = item.serialNumbers!.map(sn => ({
+              productId: item.productId,
+              serialNumber: sn,
+              status: 'IN_STOCK',
+              purchaseId: newPurchase.id,
+              purchaseItemId: purchaseItem.id,
+              supplierId: supplierId,
+              purchasePrice: item.unitPrice,
+              purchaseInvoiceNumber: purchaseInvoiceNumber,
+              supplierName: supplier?.name || null,
+            }));
+            
+            await tx.productUnit.createMany({
+              data: unitsToInsert
+            });
+          } else {
+            await tx.inventory.upsert({
+              where: { productId: item.productId },
+              create: { productId: item.productId, quantity: item.quantity },
+              update: { quantity: { increment: item.quantity } }
+            });
+          }
         }
 
         // 3. Ledger Logic (Khata Sync)
@@ -131,11 +141,27 @@ export class PurchaseService {
   static async deletePurchase(purchaseId: string): Promise<void> {
     try {
       await prisma.$transaction(async (tx) => {
-        const purchase = await tx.purchase.findUnique({ where: { id: purchaseId } });
+        const purchase = await tx.purchase.findUnique({ 
+          where: { id: purchaseId },
+          include: { purchaseItems: { include: { product: true } } }
+        });
         if (!purchase) throw new Error('Purchase not found');
 
         // 1. Delete ProductUnits
         await tx.productUnit.deleteMany({ where: { purchaseId: purchase.id } });
+
+        // 1.5 Revert non-serialized inventory (decrement what we previously purchased)
+        for (const item of purchase.purchaseItems) {
+          if (!item.product.trackSerials) {
+            const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
+            if (inventory) {
+              await tx.inventory.update({
+                where: { productId: item.productId },
+                data: { quantity: { decrement: item.quantity } }
+              });
+            }
+          }
+        }
 
         // 2. Delete PurchaseItems
         await tx.purchaseItem.deleteMany({ where: { purchaseId: purchase.id } });
@@ -176,7 +202,10 @@ export class PurchaseService {
         } = data;
 
         // 1. Fetch old purchase
-        const oldPurchase = await tx.purchase.findUnique({ where: { id: purchaseId } });
+        const oldPurchase = await tx.purchase.findUnique({ 
+          where: { id: purchaseId },
+          include: { purchaseItems: { include: { product: true } } }
+        });
         if (!oldPurchase) throw new Error('Purchase not found');
 
         // 2. Find and delete associated old Payment
@@ -196,6 +225,17 @@ export class PurchaseService {
 
         // 4. Delete old items and units
         await tx.productUnit.deleteMany({ where: { purchaseId: oldPurchase.id } });
+        for (const item of oldPurchase.purchaseItems) {
+          if (!item.product.trackSerials) {
+            const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
+            if (inventory) {
+              await tx.inventory.update({
+                where: { productId: item.productId },
+                data: { quantity: { decrement: item.quantity } }
+              });
+            }
+          }
+        }
         await tx.purchaseItem.deleteMany({ where: { purchaseId: oldPurchase.id } });
 
         // 5. Update Purchase record
@@ -218,8 +258,11 @@ export class PurchaseService {
 
         // 6. Process new items & Create ProductUnits
         for (const item of items) {
-          if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
-            throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+          const product = await tx.product.findUnique({ where: { id: item.productId } });
+          if (product?.trackSerials) {
+            if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
+              throw new Error(`Please provide exactly ${item.quantity} serial numbers for product ID: ${item.productId}`);
+            }
           }
 
           const purchaseItem = await tx.purchaseItem.create({
@@ -234,22 +277,30 @@ export class PurchaseService {
             }
           });
 
-          const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
-          const unitsToInsert = item.serialNumbers.map(sn => ({
-            productId: item.productId,
-            serialNumber: sn,
-            status: 'IN_STOCK',
-            purchaseId: updatedPurchase.id,
-            purchaseItemId: purchaseItem.id,
-            supplierId: supplierId,
-            purchasePrice: item.unitPrice,
-            purchaseInvoiceNumber: purchaseInvoiceNumber,
-            supplierName: supplier?.name || null,
-          }));
-          
-          await tx.productUnit.createMany({
-            data: unitsToInsert
-          });
+          if (product?.trackSerials) {
+            const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
+            const unitsToInsert = item.serialNumbers!.map(sn => ({
+              productId: item.productId,
+              serialNumber: sn,
+              status: 'IN_STOCK',
+              purchaseId: updatedPurchase.id,
+              purchaseItemId: purchaseItem.id,
+              supplierId: supplierId,
+              purchasePrice: item.unitPrice,
+              purchaseInvoiceNumber: purchaseInvoiceNumber,
+              supplierName: supplier?.name || null,
+            }));
+            
+            await tx.productUnit.createMany({
+              data: unitsToInsert
+            });
+          } else {
+            await tx.inventory.upsert({
+              where: { productId: item.productId },
+              create: { productId: item.productId, quantity: item.quantity },
+              update: { quantity: { increment: item.quantity } }
+            });
+          }
         }
 
         // 7. Ledger Logic for New Supplier (Khata Sync)

@@ -59,7 +59,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage } = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = req.body;
     
     const existingSku = await prisma.product.findUnique({ where: { sku } });
     if (existingSku) {
@@ -79,6 +79,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         sellingPrice: sellingPrice !== undefined ? Number(sellingPrice) : 0,
         isGstInclusive: isGstInclusive !== undefined ? Boolean(isGstInclusive) : true,
         wattage: wattage !== undefined ? Number(wattage) : 0,
+        trackSerials: trackSerials !== undefined ? Boolean(trackSerials) : true,
       }
     });
 
@@ -93,7 +94,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage } = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = req.body;
     
     try {
       const product = await prisma.product.update({
@@ -109,6 +110,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
           ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),
           ...(isGstInclusive !== undefined && { isGstInclusive: Boolean(isGstInclusive) }),
           ...(wattage !== undefined && { wattage: Number(wattage) }),
+          ...(trackSerials !== undefined && { trackSerials: Boolean(trackSerials) }),
         }
       });
       logger.info('Product updated successfully', { productId: id });

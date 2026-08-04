@@ -95,8 +95,8 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
       </div>
 
       <div class="flex justify-between items-end border-b-2 border-black pb-2 mb-4">
-        <h2 class="text-xl font-bold uppercase">GST TAX INVOICE</h2>
-        <span class="text-xs font-semibold">(ORIGINAL FOR RECIPIENT)</span>
+        <h2 class="text-xl font-bold uppercase">${sale.invoiceType === 'NON_GST' ? 'ESTIMATE' : 'GST TAX INVOICE'}</h2>
+        <span class="text-xs font-semibold">${sale.invoiceType === 'NON_GST' ? '(SUBJECT TO AZAMGARH JURISDICTION)' : '(ORIGINAL FOR RECIPIENT)'}</span>
       </div>
 
       <!-- Info Grid -->
@@ -235,3 +235,181 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
   await browser.close();
   return Buffer.from(pdfBuffer);
 };
+
+export const generateQuotationPDF = async (quotation: any, items: any[], customer: any): Promise<Buffer> => {
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+
+  const isNonGst = quotation.invoiceType === 'NON_GST';
+  const totalQuantity = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
+  const itemsHtml = items.map((item: any, index: number) => {
+    const serialsHtml = item.serialNumbers && item.serialNumbers.length > 0
+      ? `<div class="mt-1 text-sm italic text-gray-700">Serial Number(s):<br>${item.serialNumbers.join(', ')}</div>`
+      : '';
+    return `
+      <tr class="border-b border-gray-300">
+        <td class="p-2 text-center align-top border-r border-gray-300">${index + 1}</td>
+        <td class="p-2 align-top border-r border-gray-300">
+          <div class="font-bold text-gray-900">${item.productId?.name || 'Unknown Product'}</div>
+          ${serialsHtml}
+        </td>
+        <td class="p-2 text-center align-top border-r border-gray-300">${item.productId?.hsnCode || '-'}</td>
+        <td class="p-2 text-center align-top border-r border-gray-300 font-bold">${item.quantity}</td>
+        <td class="p-2 text-right align-top border-r border-gray-300">${(item.taxableUnitPrice || item.unitPrice || 0).toFixed(2)}</td>
+        ${!isNonGst ? `<td class="p-2 text-center align-top border-r border-gray-300">${item.gstRate || 0}%</td>` : ''}
+        <td class="p-2 text-right align-top font-bold">${(item.taxableTotalPrice || item.totalPrice || 0).toFixed(2)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const docTitle = isNonGst ? 'ESTIMATE' : 'QUOTATION';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${docTitle} ${quotation.quotationNumber}</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        table, th, td { border: 1px solid black; border-collapse: collapse; }
+        th, td { padding: 4px 8px; }
+      </style>
+    </head>
+    <body class="bg-white text-black text-[13px] leading-tight m-0 p-0">
+      
+      <!-- Header -->
+      <div class="text-center mb-4">
+        <h1 class="text-2xl font-bold uppercase tracking-wide">ANSHIKA ENTERPRISES</h1>
+        <p class="mt-1">Phoolpur, Azamgarh, Uttar Pradesh - 276304</p>
+        ${!isNonGst ? '<p class="font-semibold">GSTIN/UIN: 09BZOPK7723E1Z1 | State Code: 09</p>' : ''}
+        <p>Phone: 9598522526</p>
+      </div>
+
+      <div class="flex justify-between items-end border-b-2 border-black pb-2 mb-4">
+        <h2 class="text-xl font-bold uppercase">${docTitle}</h2>
+        <span class="text-xs font-semibold">(SUBJECT TO AZAMGARH JURISDICTION)</span>
+      </div>
+
+      <!-- Info Grid -->
+      <div class="grid grid-cols-2 gap-4 border border-black mb-4">
+        <!-- Customer Details -->
+        <div class="p-3 border-r border-black">
+          <div class="font-bold text-gray-500 mb-1 uppercase text-xs">Bill To</div>
+          <div class="font-bold text-[15px] mb-1">${customer.name}</div>
+          ${customer.address ? `<div>${customer.address}</div>` : ''}
+          ${customer.phone ? `<div>Phone: ${customer.phone}</div>` : ''}
+          ${customer.gstNumber && !isNonGst ? `<div class="font-semibold mt-1">GSTIN: ${customer.gstNumber}</div>` : ''}
+        </div>
+        
+        <!-- Quotation Details -->
+        <div class="p-3 flex flex-col justify-center">
+          <div class="grid grid-cols-[120px_1fr] gap-y-2">
+            <div class="font-semibold">${docTitle} No</div>
+            <div class="font-bold text-base">: ${quotation.quotationNumber}</div>
+            
+            <div class="font-semibold">Date</div>
+            <div class="font-bold text-base">: ${new Date(quotation.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).split(' ').join('-')}</div>
+            
+            ${quotation.validUntil ? `
+            <div class="font-semibold">Valid Until</div>
+            <div class="font-bold text-base">: ${new Date(quotation.validUntil).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).split(' ').join('-')}</div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Items Table -->
+      <table class="w-full border border-black mb-4 border-collapse">
+        <thead>
+          <tr class="border-b border-black bg-gray-100">
+            <th class="p-2 border-r border-gray-400 w-[5%]">Sr</th>
+            <th class="p-2 border-r border-gray-400 text-left">Description of Goods</th>
+            <th class="p-2 border-r border-gray-400 w-[10%]">HSN/SAC</th>
+            <th class="p-2 border-r border-gray-400 w-[8%]">Qty</th>
+            <th class="p-2 border-r border-gray-400 w-[15%] text-right">${isNonGst ? 'Rate' : 'Taxable Rate'}</th>
+            ${!isNonGst ? '<th class="p-2 border-r border-gray-400 w-[8%]">GST%</th>' : ''}
+            <th class="p-2 text-right w-[18%]">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+          <tr class="h-16"><td colspan="${isNonGst ? 5 : 6}"></td><td></td></tr>
+
+          ${!isNonGst ? `
+          <tr>
+            <td colspan="${isNonGst ? 4 : 5}" class="border-r border-gray-300"></td>
+            <td class="p-2 text-right border-r border-gray-300 font-semibold text-gray-600">Taxable Value</td>
+            <td class="p-2 text-right font-semibold">${(quotation.taxableAmount || 0).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td colspan="${isNonGst ? 4 : 5}" class="border-r border-gray-300"></td>
+            <td class="p-2 text-right border-r border-gray-300 font-semibold text-gray-600">CGST (${(quotation.taxRate / 2) || 0}%)</td>
+            <td class="p-2 text-right font-semibold">${(quotation.cgstAmount || 0).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td colspan="${isNonGst ? 4 : 5}" class="border-r border-gray-300"></td>
+            <td class="p-2 text-right border-r border-gray-300 font-semibold text-gray-600">SGST (${(quotation.taxRate / 2) || 0}%)</td>
+            <td class="p-2 text-right font-semibold">${(quotation.sgstAmount || 0).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+
+          <tr class="border-t border-black bg-gray-50">
+            <td colspan="3" class="p-2 text-right border-r border-gray-300 font-bold">Total</td>
+            <td class="p-2 text-center border-r border-gray-300 font-bold">${totalQuantity}</td>
+            ${!isNonGst ? '<td class="p-2 text-right border-r border-gray-300 font-bold">Grand Total</td>' : '<td class="p-2 text-right border-r border-gray-300 font-bold">Grand Total</td>'}
+            ${!isNonGst ? '' : ''}
+            <td class="p-2 text-right font-bold text-lg text-black">₹ ${(quotation.grandTotal || 0).toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Amount in Words -->
+      <div class="border border-black p-3 mb-4 flex justify-between items-center bg-gray-50">
+        <div>
+          <span class="font-semibold text-gray-600 uppercase text-xs block mb-1">Amount in Words</span>
+          <span class="font-bold text-[14px]">${numberToWords(Math.round(quotation.grandTotal || 0))}</span>
+        </div>
+        ${!isNonGst ? `<div class="text-right border-l border-gray-300 pl-4">
+          <span class="font-semibold text-gray-600 uppercase text-xs block mb-1">Total Tax Amount</span>
+          <span class="font-bold text-[14px]">₹ ${(quotation.taxAmount || 0).toFixed(2)}</span>
+        </div>` : ''}
+      </div>
+
+      <!-- Footer -->
+      <div class="border border-black p-4 flex justify-between items-end min-h-[120px]">
+        <div class="w-1/2">
+          <div class="font-bold text-sm mb-1 underline">Terms & Conditions:</div>
+          <p class="text-xs text-gray-700 leading-relaxed mb-4">This is an estimate only. Prices are subject to change. GST applicable as per government norms.</p>
+          <div class="font-bold text-xs uppercase">Subject to Azamgarh Jurisdiction</div>
+        </div>
+        <div class="w-1/2 flex justify-end gap-12 text-center">
+          <div class="flex flex-col justify-end items-center">
+            <div class="w-32 border-b border-black mb-2"></div>
+            <span class="text-xs font-semibold">Customer Signature</span>
+          </div>
+          <div class="flex flex-col justify-end items-center">
+            <span class="font-bold text-xs mb-8 block">for ANSHIKA ENTERPRISES</span>
+            <div class="w-40 border-b border-black mb-2"></div>
+            <span class="text-xs font-semibold">Authorized Signatory</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-4">
+        <p class="text-xs text-gray-500 font-medium">This is a Computer Generated ${docTitle}</p>
+      </div>
+
+    </body>
+    </html>
+  `;
+
+  await page.setContent(html, { waitUntil: 'networkidle0' as any });
+  const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
+
+  await browser.close();
+  return Buffer.from(pdfBuffer);
+};
+
