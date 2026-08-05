@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   ListTree,
-  Warehouse
+  Warehouse,
+  Plus
 } from 'lucide-react';
 
 const Layout = () => {
