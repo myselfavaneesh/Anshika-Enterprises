@@ -122,11 +122,58 @@ const Layout = () => {
           </button>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 pb-20 md:pb-8">
           <div className="mx-auto max-w-6xl">
             <Outlet />
           </div>
         </main>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex items-center justify-around z-40 px-1 shadow-lg">
+          <Link 
+            to="/" 
+            className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
+              location.pathname === '/' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <LayoutDashboard className="h-5 w-5 mb-0.5" />
+            Home
+          </Link>
+          <Link 
+            to="/sales" 
+            className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
+              location.pathname.startsWith('/sales') && location.pathname !== '/sales/new' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <ShoppingCart className="h-5 w-5 mb-0.5" />
+            Sales
+          </Link>
+          <Link 
+            to="/sales/new" 
+            className="flex flex-col items-center justify-center w-full h-full py-1"
+          >
+            <div className="bg-primary text-primary-foreground p-2.5 rounded-full shadow-md -mt-5 border-2 border-white dark:border-slate-800">
+              <Plus className="h-5 w-5" />
+            </div>
+            <span className="text-[10px] font-semibold text-primary mt-0.5">New Sale</span>
+          </Link>
+          <Link 
+            to="/parties" 
+            className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
+              location.pathname.startsWith('/parties') ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <Users className="h-5 w-5 mb-0.5" />
+            Khata
+          </Link>
+          <button 
+            onClick={() => setSidebarOpen(true)}
+            className="flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400"
+          >
+            <Menu className="h-5 w-5 mb-0.5" />
+            More
+          </button>
+        </div>
       </div>
     </div>
   );

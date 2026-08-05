@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Download, Trash2, Edit, Search, X, ChevronLeft, ChevronRight, MessageCircle, FileOutput } from 'lucide-react';
+import { Plus, Download, Trash2, Edit, Search, X, ChevronLeft, ChevronRight, MessageCircle, FileOutput, Mail } from 'lucide-react';
 
 const Quotations = () => {
   const navigate = useNavigate();
@@ -56,6 +56,19 @@ const Quotations = () => {
     const encodedMessage = encodeURIComponent(message);
     const phone = quotation.customerId.phone.replace(/\D/g, '');
     window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+  };
+
+  const handleSendEmail = async (quotation: any) => {
+    if (!quotation.customerId?.email) {
+      alert('No email address found for this customer. Please update customer details with an email first.');
+      return;
+    }
+    try {
+      await api.post(`/quotations/${quotation._id}/email`);
+      alert(`Quotation/Estimate email sent successfully to ${quotation.customerId.email}`);
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to send email. Make sure SMTP settings in backend .env are correct.');
+    }
   };
 
   const handleDelete = async (quotationId: string) => {
@@ -153,6 +166,9 @@ const Quotations = () => {
                       </Button>
                       <Button variant="ghost" size="icon" title="Send via WhatsApp" className="text-green-600 hover:text-green-800" onClick={() => handleSendWhatsapp(quotation)}>
                         <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Send via Email (Gmail)" className="text-blue-600 hover:text-blue-800" onClick={() => handleSendEmail(quotation)}>
+                        <Mail className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Edit Quotation" asChild>
                         <Link to={`/quotations/${quotation._id}/edit`}>

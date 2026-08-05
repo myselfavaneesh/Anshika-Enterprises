@@ -46,7 +46,7 @@ export default function Parties() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ 
-    name: '', phone: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0 
+    name: '', phone: '', email: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0 
   });
 
   // Fetch lists
@@ -78,7 +78,7 @@ export default function Parties() {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', phone: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0 });
+    setFormData({ name: '', phone: '', email: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0 });
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -103,9 +103,9 @@ export default function Parties() {
       }
       setIsAddModalOpen(false);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving party', error);
-      alert('Failed to save');
+      alert(error.response?.data?.error || 'Failed to save party');
     }
   };
 
@@ -115,6 +115,7 @@ export default function Parties() {
     setFormData({
       name: party.name,
       phone: party.phone || '',
+      email: party.email || '',
       address: party.address || '',
       gstNumber: party.gstNumber || '',
       state: party.state || 'Uttar Pradesh',
@@ -169,6 +170,7 @@ export default function Parties() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Phone</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>GST Number</TableHead>
               <TableHead className="text-right">Outstanding Balance</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -177,7 +179,7 @@ export default function Parties() {
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                   No {type} found.
                 </TableCell>
               </TableRow>
@@ -199,6 +201,7 @@ export default function Parties() {
                   <TableRow key={party._id} className="cursor-pointer hover:bg-slate-50" onClick={() => navigate(`/parties/${type}/${party._id}/ledger`)}>
                     <TableCell className="font-medium">{party.name}</TableCell>
                     <TableCell>{party.phone || '-'}</TableCell>
+                    <TableCell>{party.email || '-'}</TableCell>
                     <TableCell>{party.gstNumber || '-'}</TableCell>
                     <TableCell className={`text-right ${balColor}`}>
                       {formatCurrency(Math.abs(bal))} <span className="text-xs opacity-80">{bal !== 0 && balLabel}</span>
@@ -300,9 +303,15 @@ export default function Parties() {
                 <label className="text-sm font-medium">Name</label>
                 <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Phone</label>
-                <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Phone</label>
+                  <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email</label>
+                  <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="Optional" />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Address</label>

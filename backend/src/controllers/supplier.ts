@@ -15,11 +15,37 @@ export const getSuppliers = async (req: Request, res: Response) => {
 
 export const createSupplier = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, phone, address, gstNumber, state, stateCode, outstandingBalance } = req.body;
+    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = req.body;
+
+    const trimmedPhone = phone ? phone.trim() : null;
+    const trimmedEmail = email ? email.trim() : null;
+
+    if (trimmedPhone || trimmedEmail) {
+      const orConditions: any[] = [];
+      if (trimmedPhone) orConditions.push({ phone: trimmedPhone });
+      if (trimmedEmail) orConditions.push({ email: trimmedEmail });
+
+      const existingSupplier = await prisma.supplier.findFirst({
+        where: { OR: orConditions }
+      });
+
+      if (existingSupplier) {
+        if (trimmedPhone && existingSupplier.phone === trimmedPhone) {
+          res.status(400).json({ error: `Is phone number (${trimmedPhone}) ke saath supplier pehle se maujood hai.` });
+          return;
+        }
+        if (trimmedEmail && existingSupplier.email === trimmedEmail) {
+          res.status(400).json({ error: `Is email id (${trimmedEmail}) ke saath supplier pehle se maujood hai.` });
+          return;
+        }
+      }
+    }
+
     const supplier = await prisma.supplier.create({
       data: {
         name,
-        phone,
+        phone: trimmedPhone,
+        email: trimmedEmail,
         address,
         gstNumber,
         state,
@@ -37,14 +63,42 @@ export const createSupplier = async (req: Request, res: Response): Promise<void>
 export const updateSupplier = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, phone, address, gstNumber, state, stateCode, outstandingBalance } = req.body;
+    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = req.body;
+
+    const trimmedPhone = phone ? phone.trim() : null;
+    const trimmedEmail = email ? email.trim() : null;
+
+    if (trimmedPhone || trimmedEmail) {
+      const orConditions: any[] = [];
+      if (trimmedPhone) orConditions.push({ phone: trimmedPhone });
+      if (trimmedEmail) orConditions.push({ email: trimmedEmail });
+
+      const existingSupplier = await prisma.supplier.findFirst({
+        where: {
+          NOT: { id: id as string },
+          OR: orConditions
+        }
+      });
+
+      if (existingSupplier) {
+        if (trimmedPhone && existingSupplier.phone === trimmedPhone) {
+          res.status(400).json({ error: `Is phone number (${trimmedPhone}) ke saath doosra supplier maujood hai.` });
+          return;
+        }
+        if (trimmedEmail && existingSupplier.email === trimmedEmail) {
+          res.status(400).json({ error: `Is email id (${trimmedEmail}) ke saath doosra supplier maujood hai.` });
+          return;
+        }
+      }
+    }
     
     try {
       const supplier = await prisma.supplier.update({
         where: { id: id as string },
         data: {
           name,
-          phone,
+          phone: trimmedPhone,
+          email: trimmedEmail,
           address,
           gstNumber,
           state,

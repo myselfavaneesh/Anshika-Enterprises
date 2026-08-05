@@ -80,6 +80,7 @@ model Customer {
   id                 String   @id @default(uuid())
   name               String
   phone              String?
+  email              String?
   address            String?
   gstNumber          String?
   state              String?
@@ -97,6 +98,7 @@ model Supplier {
   id                 String   @id @default(uuid())
   name               String
   phone              String?
+  email              String?
   address            String?
   gstNumber          String?
   state              String?

@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
-import { generateQuotationPDF } from '../utils/pdfGenerator';
+import { generateQuotationPDF, getQuotationHTML } from '../utils/pdfGenerator';
+import { sendInvoiceEmail } from '../services/emailService';
 
 const generateQuotationNumber = async (): Promise<string> => {
   const date = new Date();
@@ -80,6 +81,33 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
     });
 
     res.status(201).json(mapToMongoose(quotation));
+
+    // Asynchronously send email without blocking the response
+    (async () => {
+      try {
+        const customer = await prisma.customer.findUnique({ where: { id: quotation.customerId } });
+        if (customer && customer.email) {
+          const rawItems = await prisma.quotationItem.findMany({
+            where: { quotationId: quotation.id },
+            include: { product: true }
+          });
+          const items = rawItems.map((item: any) => ({
+            ...mapToMongoose(item),
+            productId: item.product ? mapToMongoose(item.product) : null,
+            serialNumbers: []
+          }));
+          const htmlContent = getQuotationHTML(mapToMongoose(quotation), items, mapToMongoose(customer));
+          const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
+          await sendInvoiceEmail(
+            customer.email,
+            `${docType} ${quotation.quotationNumber} from Anshika Enterprises`,
+            htmlContent
+          );
+        }
+      } catch (emailError) {
+        logger.error('Error sending quotation email in background', { error: emailError });
+      }
+    })();
   } catch (error: any) {
     logger.error('Error creating quotation', { error: error.message, stack: error.stack });
     res.status(400).json({ error: error.message || 'Error creating quotation' });
@@ -351,3 +379,45 @@ export const downloadQuotationPDF = async (req: Request, res: Response): Promise
     res.status(500).json({ error: 'Error generating quotation PDF' });
   }
 };
+
+export const sendQuotationEmailController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const quotation = await prisma.quotation.findUnique({ where: { id: id as string } });
+    if (!quotation) {
+      res.status(404).json({ error: 'Quotation not found' });
+      return;
+    }
+
+    const customer = await prisma.customer.findUnique({ where: { id: quotation.customerId } });
+    if (!customer || !customer.email) {
+      res.status(400).json({ error: 'Customer email not found. Please add customer email first.' });
+      return;
+    }
+
+    const rawItems = await prisma.quotationItem.findMany({
+      where: { quotationId: id as string },
+      include: { product: true }
+    });
+
+    const items = rawItems.map((item: any) => ({
+      ...mapToMongoose(item),
+      productId: item.product ? mapToMongoose(item.product) : null,
+      serialNumbers: []
+    }));
+
+    const htmlContent = getQuotationHTML(mapToMongoose(quotation), items, mapToMongoose(customer));
+    const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
+    await sendInvoiceEmail(
+      customer.email,
+      `${docType} ${quotation.quotationNumber} from Anshika Enterprises`,
+      htmlContent
+    );
+
+    res.json({ message: `${docType} email sent successfully to ${customer.email}` });
+  } catch (error: any) {
+    logger.error('Error sending quotation email', { quotationId: req.params.id, error: error.message });
+    res.status(500).json({ error: error.message || 'Error sending quotation email' });
+  }
+};
+

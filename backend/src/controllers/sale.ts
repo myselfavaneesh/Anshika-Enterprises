@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { SaleService } from '../services/saleService';
-import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { generateInvoicePDF, getInvoiceHTML } from '../utils/pdfGenerator';
+import { sendInvoiceEmail } from '../services/emailService';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
 
@@ -54,6 +55,37 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
     const sale = await SaleService.createSale(validatedData);
 
     res.status(201).json(mapToMongoose(sale));
+
+    // Asynchronously send email without blocking the response
+    (async () => {
+      try {
+        const customer = await prisma.customer.findUnique({ where: { id: sale.customerId } });
+        if (customer && customer.email) {
+          const rawItems = await prisma.saleItem.findMany({
+            where: { saleId: sale.id },
+            include: { product: true }
+          });
+          const items = await Promise.all(rawItems.map(async (item) => {
+            const units = await prisma.productUnit.findMany({
+              where: { saleItemId: item.id },
+              select: { serialNumber: true }
+            });
+            return {
+              ...mapToMongoose(item),
+              serialNumbers: units.map(u => u.serialNumber)
+            };
+          }));
+          const htmlContent = getInvoiceHTML(mapToMongoose(sale), items, mapToMongoose(customer));
+          await sendInvoiceEmail(
+            customer.email,
+            `Invoice ${sale.invoiceNumber} from Anshika Enterprises`,
+            htmlContent
+          );
+        }
+      } catch (emailError) {
+        logger.error('Error sending invoice email in background', { error: emailError });
+      }
+    })();
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
@@ -235,3 +267,47 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ error: error.message || 'Server error' });
   }
 };
+
+export const sendSaleEmailController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const sale = await prisma.sale.findUnique({ where: { id: id as string } });
+    if (!sale) {
+      res.status(404).json({ error: 'Sale not found' });
+      return;
+    }
+    const customer = await prisma.customer.findUnique({ where: { id: sale.customerId } });
+    if (!customer || !customer.email) {
+      res.status(400).json({ error: 'Customer email not found. Please add customer email first.' });
+      return;
+    }
+
+    const rawItems = await prisma.saleItem.findMany({
+      where: { saleId: id as string },
+      include: { product: true }
+    });
+    const items = await Promise.all(rawItems.map(async (item) => {
+      const units = await prisma.productUnit.findMany({
+        where: { saleItemId: item.id },
+        select: { serialNumber: true }
+      });
+      return {
+        ...mapToMongoose(item),
+        serialNumbers: units.map(u => u.serialNumber)
+      };
+    }));
+
+    const htmlContent = getInvoiceHTML(mapToMongoose(sale), items, mapToMongoose(customer));
+    await sendInvoiceEmail(
+      customer.email,
+      `Invoice ${sale.invoiceNumber} from Anshika Enterprises`,
+      htmlContent
+    );
+
+    res.json({ message: `Invoice email sent successfully to ${customer.email}` });
+  } catch (error: any) {
+    logger.error('Error sending sale email', { saleId: req.params.id, error: error.message });
+    res.status(500).json({ error: error.message || 'Error sending invoice email' });
+  }
+};
+

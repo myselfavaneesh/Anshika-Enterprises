@@ -10,7 +10,7 @@ const Customers = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', phone: '', address: '', gstNumber: '', state: '', stateCode: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '', gstNumber: '', state: '', stateCode: '' });
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredCustomers = customers.filter(customer => 
@@ -43,14 +43,15 @@ const Customers = () => {
       setIsOpen(false);
       fetchCustomers();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving customer', error);
+      alert(error.response?.data?.error || 'Failed to save customer');
     }
   };
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', phone: '', address: '', gstNumber: '', state: '', stateCode: '' });
+    setFormData({ name: '', phone: '', email: '', address: '', gstNumber: '', state: '', stateCode: '' });
   };
 
   const handleEdit = (customer: any) => {
@@ -58,6 +59,7 @@ const Customers = () => {
     setFormData({ 
       name: customer.name, 
       phone: customer.phone || '', 
+      email: customer.email || '',
       address: customer.address || '',
       gstNumber: customer.gstNumber || '',
       state: customer.state || '',
@@ -129,9 +131,15 @@ const Customers = () => {
                 <label className="text-sm font-medium">Name</label>
                 <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Phone</label>
-                <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Phone</label>
+                  <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email</label>
+                  <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="Optional" />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Address</label>
@@ -181,6 +189,7 @@ const Customers = () => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Phone</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Address</TableHead>
               <TableHead>GST</TableHead>
               <TableHead>State</TableHead>
@@ -189,12 +198,13 @@ const Customers = () => {
           </TableHeader>
           <TableBody>
             {filteredCustomers.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center">No customers found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center">No customers found.</TableCell></TableRow>
             ) : (
               filteredCustomers.map((customer) => (
                 <TableRow key={customer._id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>{customer.phone || 'N/A'}</TableCell>
+                  <TableCell>{customer.email || 'N/A'}</TableCell>
                   <TableCell>{customer.address || 'N/A'}</TableCell>
                   <TableCell>{customer.gstNumber || 'N/A'}</TableCell>
                   <TableCell>{customer.state ? `${customer.state} (${customer.stateCode})` : 'N/A'}</TableCell>

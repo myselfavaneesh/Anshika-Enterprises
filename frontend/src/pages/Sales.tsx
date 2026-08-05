@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Download, Trash2, Search, X, ChevronLeft, ChevronRight, MessageCircle, Edit } from 'lucide-react';
+import { Plus, Download, Trash2, Search, X, ChevronLeft, ChevronRight, MessageCircle, Edit, Mail } from 'lucide-react';
 
 const Sales = () => {
   const [sales, setSales] = useState<any[]>([]);
@@ -55,6 +55,19 @@ const Sales = () => {
     const encodedMessage = encodeURIComponent(message);
     const phone = sale.customerId.phone.replace(/\D/g, '');
     window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+  };
+
+  const handleSendEmail = async (sale: any) => {
+    if (!sale.customerId?.email) {
+      alert('No email address found for this customer. Please update customer details with an email first.');
+      return;
+    }
+    try {
+      await api.post(`/sales/${sale._id}/email`);
+      alert(`Invoice email sent successfully to ${sale.customerId.email}`);
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to send email. Make sure SMTP settings in backend .env are correct.');
+    }
   };
 
   const handleDelete = async (saleId: string) => {
@@ -150,6 +163,9 @@ const Sales = () => {
                       </Button>
                       <Button variant="ghost" size="icon" title="Send via WhatsApp" className="text-green-600 hover:text-green-800" onClick={() => handleSendWhatsapp(sale)}>
                         <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Send via Email (Gmail)" className="text-blue-600 hover:text-blue-800" onClick={() => handleSendEmail(sale)}>
+                        <Mail className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Delete Invoice" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(sale._id)}>
                         <Trash2 className="h-4 w-4" />
