@@ -3,249 +3,294 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 
 const numberToWords = (num: number): string => {
-  if (num === 0) return 'Zero';
-  
+  if (num === 0) return 'Rupees Zero Only';
   const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
   const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
   const inWords = (n: number): string => {
     let str = '';
+    if (n > 9999999) {
+      str += inWords(Math.floor(n / 10000000)) + 'Crore ';
+      n %= 10000000;
+    }
+    if (n > 99999) {
+      str += inWords(Math.floor(n / 100000)) + 'Lakh ';
+      n %= 100000;
+    }
+    if (n > 999) {
+      str += inWords(Math.floor(n / 1000)) + 'Thousand ';
+      n %= 1000;
+    }
     if (n > 99) {
-      str += a[Math.floor(n / 100)] + 'Hundred ';
+      str += inWords(Math.floor(n / 100)) + 'Hundred ';
       n %= 100;
     }
-    if (n > 19) {
-      str += b[Math.floor(n / 10)] + ' ';
-      n %= 10;
-    }
     if (n > 0) {
-      str += a[n];
+      if (n < 20) {
+        str += a[n];
+      } else {
+        str += b[Math.floor(n / 10)] + ' ';
+        if (n % 10 > 0) {
+          str += a[n % 10];
+        }
+      }
     }
-    return str.trim();
+    return str;
   };
 
-  let word = '';
-  let crore = Math.floor(num / 10000000);
-  num %= 10000000;
-  let lakh = Math.floor(num / 100000);
-  num %= 100000;
-  let thousand = Math.floor(num / 1000);
-  num %= 1000;
-  
-  if (crore > 0) word += inWords(crore) + ' Crore ';
-  if (lakh > 0) word += inWords(lakh) + ' Lakh ';
-  if (thousand > 0) word += inWords(thousand) + ' Thousand ';
-  if (num > 0) word += inWords(num);
-  
-  return 'Rupees ' + word.trim() + ' Only';
+  const wholePart = Math.floor(num);
+  const decimalPart = Math.round((num - wholePart) * 100);
+  let result = `Rupees ${inWords(wholePart)}`;
+  if (decimalPart > 0) {
+    result += `and ${inWords(decimalPart)}Paise `;
+  }
+  return `${result}Only`.replace(/\s+/g, ' ');
 };
 
 export const generateAndSharePDF = async (data: any, title: string) => {
-  const isNonGst = data.invoiceType === 'NON_GST';
-  const customer = data.customerId || data.supplierId || {};
-  const invoiceNum = data.invoiceNumber || data.purchaseInvoiceNumber || data.quotationNumber || 'N/A';
-  const items = data.items || [];
-  
-  const taxRate = data.taxRate || 0;
-  const cgstAmount = data.cgstAmount || (data.taxAmount ? data.taxAmount / 2 : 0) || 0;
-  const sgstAmount = data.sgstAmount || (data.taxAmount ? data.taxAmount / 2 : 0) || 0;
+  const isNonGst = data?.invoiceType === 'NON_GST';
+  const customer = data?.customerId || data?.supplierId || {};
+  const docTitle = title.includes('Quotation') ? (isNonGst ? 'ESTIMATE' : 'QUOTATION') : (isNonGst ? 'ESTIMATE' : 'TAX INVOICE');
+  const docNumber = data?.invoiceNumber || data?.quotationNumber || data?.purchaseInvoiceNumber || 'N/A';
+  const docDate = new Date(data?.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+  const validUntil = data?.validUntil ? new Date(data.validUntil).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '-';
+  const items = data?.items || [];
+
+  const totalQty = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+  const totalItemsCount = items.length;
+
+  const itemsRowsHtml = items.map((item: any, index: number) => {
+    const wattageHtml = item.wattage > 0 
+      ? `<div style="font-size: 10px; color: #555; margin-top: 2px;">(${item.quantity} units × ${item.wattage}W = ${item.quantity * item.wattage}W @ ₹${item.unitPrice || (item.taxableUnitPrice / (item.quantity * item.wattage)).toFixed(2)}/W)</div>` 
+      : '';
+    const serialsHtml = item.serialNumbers && item.serialNumbers.length > 0 
+      ? `<div style="font-size: 10px; color: #555; margin-top: 2px;">SN: ${item.serialNumbers.join(', ')}</div>` 
+      : '';
+
+    const rateVal = (item.taxableUnitPrice || item.unitPrice || 0).toFixed(2);
+    const amountVal = (item.taxableTotalPrice || item.totalPrice || 0).toFixed(2);
+
+    return `
+      <tr>
+        <td style="text-align: center; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">${index + 1}</td>
+        <td style="text-align: left; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">
+          <div style="font-weight: bold; color: #000;">${item.productId?.name || item.name || 'Item Name'}</div>
+          ${wattageHtml}
+          ${serialsHtml}
+        </td>
+        <td style="text-align: center; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">${item.productId?.hsnCode || '-'}</td>
+        <td style="text-align: center; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px; font-weight: bold;">${item.quantity} PC</td>
+        <td style="text-align: right; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">${rateVal}</td>
+        ${!isNonGst ? `<td style="text-align: center; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">${item.gstRate || data?.taxRate || 0}%</td>` : ''}
+        <td style="text-align: right; vertical-align: top; border-bottom: 1px solid #000; padding: 4px 6px; font-weight: bold;">${amountVal}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const servicesRowsHtml = (data?.services || []).map((service: any) => `
+    <tr>
+      <td colspan="${isNonGst ? 5 : 6}" style="text-align: right; font-style: italic; font-weight: 600; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">
+        ${service.name} ${!isNonGst && service.gstRate ? `(${service.gstRate}%)` : ''}
+      </td>
+      <td style="text-align: right; font-weight: bold; border-bottom: 1px solid #000; padding: 4px 6px;">
+        ${(service.taxableAmount || service.amount || 0).toFixed(2)}
+      </td>
+    </tr>
+  `).join('');
+
+  const colSpanCount = isNonGst ? 5 : 6;
 
   const html = `
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script>
-          tailwind.config = {
-            theme: {
-              extend: {
-                colors: { primary: '#2E8B57' }
-              }
-            }
-          }
-        </script>
-        <style>
-          body { font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif; }
-          .print\\\\:shadow-none { box-shadow: none !important; }
-          .print\\\\:p-0 { padding: 0 !important; }
-        </style>
-      </head>
-      <body>
-        <div class="bg-white text-slate-800 p-8 md:p-12 max-w-[210mm] min-h-[297mm] mx-auto shadow-sm print:shadow-none print:p-0 font-sans">
-          
-          <!-- Header Section -->
-          <div class="flex justify-between items-start border-b border-slate-200 pb-6 mb-6">
-            <div class="flex flex-col">
-              <h1 class="text-2xl font-bold text-slate-900 tracking-tight">ANSHIKA ENTERPRISES</h1>
-              <p class="text-sm text-slate-500 mt-1">Phoolpur, Azamgarh, Uttar Pradesh</p>
-              <p class="text-sm text-slate-500">Phone: +91 98765 43210</p>
-              <p class="text-sm text-slate-500">Email: contact@anshikaenterprises.in</p>
-              <p class="text-sm font-semibold text-slate-700 mt-1">GSTIN: 09XXXXX1234X1ZX</p>
-            </div>
-            <div class="flex flex-col items-end text-right">
-              <h2 class="text-3xl font-bold text-primary uppercase tracking-wider mb-2">${title.toUpperCase()}</h2>
-              <div class="flex flex-col gap-1 text-sm">
-                <div class="flex justify-between gap-4">
-                  <span class="text-slate-500">${title.includes('Quotation') ? 'Quote No' : 'Invoice No'}:</span>
-                  <span class="font-semibold text-slate-900">${invoiceNum}</span>
-                </div>
-                <div class="flex justify-between gap-4">
-                  <span class="text-slate-500">Date:</span>
-                  <span class="font-semibold text-slate-900">${new Date(data.createdAt || Date.now()).toLocaleDateString('en-IN')}</span>
-                </div>
-                <div class="mt-2 flex justify-end">
-                  <span class="px-3 py-1 text-xs font-bold uppercase rounded-full ${data.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">
-                    ${data.status || 'COMPLETED'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${docTitle} ${docNumber}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #ffffff; margin: 0; padding: 10px; color: #000; font-size: 12px; }
+    .invoice-card { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 16px; border: 1px solid #000; box-sizing: border-box; }
+    table { width: 100%; border-collapse: collapse; }
+    .border-all { border: 1px solid #000; }
+  </style>
+</head>
+<body>
+  <div class="invoice-card">
+    
+    <!-- Title -->
+    <h1 style="text-align: center; font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0 0 12px 0; color: #000;">
+      ${docTitle}
+    </h1>
 
-          <!-- Customer Section -->
-          <div class="mb-8 flex gap-4">
-            <div class="bg-slate-50 border border-slate-200 rounded-lg p-5 w-1/2">
-              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Bill To</h3>
-              <div class="flex flex-col gap-1">
-                <p class="text-base font-bold text-slate-900">${customer.name || 'N/A'}</p>
-                ${customer.phone ? `<p class="text-sm text-slate-600">Phone: ${customer.phone}</p>` : ''}
-                ${customer.address ? `<p class="text-sm text-slate-600">Address: ${customer.address}</p>` : ''}
-                ${customer.gstNumber ? `<p class="text-sm font-semibold text-slate-700 mt-1">GSTIN: ${customer.gstNumber}</p>` : ''}
-              </div>
-            </div>
-            <div class="bg-slate-50 border border-slate-200 rounded-lg p-5 w-1/2 flex items-center justify-center">
-                <p class="text-lg font-bold text-slate-700 uppercase tracking-widest">${isNonGst ? 'NON-GST BILL' : 'TAX INVOICE'}</p>
-            </div>
+    <!-- Company & Buyer Info Box -->
+    <table class="border-all" style="margin-bottom: 15px;">
+      <tr>
+        <!-- Left Side: Company & Buyer -->
+        <td style="width: 50%; vertical-align: top; border-right: 1px solid #000; padding: 0;">
+          <div style="padding: 8px; border-bottom: 1px solid #000;">
+            <div style="font-weight: 600; color: #555; font-size: 11px; margin-bottom: 2px;">Company</div>
+            <div style="font-weight: bold; font-size: 14px;">ANSHIKA ENTERPRISES</div>
+            <div>Phoolpur, Azamgarh, Uttar Pradesh - 276304</div>
+            <div>State Name: Uttar Pradesh, Code: 09</div>
+            <div>Contact: 9598522526</div>
           </div>
+          <div style="padding: 8px;">
+            <div style="font-weight: 600; color: #555; font-size: 11px; margin-bottom: 2px;">Buyer (Bill to)</div>
+            <div style="font-weight: bold; font-size: 14px;">${customer?.name || 'Customer Name'}</div>
+            <div>${customer?.address || 'Address Line'}</div>
+            <div>State Name: ${customer?.state || 'Uttar Pradesh'}, Code: ${customer?.stateCode || '09'}</div>
+            <div>Contact: ${customer?.phone || '-'}</div>
+            ${customer?.gstNumber ? `<div>GSTIN/UIN: <span style="font-weight: bold;">${customer.gstNumber}</span></div>` : ''}
+          </div>
+        </td>
 
-          <!-- Product Table -->
-          <div class="mb-8">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="border-b-2 border-slate-300 bg-slate-50">
-                  <th class="py-3 px-4 text-sm font-semibold text-slate-700">Item Description</th>
-                  <th class="py-3 px-4 text-sm font-semibold text-slate-700 text-center">Qty</th>
-                  <th class="py-3 px-4 text-sm font-semibold text-slate-700 text-right">${isNonGst ? 'Rate' : 'Taxable Rate'}</th>
-                  ${!isNonGst ? `<th class="py-3 px-4 text-sm font-semibold text-slate-700 text-center">GST</th>` : ''}
-                  <th class="py-3 px-4 text-sm font-semibold text-slate-700 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${items.map((item: any, index: number) => `
-                  <tr class="border-b border-slate-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}">
-                    <td class="py-4 px-4 align-top">
-                      <p class="font-bold text-slate-900">${item.name || item.productId?.name || 'Item'}</p>
-                      ${item.serialNumbers && item.serialNumbers.length > 0 ? `
-                        <div class="flex flex-wrap gap-1 mt-2">
-                          ${item.serialNumbers.map((sn: string) => `
-                            <span class="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 text-xs text-slate-500 rounded-md font-mono">
-                              ${sn}
-                            </span>
-                          `).join('')}
-                        </div>
-                      ` : ''}
+        <!-- Right Side: Details -->
+        <td style="width: 50%; vertical-align: top; padding: 0;">
+          <table style="width: 100%;">
+            <tr>
+              <td style="padding: 8px; border-bottom: 1px solid #000;">
+                <table style="width: 100%;">
+                  <tr>
+                    <td style="vertical-align: top;">
+                      <div style="font-weight: 600; color: #555; font-size: 11px;">${title.includes('Quotation') ? 'Quotation No.' : 'Invoice No.'}</div>
+                      <div style="font-weight: bold; font-size: 13px;">${docNumber}</div>
                     </td>
-                    <td class="py-4 px-4 align-top text-center font-medium">${item.quantity}</td>
-                    <td class="py-4 px-4 align-top text-right text-slate-600">₹${Number(isNonGst ? item.unitPrice : (item.taxableUnitPrice || item.unitPrice)).toFixed(2)}</td>
-                    ${!isNonGst ? `<td class="py-4 px-4 align-top text-center text-slate-600">${item.gstRate || taxRate}%</td>` : ''}
-                    <td class="py-4 px-4 align-top text-right font-semibold text-slate-900">₹${Number(isNonGst ? item.totalPrice : (item.taxableTotalPrice || item.totalPrice)).toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top;">
+                      <div style="font-weight: 600; color: #555; font-size: 11px;">Dated</div>
+                      <div style="font-weight: bold; font-size: 13px;">${docDate}</div>
+                    </td>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
+                </table>
+              </td>
+            </tr>
+            ${title.includes('Quotation') ? `
+            <tr>
+              <td style="padding: 8px;">
+                <div style="font-weight: 600; color: #555; font-size: 11px;">Valid Until</div>
+                <div style="font-weight: bold; font-size: 13px;">${validUntil}</div>
+              </td>
+            </tr>
+            ` : ''}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Main Items Table -->
+    <table class="border-all" style="margin-bottom: 0;">
+      <thead>
+        <tr style="background-color: #ffffff; border-bottom: 1px solid #000;">
+          <th style="width: 40px; border-right: 1px solid #000; padding: 6px; text-align: center;">SN</th>
+          <th style="border-right: 1px solid #000; padding: 6px; text-align: left;">Description of Goods</th>
+          <th style="width: 80px; border-right: 1px solid #000; padding: 6px; text-align: center;">HSN/SAC</th>
+          <th style="width: 80px; border-right: 1px solid #000; padding: 6px; text-align: center;">Quantity</th>
+          <th style="width: 90px; border-right: 1px solid #000; padding: 6px; text-align: right;">${isNonGst ? 'Rate' : 'Taxable Rate'}</th>
+          ${!isNonGst ? '<th style="width: 60px; border-right: 1px solid #000; padding: 6px; text-align: center;">GST %</th>' : ''}
+          <th style="width: 100px; padding: 6px; text-align: right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsRowsHtml}
+        ${servicesRowsHtml}
+
+        ${!isNonGst ? `
+          <tr>
+            <td colspan="${colSpanCount}" style="text-align: right; font-style: italic; font-weight: 600; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">Taxable Value</td>
+            <td style="text-align: right; font-weight: bold; border-bottom: 1px solid #000; padding: 4px 6px;">${(data?.taxableAmount || 0).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td colspan="${colSpanCount}" style="text-align: right; font-style: italic; font-weight: 600; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">CGST</td>
+            <td style="text-align: right; font-weight: bold; border-bottom: 1px solid #000; padding: 4px 6px;">${(data?.cgstAmount || 0).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td colspan="${colSpanCount}" style="text-align: right; font-style: italic; font-weight: 600; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">SGST</td>
+            <td style="text-align: right; font-weight: bold; border-bottom: 1px solid #000; padding: 4px 6px;">${(data?.sgstAmount || 0).toFixed(2)}</td>
+          </tr>
+        ` : ''}
+
+        <tr style="background-color: #ffffff;">
+          <td colspan="${colSpanCount}" style="text-align: right; font-weight: bold; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 6px;">Grand Total</td>
+          <td style="text-align: right; font-weight: bold; font-size: 14px; border-bottom: 1px solid #000; padding: 6px;">₹ ${(data?.grandTotal || 0).toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Summary Box -->
+    <table class="border-all" style="border-top: none; margin-bottom: 0;">
+      <tr>
+        <td style="width: 50%; padding: 8px; vertical-align: top; border-right: 1px solid #000;">
+          <div><span style="font-weight: 600; display: inline-block; width: 90px;">Total Items:</span> ${totalItemsCount}</div>
+          <div><span style="font-weight: 600; display: inline-block; width: 90px;">Total Qty:</span> ${totalQty} PC</div>
+        </td>
+        <td style="width: 50%; padding: 8px; text-align: right; vertical-align: top;">
+          ${!isNonGst ? `
+            <div><span style="font-weight: 600;">Taxable Amount:</span> ₹ ${(data?.taxableAmount || 0).toFixed(2)}</div>
+            <div><span style="font-weight: 600;">CGST:</span> ₹ ${(data?.cgstAmount || 0).toFixed(2)}</div>
+            <div><span style="font-weight: 600;">SGST:</span> ₹ ${(data?.sgstAmount || 0).toFixed(2)}</div>
+          ` : ''}
+          <div style="font-size: 13px; font-weight: bold; margin-top: 2px;"><span>Grand Total:</span> ₹ ${(data?.grandTotal || 0).toFixed(2)}</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Amount Chargeable in Words Box -->
+    <table class="border-all" style="border-top: none; margin-bottom: 0;">
+      <tr>
+        <td style="padding: 8px; vertical-align: top;">
+          <div style="font-style: italic; color: #444; font-size: 11px;">Amount Chargeable (in words)</div>
+          <div style="font-weight: bold; font-size: 13px; margin-top: 2px;">${numberToWords(Math.round(data?.grandTotal || 0))}</div>
+        </td>
+        <td style="width: 80px; text-align: right; vertical-align: top; padding: 8px; font-style: italic; font-weight: bold;">
+          E. & O.E
+        </td>
+      </tr>
+    </table>
+
+    <!-- Company GSTIN, Declaration & Bank Details Box -->
+    <table class="border-all" style="border-top: none; margin-bottom: 0;">
+      <tr>
+        <!-- Left: Declaration -->
+        <td style="width: 50%; padding: 8px; vertical-align: top; border-right: 1px solid #000;">
+          <div>Company's GSTIN/UIN : <span style="font-weight: bold;">09BZOPK7723E1Z1</span></div>
+          <div style="margin-top: 6px;">
+            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px;">Declaration</div>
+            <div style="font-size: 10px; color: #333; line-height: 1.3;">We declare that this ${title.includes('Quotation') ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</div>
           </div>
+        </td>
+        <!-- Right: Bank Details -->
+        <td style="width: 50%; padding: 8px; vertical-align: top;">
+          <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Company's Bank Details</div>
+          <table style="width: 100%; font-size: 11px;">
+            <tr><td style="width: 80px; padding: 1px 0;">Bank Name</td><td style="font-weight: 600; padding: 1px 0;">: Union Bank of India</td></tr>
+            <tr><td style="padding: 1px 0;">A/c No.</td><td style="font-weight: 600; padding: 1px 0;">: 359701010036291</td></tr>
+            <tr><td style="padding: 1px 0;">IFSC Code</td><td style="font-weight: 600; padding: 1px 0;">: UBIN0535974</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
 
-          <!-- Summary Section -->
-          <div class="flex justify-between items-start mb-12">
-            
-            <!-- Payment & Words Info -->
-            <div class="w-1/2 pr-8 flex flex-col gap-6">
-              <div>
-                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Amount in Words</h4>
-                <p class="text-sm font-semibold text-slate-800 italic bg-slate-50 p-3 rounded-md border border-slate-200">
-                  ${numberToWords(Math.round(data.grandTotal || 0))}
-                </p>
-              </div>
-              
-              <div>
-                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Payment Details</h4>
-                <p class="text-sm text-slate-700">Method: <span class="font-semibold">${data.paymentMethod || data.paymentMode || 'Cash / UPI / Bank Transfer'}</span></p>
-              </div>
-            </div>
+    <!-- Signatures Box -->
+    <table class="border-all" style="border-top: none; min-height: 90px;">
+      <tr>
+        <td style="width: 50%; padding: 8px; vertical-align: bottom; border-right: 1px solid #000;">
+          <div style="margin-top: 40px;">Customer's Signature</div>
+        </td>
+        <td style="width: 50%; padding: 8px; text-align: right; vertical-align: bottom;">
+          <div style="font-weight: bold; margin-bottom: 40px;">for ANSHIKA ENTERPRISES</div>
+          <div style="font-weight: 600;">Authorised Signatory</div>
+        </td>
+      </tr>
+    </table>
 
-            <!-- Totals Box -->
-            <div class="w-1/2 max-w-sm ml-auto bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
-              <div class="p-4 space-y-3">
-                <div class="flex justify-between text-sm text-slate-600">
-                  <span>${isNonGst ? 'Subtotal' : 'Taxable Value'}:</span>
-                  <span class="font-medium">₹${Number(data.taxableAmount || (data.subtotal - (data.discount || 0))).toFixed(2)}</span>
-                </div>
-                
-                ${data.discount > 0 ? `
-                  <div class="flex justify-between text-sm text-green-600">
-                    <span>Discount:</span>
-                    <span class="font-medium">- ₹${Number(data.discount).toFixed(2)}</span>
-                  </div>
-                ` : ''}
+    <!-- Footer Note -->
+    <div style="text-align: center; margin-top: 8px; font-size: 10px; color: #555;">
+      This is a Computer Generated ${title.includes('Quotation') ? 'Quotation' : 'Invoice'}
+    </div>
 
-                ${data.services ? data.services.map((service: any) => `
-                  <div class="flex justify-between text-sm text-slate-600">
-                    <span>${service.name}:</span>
-                    <span class="font-medium">₹${Number(service.amount).toFixed(2)}</span>
-                  </div>
-                `).join('') : ''}
-                
-                ${!isNonGst ? `
-                  <div class="flex justify-between text-sm text-slate-600">
-                    <span>CGST (${(taxRate / 2).toFixed(1)}%):</span>
-                    <span class="font-medium">₹${Number(cgstAmount).toFixed(2)}</span>
-                  </div>
-                  
-                  <div class="flex justify-between text-sm text-slate-600">
-                    <span>SGST (${(taxRate / 2).toFixed(1)}%):</span>
-                    <span class="font-medium">₹${Number(sgstAmount).toFixed(2)}</span>
-                  </div>
-                ` : ''}
-                
-                <div class="flex justify-between text-sm text-slate-600 pb-3 border-b border-slate-200">
-                  <span>Round Off:</span>
-                  <span class="font-medium">₹${(Math.round(data.grandTotal || 0) - (data.grandTotal || 0)).toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
-                <span class="text-lg font-bold">Grand Total</span>
-                <span class="text-2xl font-black tracking-tight">₹${Math.round(data.grandTotal || 0).toLocaleString('en-IN')}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer Section -->
-          <div class="mt-auto border-t-2 border-slate-200 pt-8 flex justify-between items-end">
-            <div class="w-2/3">
-              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Terms & Conditions</h4>
-              <ul class="text-xs text-slate-500 space-y-1 list-disc pl-4">
-                <li>Goods once sold will not be taken back or exchanged.</li>
-                <li>All disputes are subject to Azamgarh jurisdiction only.</li>
-                <li>Warranty on batteries as per company norms. Please preserve this invoice for warranty claims.</li>
-              </ul>
-            </div>
-            
-            <div class="w-1/3 flex flex-col items-center">
-              <div class="h-16 w-48 border-b border-slate-400 mb-2"></div>
-              <span class="text-xs font-bold text-slate-800 uppercase">Authorized Signature</span>
-              <span class="text-[10px] text-slate-400 mt-1">For ANSHIKA ENTERPRISES</span>
-            </div>
-          </div>
-          
-          <div class="mt-8 text-center border-t border-slate-100 pt-4">
-            <p class="text-[10px] text-slate-400">This is a computer-generated invoice.</p>
-            <p class="text-[10px] text-slate-400 font-semibold mt-0.5">Powered by Inventory & Billing SaaS</p>
-          </div>
-
-        </div>
-      </body>
-    </html>
+  </div>
+</body>
+</html>
   `;
 
   try {
@@ -255,8 +300,7 @@ export const generateAndSharePDF = async (data: any, title: string) => {
       throw new Error('Failed to generate PDF base64 data');
     }
 
-    // Write the base64 directly to a file in DocumentDirectory
-    const newUri = `${FileSystem.documentDirectory}Anshika_Enterprises_Invoice_${Date.now()}.pdf`;
+    const newUri = `${FileSystem.documentDirectory}Anshika_Enterprises_${title.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
     await FileSystem.writeAsStringAsync(newUri, base64, {
       encoding: FileSystem.EncodingType.Base64,
     });
@@ -265,7 +309,7 @@ export const generateAndSharePDF = async (data: any, title: string) => {
       await Sharing.shareAsync(newUri, { 
         UTI: '.pdf', 
         mimeType: 'application/pdf',
-        dialogTitle: 'Share Invoice'
+        dialogTitle: `Share ${title}`
       });
     }
   } catch (error) {

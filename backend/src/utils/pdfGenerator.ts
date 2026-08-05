@@ -1,4 +1,8 @@
-import puppeteer from 'puppeteer';
+const getPuppeteer = async () => {
+  const puppeteerModule = await (new Function('return import("puppeteer")')() as Promise<any>);
+  return puppeteerModule.default || puppeteerModule;
+};
+
 
 const numberToWords = (num: number): string => {
   if (num === 0) return 'Rupees Zero Only';
@@ -316,6 +320,7 @@ export const getQuotationHTML = (quotation: any, items: any[], customer: any): s
 };
 
 export const generateInvoicePDF = async (sale: any, items: any[], customer: any): Promise<Buffer> => {
+  const puppeteer = await getPuppeteer();
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
   const html = getInvoiceHTML(sale, items, customer);
@@ -328,6 +333,7 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
 };
 
 export const generateQuotationPDF = async (quotation: any, items: any[], customer: any): Promise<Buffer> => {
+  const puppeteer = await getPuppeteer();
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
   const html = getQuotationHTML(quotation, items, customer);

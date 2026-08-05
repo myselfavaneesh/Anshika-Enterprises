@@ -26,6 +26,20 @@ export default function SalesHistoryScreen() {
     }
   };
 
+  const handleSendEmail = async (sale: any) => {
+    if (!sale.customerId?.email) {
+      Alert.alert('Missing Email', 'No email address found for this customer. Please update customer details first.');
+      return;
+    }
+    try {
+      const saleId = sale._id || sale.id;
+      await apiClient.post(`/sales/${saleId}/email`);
+      Alert.alert('Email Sent', `Invoice emailed successfully to ${sale.customerId.email}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.error || 'Failed to send invoice email.');
+    }
+  };
+
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.row}>
@@ -37,8 +51,11 @@ export default function SalesHistoryScreen() {
         <Text style={styles.amount}>₹{(item.grandTotal || 0).toFixed(2)}</Text>
       </View>
       <View style={styles.actionRow}>
-        <TouchableOpacity style={[styles.printButton, { backgroundColor: designTokens.colors.secondary, marginRight: 8 }]} onPress={() => navigation.navigate('EditSale', { id: item._id || item.id })}>
+        <TouchableOpacity style={[styles.printButton, { backgroundColor: designTokens.colors.secondary, marginRight: 6 }]} onPress={() => navigation.navigate('EditSale', { id: item._id || item.id })}>
           <Text style={styles.printButtonText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.printButton, { backgroundColor: '#2563EB', marginRight: 6 }]} onPress={() => handleSendEmail(item)}>
+          <Text style={styles.printButtonText}>Email</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.printButton} onPress={() => generateAndSharePDF(item, 'Tax Invoice').catch(() => Alert.alert('Error', 'Could not generate PDF'))}>
           <Text style={styles.printButtonText}>Print / Share</Text>

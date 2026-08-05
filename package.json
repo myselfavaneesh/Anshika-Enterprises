@@ -4,6 +4,7 @@
   "description": "Desktop application for Anshika Enterprises",
   "main": "main.js",
   "scripts": {
+    "prestart": "npm run build:frontend && npm run build:backend",
     "start": "electron .",
     "build:electron": "npm run build:frontend && npm run build:backend && electron-builder --win",
     "build:frontend": "cd frontend && npm run build",
@@ -12,12 +13,14 @@
   "build": {
     "appId": "com.anshika.enterprises",
     "productName": "Anshika Enterprises",
+    "asar": false,
     "directories": {
       "output": "dist"
     },
     "files": [
       "main.js",
       "backend/**/*",
+      "backend/.env",
       "frontend/dist/**/*",
       "node_modules/**/*"
     ],

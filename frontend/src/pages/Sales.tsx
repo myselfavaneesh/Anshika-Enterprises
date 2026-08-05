@@ -51,10 +51,22 @@ const Sales = () => {
       return;
     }
     const docType = sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Invoice';
-    const message = `Hello ${sale.customerId.name},\n\nAapka ${docType} *${sale.invoiceNumber}* generate ho gaya hai.\nKul Raqam: *₹${sale.grandTotal.toFixed(2)}*\n\nPDF attach kar di gayi hai. Koi sawaal ho to batayein.\n\n- Anshika Enterprises`;
-    const encodedMessage = encodeURIComponent(message);
-    const phone = sale.customerId.phone.replace(/\D/g, '');
-    window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+    const message = `Hello ${sale.customerId.name},\n\nAapka ${docType} *${sale.invoiceNumber}* generate ho gaya hai.\nKul Raqam: *₹${sale.grandTotal.toFixed(2)}*\n\n- Anshika Enterprises`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: `${docType} ${sale.invoiceNumber}`,
+        text: message,
+      }).catch(() => {
+        const encodedMessage = encodeURIComponent(message);
+        const phone = sale.customerId.phone.replace(/\D/g, '');
+        window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+      });
+    } else {
+      const encodedMessage = encodeURIComponent(message);
+      const phone = sale.customerId.phone.replace(/\D/g, '');
+      window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+    }
   };
 
   const handleSendEmail = async (sale: any) => {

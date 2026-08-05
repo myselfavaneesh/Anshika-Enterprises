@@ -26,6 +26,24 @@ export default function QuotationsHistoryScreen() {
     }
   };
 
+  const handleSendEmail = async (quotation: any) => {
+    if (!quotation.customerId?.email) {
+      Alert.alert('Missing Email', 'No email address found for this customer. Please update customer details first.');
+      return;
+    }
+    try {
+      const qId = quotation._id || quotation.id;
+      await apiClient.post(`/quotations/${qId}/email`);
+      Alert.alert('Email Sent', `Quotation emailed successfully to ${quotation.customerId.email}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.error || 'Failed to send quotation email.');
+    }
+  };
+
+  const handleConvertToSale = (quotation: any) => {
+    navigation.navigate('Sales', { quotationId: quotation._id || quotation.id });
+  };
+
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.row}>
@@ -42,8 +60,14 @@ export default function QuotationsHistoryScreen() {
         </Text>
       )}
       <View style={styles.actionRow}>
-        <TouchableOpacity style={[styles.printButton, { backgroundColor: designTokens.colors.secondary, marginRight: 8 }]} onPress={() => navigation.navigate('EditQuotation', { id: item._id || item.id })}>
+        <TouchableOpacity style={[styles.printButton, { backgroundColor: '#059669', marginRight: 6 }]} onPress={() => handleConvertToSale(item)}>
+          <Text style={styles.printButtonText}>Convert to Sale</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.printButton, { backgroundColor: designTokens.colors.secondary, marginRight: 6 }]} onPress={() => navigation.navigate('EditQuotation', { id: item._id || item.id })}>
           <Text style={styles.printButtonText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.printButton, { backgroundColor: '#2563EB', marginRight: 6 }]} onPress={() => handleSendEmail(item)}>
+          <Text style={styles.printButtonText}>Email</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.printButton} onPress={() => generateAndSharePDF(item, 'Quotation').catch(() => Alert.alert('Error', 'Could not generate PDF'))}>
           <Text style={styles.printButtonText}>Print / Share</Text>

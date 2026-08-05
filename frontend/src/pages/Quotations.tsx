@@ -52,10 +52,22 @@ const Quotations = () => {
       return;
     }
     const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
-    const message = `Hello ${quotation.customerId.name},\n\nAapka ${docType} *${quotation.quotationNumber}* generate ho gaya hai.\nKul Raqam: *₹${quotation.grandTotal.toFixed(2)}*\n\nPDF attach kar di gayi hai. Koi sawaal ho to batayein.\n\n- Anshika Enterprises`;
-    const encodedMessage = encodeURIComponent(message);
-    const phone = quotation.customerId.phone.replace(/\D/g, '');
-    window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+    const message = `Hello ${quotation.customerId.name},\n\nAapka ${docType} *${quotation.quotationNumber}* generate ho gaya hai.\nKul Raqam: *₹${quotation.grandTotal.toFixed(2)}*\n\n- Anshika Enterprises`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: `${docType} ${quotation.quotationNumber}`,
+        text: message,
+      }).catch(() => {
+        const encodedMessage = encodeURIComponent(message);
+        const phone = quotation.customerId.phone.replace(/\D/g, '');
+        window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+      });
+    } else {
+      const encodedMessage = encodeURIComponent(message);
+      const phone = quotation.customerId.phone.replace(/\D/g, '');
+      window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
+    }
   };
 
   const handleSendEmail = async (quotation: any) => {

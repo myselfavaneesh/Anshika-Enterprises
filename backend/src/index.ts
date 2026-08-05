@@ -19,7 +19,7 @@ import morgan from 'morgan';
 import { logger } from './utils/logger';
 import { initBackupCron } from './utils/backup';
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const port = process.env.PORT || 5000;
