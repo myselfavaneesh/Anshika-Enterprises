@@ -321,7 +321,10 @@ export const getQuotationHTML = (quotation: any, items: any[], customer: any): s
 
 export const generateInvoicePDF = async (sale: any, items: any[], customer: any): Promise<Buffer> => {
   const puppeteer = await getPuppeteer();
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ 
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  });
   const page = await browser.newPage();
   const html = getInvoiceHTML(sale, items, customer);
 
@@ -334,7 +337,10 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
 
 export const generateQuotationPDF = async (quotation: any, items: any[], customer: any): Promise<Buffer> => {
   const puppeteer = await getPuppeteer();
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ 
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  });
   const page = await browser.newPage();
   const html = getQuotationHTML(quotation, items, customer);
 
