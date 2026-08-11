@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth';
 import categoryRoutes from './routes/category';
@@ -79,17 +80,33 @@ app.get('/api/health', (_req, res) => {
 
 
 
-// Serve frontend static files in production
+// Serve frontend static files in production if dist exists
 const frontendPath = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendPath));
+const indexPath = path.join(frontendPath, 'index.html');
 
-// Catch-all route for React Router
-app.get(/.*/, (req, res, next) => {
-  if (req.path.startsWith('/api/')) {
-    return next();
-  }
-  res.sendFile(path.join(frontendPath, 'index.html'));
-});
+if (fs.existsSync(indexPath)) {
+  app.use(express.static(frontendPath));
+
+  // Catch-all route for React Router
+  app.get(/.*/, (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(indexPath);
+  });
+} else {
+  // Fallback when frontend dist is not present
+  app.get('/', (_req, res) => {
+    res.json({ message: 'Anshika Enterprises API is running', status: 'ok' });
+  });
+
+  app.get(/.*/, (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.status(404).json({ error: 'Endpoint not found' });
+  });
+}
 
 // Global Error Handling Middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
