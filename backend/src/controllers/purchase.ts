@@ -39,7 +39,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
     res.status(201).json(mapToMongoose(purchase));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
       return;
     }
     if (error.code === 'P2002') {
@@ -47,7 +47,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
       return;
     }
     logger.error('Error processing purchase', { error: error.message });
-    res.status(400).json({ error: error.message || 'Error processing purchase' });
+    res.status(400).json({ error: 'Error processing purchase' });
   }
 };
 
@@ -159,7 +159,7 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
     res.json({ message: 'Purchase deleted successfully' });
   } catch (error: any) {
     logger.error('Error deleting purchase', { purchaseId: req.params.id, error: error.message });
-    res.status(500).json({ error: error.message || 'Server error' });
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
@@ -173,7 +173,7 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
     res.status(200).json(mapToMongoose(purchase));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
       return;
     }
     if (error.code === 'P2002') {
@@ -181,6 +181,6 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
       return;
     }
     logger.error('Error updating purchase', { error: error.message });
-    res.status(400).json({ error: error.message || 'Error updating purchase' });
+    res.status(400).json({ error: 'Error updating purchase' });
   }
 };

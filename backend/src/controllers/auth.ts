@@ -1,13 +1,20 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
+import { JWT_SECRET } from '../config';
+
+const LoginSchema = z.object({
+  email: z.string().email().max(255),
+  password: z.string().min(1).max(128),
+});
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = LoginSchema.parse(req.body);
     
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -23,13 +30,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const token = jwt.sign(
       { _id: user.id, role: user.role },
-      process.env.JWT_SECRET || 'fallback_secret',
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     logger.info(`User logged in: ${email}`);
     res.json({ token, user: { _id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: 'Invalid email or password format.' });
+      return;
+    }
     logger.error('Server error during login', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error during login' });
   }

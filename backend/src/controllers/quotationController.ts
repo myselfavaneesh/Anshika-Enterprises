@@ -1,9 +1,49 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
 import { generateQuotationPDF, getQuotationHTML } from '../utils/pdfGenerator';
 import { sendInvoiceEmail } from '../services/emailService';
+
+const QuotationItemSchema = z.object({
+  productId: z.string(),
+  quantity: z.number().min(1),
+  unitPrice: z.number().min(0),
+  totalPrice: z.number().min(0),
+  taxableUnitPrice: z.number().min(0),
+  taxableTotalPrice: z.number().min(0),
+  gstRate: z.number().min(0).default(0),
+  cgstAmount: z.number().min(0).default(0),
+  sgstAmount: z.number().min(0).default(0),
+  wattage: z.number().min(0).default(0),
+});
+
+const QuotationServiceSchema = z.object({
+  name: z.string(),
+  amount: z.number().min(0),
+  gstRate: z.number().min(0).default(0),
+  cgstAmount: z.number().min(0).default(0),
+  sgstAmount: z.number().min(0).default(0),
+  taxableAmount: z.number().min(0).default(0),
+  isGstInclusive: z.boolean().default(true),
+});
+
+const QuotationInputSchema = z.object({
+  customerId: z.string(),
+  invoiceType: z.enum(['GST', 'NON_GST']).default('GST'),
+  items: z.array(QuotationItemSchema).min(1),
+  services: z.array(QuotationServiceSchema).optional().default([]),
+  subtotal: z.number().min(0),
+  discount: z.number().min(0).default(0),
+  taxableAmount: z.number().min(0),
+  taxRate: z.number().min(0).default(0),
+  taxAmount: z.number().min(0).default(0),
+  cgstAmount: z.number().min(0).default(0),
+  sgstAmount: z.number().min(0).default(0),
+  grandTotal: z.number().min(0),
+  validUntil: z.string().optional().nullable(),
+});
 
 const generateQuotationNumber = async (): Promise<string> => {
   const date = new Date();
@@ -30,7 +70,7 @@ const generateQuotationNumber = async (): Promise<string> => {
 
 export const createQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { customerId, invoiceType, items, services = [], subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = req.body;
+    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = QuotationInputSchema.parse(req.body);
 
     const quotationNumber = await generateQuotationNumber();
 
@@ -110,7 +150,7 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
     })();
   } catch (error: any) {
     logger.error('Error creating quotation', { error: error.message, stack: error.stack });
-    res.status(400).json({ error: error.message || 'Error creating quotation' });
+    res.status(400).json({ error: 'Error creating quotation' });
   }
 };
 
@@ -239,7 +279,7 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
 export const updateQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { customerId, invoiceType, items, services = [], subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = req.body;
+    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = QuotationInputSchema.parse(req.body);
 
     const quotation = await prisma.quotation.findUnique({ where: { id: id as string } });
     if (!quotation) {
@@ -304,7 +344,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
     res.json(mapToMongoose(updatedQuotation));
   } catch (error: any) {
     logger.error('Error updating quotation', { error: error.message, stack: error.stack });
-    res.status(400).json({ error: error.message || 'Error updating quotation' });
+    res.status(400).json({ error: 'Error updating quotation' });
   }
 };
 
@@ -343,7 +383,7 @@ export const convertQuotation = async (req: Request, res: Response): Promise<voi
     res.json(mapToMongoose(newSale));
   } catch (error: any) {
     logger.error('Error converting quotation', { error: error.message, stack: error.stack });
-    res.status(400).json({ error: error.message || 'Error converting quotation' });
+    res.status(400).json({ error: 'Error converting quotation' });
   }
 };
 
@@ -417,7 +457,7 @@ export const sendQuotationEmailController = async (req: Request, res: Response):
     res.json({ message: `${docType} email sent successfully to ${customer.email}` });
   } catch (error: any) {
     logger.error('Error sending quotation email', { quotationId: req.params.id, error: error.message });
-    res.status(500).json({ error: error.message || 'Error sending quotation email' });
+    res.status(500).json({ error: 'Error sending quotation email' });
   }
 };
 

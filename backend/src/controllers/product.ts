@@ -1,7 +1,22 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
+
+const ProductSchema = z.object({
+  categoryId: z.string(),
+  name: z.string().min(1).max(255),
+  sku: z.string().min(1).max(50),
+  lowStockThreshold: z.number().int().min(0).default(5),
+  hsnCode: z.string().max(20).optional().nullable(),
+  gstRate: z.number().min(0).max(100).default(0),
+  purchasePrice: z.number().min(0).default(0),
+  sellingPrice: z.number().min(0).default(0),
+  isGstInclusive: z.boolean().default(true),
+  wattage: z.number().min(0).default(0),
+  trackSerials: z.boolean().default(true),
+});
 
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -9,7 +24,12 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const sort = (req.query.sort as string) || 'createdAt';
+    const ALLOWED_SORT_FIELDS = ['createdAt', 'name', 'sku', 'sellingPrice', 'purchasePrice', 'updatedAt'] as const;
+    type SortField = typeof ALLOWED_SORT_FIELDS[number];
+    const sortInput = req.query.sort as string;
+    const sort: SortField = ALLOWED_SORT_FIELDS.includes(sortInput as SortField)
+      ? (sortInput as SortField)
+      : 'createdAt';
     const order = (req.query.order as string) === 'desc' ? 'desc' : 'asc';
 
     const categoryId = typeof req.query.categoryId === 'string' ? req.query.categoryId : undefined;
@@ -59,7 +79,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = ProductSchema.parse(req.body);
     
     const existingSku = await prisma.product.findUnique({ where: { sku } });
     if (existingSku) {
@@ -94,7 +114,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = req.body;
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = ProductSchema.parse(req.body);
     
     try {
       const product = await prisma.product.update({

@@ -1,7 +1,19 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
+
+const SupplierSchema = z.object({
+  name: z.string().min(1).max(255),
+  phone: z.string().max(20).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable(),
+  address: z.string().max(500).optional().nullable(),
+  gstNumber: z.string().max(20).optional().nullable(),
+  state: z.string().max(100).optional().nullable(),
+  stateCode: z.string().max(10).optional().nullable(),
+  outstandingBalance: z.number().default(0),
+});
 
 export const getSuppliers = async (req: Request, res: Response) => {
   try {
@@ -15,7 +27,7 @@ export const getSuppliers = async (req: Request, res: Response) => {
 
 export const createSupplier = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = req.body;
+    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = SupplierSchema.parse(req.body);
 
     const trimmedPhone = phone ? phone.trim() : null;
     const trimmedEmail = email ? email.trim() : null;
@@ -63,7 +75,7 @@ export const createSupplier = async (req: Request, res: Response): Promise<void>
 export const updateSupplier = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = req.body;
+    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = SupplierSchema.parse(req.body);
 
     const trimmedPhone = phone ? phone.trim() : null;
     const trimmedEmail = email ? email.trim() : null;

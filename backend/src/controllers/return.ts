@@ -25,10 +25,10 @@ export const processReturn = async (req: Request, res: Response): Promise<void> 
     res.status(201).json(mapToMongoose(saleReturn));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
       return;
     }
     logger.error('Error processing return', { error: error.message });
-    res.status(400).json({ error: error.message || 'Error processing return' });
+    res.status(400).json({ error: 'Error processing return' });
   }
 };

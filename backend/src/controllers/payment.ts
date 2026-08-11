@@ -1,21 +1,23 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
 
+const PaymentSchema = z.object({
+  entityType: z.enum(['CUSTOMER', 'SUPPLIER']),
+  entityId: z.string(),
+  type: z.enum(['MONEY_IN', 'MONEY_OUT']),
+  amount: z.number().positive(),
+  paymentMode: z.string().min(1).max(50),
+  referenceId: z.string().max(100).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
 // Record a new payment and update the ledger balance securely
 export const recordPayment = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { entityType, entityId, type, amount, paymentMode, referenceId, notes } = req.body;
-
-    if (!['CUSTOMER', 'SUPPLIER'].includes(entityType)) {
-      res.status(400).json({ error: 'Invalid entityType. Must be CUSTOMER or SUPPLIER' });
-      return;
-    }
-    if (!['MONEY_IN', 'MONEY_OUT'].includes(type)) {
-      res.status(400).json({ error: 'Invalid type. Must be MONEY_IN or MONEY_OUT' });
-      return;
-    }
+    const { entityType, entityId, type, amount, paymentMode, referenceId, notes } = PaymentSchema.parse(req.body);
 
     const numAmount = Number(amount);
 
@@ -66,7 +68,7 @@ export const recordPayment = async (req: Request, res: Response): Promise<void> 
        return;
     }
 
-    res.status(400).json({ error: error.message || 'Error recording payment' });
+    res.status(400).json({ error: 'Error recording payment' });
   }
 };
 
@@ -197,6 +199,6 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
       return;
     }
     logger.error('Error deleting payment:', { error: error.message, stack: error.stack });
-    res.status(500).json({ error: error.message || 'Server error' });
+    res.status(500).json({ error: 'Server error' });
   }
 };

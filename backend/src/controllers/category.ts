@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapToMongoose } from '../utils/mapper';
+
+const CategorySchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional().nullable(),
+});
 
 export const getCategories = async (req: Request, res: Response) => {
   try {
@@ -15,7 +21,7 @@ export const getCategories = async (req: Request, res: Response) => {
 
 export const createCategory = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description } = req.body;
+    const { name, description } = CategorySchema.parse(req.body);
     const existing = await prisma.category.findUnique({ where: { name } });
     if (existing) {
       res.status(400).json({ error: 'Category already exists' });
@@ -34,7 +40,7 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
 export const updateCategory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description } = CategorySchema.parse(req.body);
     
     try {
       const category = await prisma.category.update({

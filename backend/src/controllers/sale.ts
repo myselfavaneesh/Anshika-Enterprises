@@ -88,11 +88,11 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
     })();
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
       return;
     }
     logger.error('Error processing sale', { error: error.message });
-    res.status(400).json({ error: error.message || 'Error processing sale' });
+    res.status(400).json({ error: 'Error processing sale' });
   }
 };
 
@@ -106,11 +106,11 @@ export const updateSale = async (req: Request, res: Response): Promise<void> => 
     res.json(mapToMongoose(sale));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: (error as any).errors });
+      res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
       return;
     }
     logger.error('Error updating sale', { error: error.message });
-    res.status(400).json({ error: error.message || 'Error updating sale' });
+    res.status(400).json({ error: 'Error updating sale' });
   }
 };
 
@@ -264,7 +264,7 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
     res.json({ message: 'Sale deleted successfully' });
   } catch (error: any) {
     logger.error('Error deleting sale', { saleId: req.params.id, error: error.message });
-    res.status(500).json({ error: error.message || 'Server error' });
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
@@ -307,7 +307,7 @@ export const sendSaleEmailController = async (req: Request, res: Response): Prom
     res.json({ message: `Invoice email sent successfully to ${customer.email}` });
   } catch (error: any) {
     logger.error('Error sending sale email', { saleId: req.params.id, error: error.message });
-    res.status(500).json({ error: error.message || 'Error sending invoice email' });
+    res.status(500).json({ error: 'Error sending invoice email' });
   }
 };
 

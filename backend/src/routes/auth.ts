@@ -12,6 +12,10 @@ const loginLimiter = rateLimit({
 const router = express.Router();
 
 router.post('/login', loginLimiter, login);
-router.post('/seed', seedAdmin);
+
+// Only expose seed endpoint in development
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/seed', seedAdmin);
+}
 
 export default router;
