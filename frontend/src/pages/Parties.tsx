@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Edit, Trash2, Search, Copy, Download, MessageCircle } from 'lucide-react';
 
@@ -294,10 +294,13 @@ export default function Parties() {
                 Add {activeTab === 'customers' ? 'Customer' : 'Supplier'}
               </Button>
             </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Edit' : 'Add New'} {activeTab === 'customers' ? 'Customer' : 'Supplier'}</DialogTitle>
-            </DialogHeader>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingId ? 'Edit' : 'Add New'} {activeTab === 'customers' ? 'Customer' : 'Supplier'}</DialogTitle>
+                <DialogDescription>
+                  Enter details to {editingId ? 'update' : 'create'} a {activeTab === 'customers' ? 'customer' : 'supplier'}.
+                </DialogDescription>
+              </DialogHeader>
             <form onSubmit={handleAddSubmit} className="space-y-4 pt-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Name</label>
