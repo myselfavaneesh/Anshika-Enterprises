@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { InstallAppModal } from './InstallAppModal';
+import { InstallAppBanner } from './InstallAppBanner';
 import { 
   LayoutDashboard, 
   Package, 
@@ -13,13 +16,24 @@ import {
   X,
   ListTree,
   Warehouse,
-  Plus
+  Plus,
+  Smartphone,
+  Download
 } from 'lucide-react';
 
 const Layout = () => {
   const { user, logout, loading } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const {
+    isInstalled,
+    isIOS,
+    deferredPrompt,
+    showInstructionsModal,
+    setShowInstructionsModal,
+    triggerInstall,
+  } = usePWAInstall();
 
   if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
 
@@ -90,6 +104,19 @@ const Layout = () => {
         </nav>
         
         <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+          {!isInstalled && (
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                triggerInstall();
+              }}
+              className="flex w-full items-center px-3 py-2.5 mb-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 transition-colors"
+            >
+              <Smartphone className="mr-3 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>Install App</span>
+            </button>
+          )}
+
           <div className="flex items-center mb-4 px-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
@@ -115,13 +142,26 @@ const Layout = () => {
         {/* Mobile Header */}
         <div className="md:hidden h-16 border-b bg-white dark:bg-slate-800 flex items-center px-4 justify-between flex-shrink-0">
           <h1 className="text-lg font-bold text-primary">Anshika Enterprises</h1>
-          <button 
-            className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-6 w-6 text-slate-600 dark:text-slate-300" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {!isInstalled && (
+              <button
+                onClick={triggerInstall}
+                className="flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                <span>Install App</span>
+              </button>
+            )}
+            <button 
+              className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+            </button>
+          </div>
         </div>
+
+        <InstallAppBanner onInstall={triggerInstall} isInstalled={isInstalled} />
 
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 pb-20 md:pb-8">
           <div className="mx-auto max-w-6xl">
@@ -176,6 +216,14 @@ const Layout = () => {
           </button>
         </div>
       </div>
+
+      <InstallAppModal
+        isOpen={showInstructionsModal}
+        onClose={() => setShowInstructionsModal(false)}
+        onInstall={triggerInstall}
+        isIOS={isIOS}
+        hasDeferredPrompt={!!deferredPrompt}
+      />
     </div>
   );
 };
