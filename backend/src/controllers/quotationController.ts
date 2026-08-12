@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 import { generateQuotationPDF, getQuotationHTML } from '../utils/pdfGenerator';
 import { sendInvoiceEmail } from '../services/emailService';
 
@@ -120,7 +120,7 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
       }
     });
 
-    res.status(201).json(mapToMongoose(quotation));
+    res.status(201).json(mapEntityId(quotation));
 
     // Asynchronously send email without blocking the response
     (async () => {
@@ -132,11 +132,11 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
             include: { product: true }
           });
           const items = rawItems.map((item: any) => ({
-            ...mapToMongoose(item),
-            productId: item.product ? mapToMongoose(item.product) : null,
+            ...mapEntityId(item),
+            productId: item.product ? mapEntityId(item.product) : null,
             serialNumbers: []
           }));
-          const htmlContent = getQuotationHTML(mapToMongoose(quotation), items, mapToMongoose(customer));
+          const htmlContent = getQuotationHTML(mapEntityId(quotation), items, mapEntityId(customer));
           const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
           await sendInvoiceEmail(
             customer.email,
@@ -198,7 +198,7 @@ export const getQuotations = async (req: Request, res: Response): Promise<void> 
 
     const mappedQuotations = quotations.map(q => {
       const { customer, ...rest } = q as any;
-      return mapToMongoose({ ...rest, customerId: customer });
+      return mapEntityId({ ...rest, customerId: customer });
     });
 
     res.json({
@@ -243,10 +243,10 @@ export const getQuotationById = async (req: Request, res: Response): Promise<voi
     // Map items so productId is populated
     const mappedItems = quotationItems.map((item: any) => {
       const { product, ...restItem } = item;
-      return mapToMongoose({ ...restItem, productId: product });
+      return mapEntityId({ ...restItem, productId: product });
     });
 
-    res.json(mapToMongoose({ ...restQuotation, customerId: customer, items: mappedItems, services: quotationServices }));
+    res.json(mapEntityId({ ...restQuotation, customerId: customer, items: mappedItems, services: quotationServices }));
   } catch (error: any) {
     logger.error('Error fetching quotation details', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -341,7 +341,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
       });
     });
 
-    res.json(mapToMongoose(updatedQuotation));
+    res.json(mapEntityId(updatedQuotation));
   } catch (error: any) {
     logger.error('Error updating quotation', { error: error.message, stack: error.stack });
     res.status(400).json({ error: 'Error updating quotation' });
@@ -380,7 +380,7 @@ export const convertQuotation = async (req: Request, res: Response): Promise<voi
       data: { status: 'ACCEPTED' }
     });
 
-    res.json(mapToMongoose(newSale));
+    res.json(mapEntityId(newSale));
   } catch (error: any) {
     logger.error('Error converting quotation', { error: error.message, stack: error.stack });
     res.status(400).json({ error: 'Error converting quotation' });
@@ -404,12 +404,12 @@ export const downloadQuotationPDF = async (req: Request, res: Response): Promise
     const customer = await prisma.customer.findUnique({ where: { id: quotation.customerId } });
 
     const items = rawItems.map((item: any) => ({
-      ...mapToMongoose(item),
-      productId: item.product ? mapToMongoose(item.product) : null,
+      ...mapEntityId(item),
+      productId: item.product ? mapEntityId(item.product) : null,
       serialNumbers: []
     }));
 
-    const pdfBuffer = await generateQuotationPDF(mapToMongoose(quotation), items, mapToMongoose(customer));
+    const pdfBuffer = await generateQuotationPDF(mapEntityId(quotation), items, mapEntityId(customer));
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="quotation-${quotation.quotationNumber.replace(/\//g, '-')}.pdf"`);
@@ -441,12 +441,12 @@ export const sendQuotationEmailController = async (req: Request, res: Response):
     });
 
     const items = rawItems.map((item: any) => ({
-      ...mapToMongoose(item),
-      productId: item.product ? mapToMongoose(item.product) : null,
+      ...mapEntityId(item),
+      productId: item.product ? mapEntityId(item.product) : null,
       serialNumbers: []
     }));
 
-    const htmlContent = getQuotationHTML(mapToMongoose(quotation), items, mapToMongoose(customer));
+    const htmlContent = getQuotationHTML(mapEntityId(quotation), items, mapEntityId(customer));
     const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
     await sendInvoiceEmail(
       customer.email,

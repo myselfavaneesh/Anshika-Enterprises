@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '../prisma';
 import { PurchaseService } from '../services/purchaseService';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 const PurchaseItemSchema = z.object({
   productId: z.string(),
@@ -36,7 +36,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 
     const purchase = await PurchaseService.createPurchase(validatedData);
 
-    res.status(201).json(mapToMongoose(purchase));
+    res.status(201).json(mapEntityId(purchase));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
@@ -90,7 +90,7 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
 
     const mappedPurchases = purchases.map(p => {
       const { supplier, ...rest } = p as any;
-      return mapToMongoose({ ...rest, supplierId: supplier });
+      return mapEntityId({ ...rest, supplierId: supplier });
     });
 
     res.json({
@@ -129,8 +129,8 @@ export const getPurchaseById = async (req: Request, res: Response): Promise<void
         select: { serialNumber: true }
       });
       return {
-        ...mapToMongoose(item),
-        productId: mapToMongoose((item as any).product),
+        ...mapEntityId(item),
+        productId: mapEntityId((item as any).product),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
@@ -139,9 +139,9 @@ export const getPurchaseById = async (req: Request, res: Response): Promise<void
       where: { referenceId: purchase.purchaseInvoiceNumber, entityType: 'SUPPLIER' }
     });
 
-    res.json(mapToMongoose({
+    res.json(mapEntityId({
       ...purchase,
-      supplierId: supplier ? mapToMongoose(supplier) : null,
+      supplierId: supplier ? mapEntityId(supplier) : null,
       items: items,
       amountPaid: payment ? payment.amount : 0,
       paymentMode: payment ? payment.paymentMode : 'CASH'
@@ -170,7 +170,7 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
 
     const purchase = await PurchaseService.updatePurchase(id, validatedData);
 
-    res.status(200).json(mapToMongoose(purchase));
+    res.status(200).json(mapEntityId(purchase));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: (error as any).issues });

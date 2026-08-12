@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 const ProductSchema = z.object({
   categoryId: z.string(),
@@ -59,7 +59,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
     const mappedProducts = products.map(p => {
       const { category, ...rest } = p as any;
-      return mapToMongoose({ ...rest, categoryId: category });
+      return mapEntityId({ ...rest, categoryId: category });
     });
 
     res.json({
@@ -104,7 +104,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     });
 
     logger.info('Product created successfully', { productId: product.id, name, sku });
-    res.status(201).json(mapToMongoose(product));
+    res.status(201).json(mapEntityId(product));
   } catch (error: any) {
     logger.error('Error creating product', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -134,7 +134,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
         }
       });
       logger.info('Product updated successfully', { productId: id });
-      res.json(mapToMongoose(product));
+      res.json(mapEntityId(product));
     } catch (e: any) {
       if (e.code === 'P2025') {
         res.status(404).json({ error: 'Product not found' });

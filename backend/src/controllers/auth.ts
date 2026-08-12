@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
 import { JWT_SECRET } from '../config';
 
 const LoginSchema = z.object({

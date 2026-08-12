@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '../prisma';
 import { InventoryService } from '../services/inventoryService';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 const StockInSchema = z.object({
   productId: z.string(),
@@ -85,7 +85,7 @@ export const getInventory = async (req: Request, res: Response): Promise<void> =
         sku: item.sku,
         lowStockThreshold: item.lowStockThreshold,
         trackSerials: item.trackSerials,
-        categoryId: item.category ? mapToMongoose(item.category) : null
+        categoryId: item.category ? mapEntityId(item.category) : null
       },
       quantity: item.trackSerials ? item._count.productUnits : (item.inventories?.quantity || 0),
       updatedAt: item.updatedAt
@@ -167,7 +167,7 @@ export const getSerials = async (req: Request, res: Response): Promise<void> => 
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(mapToMongoose(serials));
+    res.json(mapEntityId(serials));
   } catch (error: any) {
     logger.error('Error fetching serials', { productId: req.params.productId, error: error.message });
     res.status(500).json({ error: 'Server error' });
@@ -194,7 +194,7 @@ export const searchSerials = async (req: Request, res: Response): Promise<void> 
 
     const mappedSerials = serials.map(s => {
       const { product, sale, ...rest } = s as any;
-      return mapToMongoose({ ...rest, productId: product, saleId: sale });
+      return mapEntityId({ ...rest, productId: product, saleId: sale });
     });
 
     res.json(mappedSerials);
@@ -218,7 +218,7 @@ export const updateSerial = async (req: Request, res: Response): Promise<void> =
       }
     });
 
-    res.json(mapToMongoose(updated));
+    res.json(mapEntityId(updated));
   } catch (error: any) {
     logger.error('Error updating serial', { id: req.params.id, error: error.message });
     res.status(500).json({ error: 'Server error updating serial number' });

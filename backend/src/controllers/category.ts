@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 const CategorySchema = z.object({
   name: z.string().min(1).max(100),
@@ -12,7 +12,7 @@ const CategorySchema = z.object({
 export const getCategories = async (req: Request, res: Response) => {
   try {
     const categories = await prisma.category.findMany();
-    res.json(mapToMongoose(categories));
+    res.json(mapEntityId(categories));
   } catch (error: any) {
     logger.error('Error fetching categories', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -30,7 +30,7 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
     const category = await prisma.category.create({
       data: { name, description }
     });
-    res.status(201).json(mapToMongoose(category));
+    res.status(201).json(mapEntityId(category));
   } catch (error: any) {
     logger.error('Error creating category', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -47,7 +47,7 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
         where: { id: id as string },
         data: { name, description }
       });
-      res.json(mapToMongoose(category));
+      res.json(mapEntityId(category));
     } catch (e: any) {
       if (e.code === 'P2025') {
         res.status(404).json({ error: 'Category not found' });

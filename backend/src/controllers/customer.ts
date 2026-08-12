@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
+import { mapEntityId } from '../utils/mapper';
 
 const CustomerSchema = z.object({
   name: z.string().min(1).max(255),
@@ -14,16 +15,10 @@ const CustomerSchema = z.object({
   outstandingBalance: z.number().default(0),
 });
 
-const mapToMongoose = (obj: any) => {
-  if (!obj) return obj;
-  const { id, ...rest } = obj;
-  return { ...rest, _id: id };
-};
-
 export const getCustomers = async (req: Request, res: Response) => {
   try {
     const customers = await prisma.customer.findMany();
-    res.json(customers.map(mapToMongoose));
+    res.json(mapEntityId(customers));
   } catch (error: any) {
     logger.error('Error fetching customers', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -70,7 +65,7 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
         outstandingBalance: outstandingBalance !== undefined ? Number(outstandingBalance) : 0,
       },
     });
-    res.status(201).json(mapToMongoose(customer));
+    res.status(201).json(mapEntityId(customer));
   } catch (error: any) {
     logger.error('Error creating customer', { error: error.message, stack: error.stack });
     if (error instanceof z.ZodError) {
@@ -127,7 +122,7 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
       },
     });
     
-    res.json(mapToMongoose(customer));
+    res.json(mapEntityId(customer));
   } catch (error: any) {
     if (error.code === 'P2025') { // Prisma code for record not found
       res.status(404).json({ error: 'Customer not found' });
@@ -167,8 +162,8 @@ export const getCustomerLedger = async (req: Request, res: Response): Promise<vo
       const items = sale.saleItems.map((item: any) => {
         const { product, productUnits, ...itemRest } = item;
         return {
-          ...mapToMongoose(itemRest),
-          productId: mapToMongoose(product),
+          ...mapEntityId(itemRest),
+          productId: mapEntityId(product),
           serialNumbers: productUnits.map((u: any) => u.serialNumber),
         };
       });
@@ -222,7 +217,7 @@ export const getCustomerLedger = async (req: Request, res: Response): Promise<vo
     });
 
     res.json({
-      customer: mapToMongoose(customer),
+      customer: mapEntityId(customer),
       ledger
     });
   } catch (error: any) {

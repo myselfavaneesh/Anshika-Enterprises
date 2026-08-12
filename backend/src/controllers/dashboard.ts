@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -135,7 +135,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const lowStockProducts = products
       .filter(p => p._count.productUnits <= (p.lowStockThreshold || 5))
       .map(p => ({
-        product: mapToMongoose({
+        product: mapEntityId({
           id: p.id,
           name: p.name,
           sku: p.sku,
@@ -160,9 +160,9 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       lowStockProducts,
       recentSales: recentSales.map((sale: any) => {
         const { customer, ...rest } = sale;
-        return mapToMongoose({
+        return mapEntityId({
           ...rest,
-          customerId: customer ? mapToMongoose(customer) : null
+          customerId: customer ? mapEntityId(customer) : null
         });
       })
     });

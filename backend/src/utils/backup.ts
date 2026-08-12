@@ -7,12 +7,11 @@ import { logger } from './logger';
 export const initBackupCron = () => {
   // Run everyday at midnight
   cron.schedule('0 0 * * *', () => {
-    logger.info('Starting daily database backup...');
+    logger.info('Starting daily PostgreSQL database backup...');
     
-    // Use the MongoDB URI from env
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
-      logger.error('Cannot run backup: MONGODB_URI is not defined.');
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      logger.error('Cannot run backup: DATABASE_URL is not defined.');
       return;
     }
 
@@ -22,36 +21,35 @@ export const initBackupCron = () => {
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const archivePath = path.join(backupDir, `backup-${timestamp}.gzip`);
+    const archivePath = path.join(backupDir, `backup-${timestamp}.sql`);
 
-    // Using mongodump to create a compressed archive
-    const child = spawn('mongodump', [
-      `--uri=${uri}`,
-      `--archive=${archivePath}`,
-      '--gzip'
+    // Using pg_dump for PostgreSQL
+    const child = spawn('pg_dump', [
+      `--dbname=${dbUrl}`,
+      `-f`, archivePath
     ]);
 
     child.stdout.on('data', (data) => {
-      logger.info(`mongodump stdout: ${data}`);
+      logger.info(`pg_dump stdout: ${data}`);
     });
 
     child.stderr.on('data', (data) => {
-      // mongodump writes progress to stderr
-      logger.info(`mongodump progress: ${data}`);
+      logger.info(`pg_dump progress/notice: ${data}`);
     });
 
     child.on('error', (error) => {
-      logger.error(`mongodump error: ${error.message}`);
+      logger.error(`pg_dump error: ${error.message}. Ensure pg_dump is installed in system PATH.`);
     });
 
     child.on('exit', (code, signal) => {
       if (code === 0) {
-        logger.info(`Database backup completed successfully. Saved to ${archivePath}`);
+        logger.info(`PostgreSQL Database backup completed successfully. Saved to ${archivePath}`);
       } else {
-        logger.error(`mongodump process exited with code ${code} and signal ${signal}`);
+        logger.error(`pg_dump process exited with code ${code} and signal ${signal}`);
       }
     });
   });
   
-  logger.info('Database backup cron job initialized (runs daily at midnight).');
+  logger.info('PostgreSQL database backup cron job initialized (runs daily at midnight).');
 };
+

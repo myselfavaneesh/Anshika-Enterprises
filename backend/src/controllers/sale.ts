@@ -5,7 +5,7 @@ import { SaleService } from '../services/saleService';
 import { generateInvoicePDF, getInvoiceHTML } from '../utils/pdfGenerator';
 import { sendInvoiceEmail } from '../services/emailService';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 const SaleItemSchema = z.object({
   productId: z.string(),
@@ -54,7 +54,7 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
 
     const sale = await SaleService.createSale(validatedData);
 
-    res.status(201).json(mapToMongoose(sale));
+    res.status(201).json(mapEntityId(sale));
 
     // Asynchronously send email without blocking the response
     (async () => {
@@ -71,11 +71,11 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
               select: { serialNumber: true }
             });
             return {
-              ...mapToMongoose(item),
+              ...mapEntityId(item),
               serialNumbers: units.map(u => u.serialNumber)
             };
           }));
-          const htmlContent = getInvoiceHTML(mapToMongoose(sale), items, mapToMongoose(customer));
+          const htmlContent = getInvoiceHTML(mapEntityId(sale), items, mapEntityId(customer));
           await sendInvoiceEmail(
             customer.email,
             `Invoice ${sale.invoiceNumber} from Anshika Enterprises`,
@@ -103,7 +103,7 @@ export const updateSale = async (req: Request, res: Response): Promise<void> => 
 
     const sale = await SaleService.updateSale(id, validatedData);
 
-    res.json(mapToMongoose(sale));
+    res.json(mapEntityId(sale));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
@@ -158,7 +158,7 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
 
     const mappedSales = sales.map(s => {
       const { customer, ...rest } = s as any;
-      return mapToMongoose({ ...rest, customerId: customer });
+      return mapEntityId({ ...rest, customerId: customer });
     });
 
     res.json({
@@ -198,12 +198,12 @@ export const downloadInvoice = async (req: Request, res: Response): Promise<void
         select: { serialNumber: true }
       });
       return {
-        ...mapToMongoose(item),
+        ...mapEntityId(item),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
 
-    const pdfBuffer = await generateInvoicePDF(mapToMongoose(sale), items, mapToMongoose(customer));
+    const pdfBuffer = await generateInvoicePDF(mapEntityId(sale), items, mapEntityId(customer));
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="invoice-${sale.invoiceNumber}.pdf"`);
@@ -235,8 +235,8 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
         select: { serialNumber: true }
       });
       return {
-        ...mapToMongoose(item),
-        productId: mapToMongoose((item as any).product),
+        ...mapEntityId(item),
+        productId: mapEntityId((item as any).product),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
@@ -245,9 +245,9 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
       where: { saleId: id as string }
     });
 
-    res.json(mapToMongoose({
+    res.json(mapEntityId({
       ...sale,
-      customerId: customer ? mapToMongoose(customer) : null,
+      customerId: customer ? mapEntityId(customer) : null,
       items: items,
       services: services
     }));
@@ -292,12 +292,12 @@ export const sendSaleEmailController = async (req: Request, res: Response): Prom
         select: { serialNumber: true }
       });
       return {
-        ...mapToMongoose(item),
+        ...mapEntityId(item),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
 
-    const htmlContent = getInvoiceHTML(mapToMongoose(sale), items, mapToMongoose(customer));
+    const htmlContent = getInvoiceHTML(mapEntityId(sale), items, mapEntityId(customer));
     await sendInvoiceEmail(
       customer.email,
       `Invoice ${sale.invoiceNumber} from Anshika Enterprises`,

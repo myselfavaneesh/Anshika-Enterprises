@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 const SupplierSchema = z.object({
   name: z.string().min(1).max(255),
@@ -18,7 +18,7 @@ const SupplierSchema = z.object({
 export const getSuppliers = async (req: Request, res: Response) => {
   try {
     const suppliers = await prisma.supplier.findMany();
-    res.json(mapToMongoose(suppliers));
+    res.json(mapEntityId(suppliers));
   } catch (error: any) {
     logger.error('Error fetching suppliers', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -65,7 +65,7 @@ export const createSupplier = async (req: Request, res: Response): Promise<void>
         outstandingBalance: outstandingBalance !== undefined ? Number(outstandingBalance) : 0,
       }
     });
-    res.status(201).json(mapToMongoose(supplier));
+    res.status(201).json(mapEntityId(supplier));
   } catch (error: any) {
     logger.error('Error creating supplier', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
@@ -118,7 +118,7 @@ export const updateSupplier = async (req: Request, res: Response): Promise<void>
           ...(outstandingBalance !== undefined && { outstandingBalance: Number(outstandingBalance) }),
         }
       });
-      res.json(mapToMongoose(supplier));
+      res.json(mapEntityId(supplier));
     } catch (e: any) {
       if (e.code === 'P2025') {
         res.status(404).json({ error: 'Supplier not found' });
@@ -160,8 +160,8 @@ export const getSupplierLedger = async (req: Request, res: Response): Promise<vo
       const items = purchase.purchaseItems.map((item: any) => {
         const { product, productUnits, ...itemRest } = item;
         return {
-          ...mapToMongoose(itemRest),
-          productId: mapToMongoose(product),
+          ...mapEntityId(itemRest),
+          productId: mapEntityId(product),
           serialNumbers: productUnits.map((u: any) => u.serialNumber)
         };
       });
@@ -215,7 +215,7 @@ export const getSupplierLedger = async (req: Request, res: Response): Promise<vo
     });
 
     res.json({
-      supplier: mapToMongoose(supplier),
+      supplier: mapEntityId(supplier),
       ledger
     });
   } catch (error: any) {

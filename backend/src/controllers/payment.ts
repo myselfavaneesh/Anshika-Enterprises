@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
-import { mapToMongoose } from '../utils/mapper';
+import { mapEntityId } from '../utils/mapper';
 
 const PaymentSchema = z.object({
   entityType: z.enum(['CUSTOMER', 'SUPPLIER']),
@@ -54,7 +54,7 @@ export const recordPayment = async (req: Request, res: Response): Promise<void> 
       return newPayment;
     });
 
-    res.status(201).json(mapToMongoose(payment));
+    res.status(201).json(mapEntityId(payment));
   } catch (error: any) {
     logger.error('Error in recordPayment transaction:', { error: error.message, stack: error.stack });
     
@@ -159,6 +159,86 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
   } catch (error: any) {
     logger.error('Error fetching ledger:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Error fetching ledger' });
+  }
+};
+
+const UpdatePaymentSchema = z.object({
+  amount: z.number().positive().optional(),
+  paymentMode: z.string().min(1).max(50).optional(),
+  referenceId: z.string().max(100).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+  type: z.enum(['MONEY_IN', 'MONEY_OUT']).optional(),
+});
+
+export const updatePayment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updateData = UpdatePaymentSchema.parse(req.body);
+
+    const updatedPayment = await prisma.$transaction(async (tx) => {
+      const existingPayment = await tx.payment.findUnique({ where: { id: id as string } });
+      if (!existingPayment) {
+        throw new Error('NOT_FOUND');
+      }
+
+      const newAmount = updateData.amount !== undefined ? Number(updateData.amount) : existingPayment.amount;
+      const newType = updateData.type || existingPayment.type;
+
+      const entityType = existingPayment.entityType;
+      const entityId = existingPayment.entityId;
+
+      let netBalanceChange = 0;
+
+      if (entityType === 'CUSTOMER') {
+        // Revert old effect (MONEY_IN decreased balance, MONEY_OUT increased it)
+        const oldEffect = existingPayment.type === 'MONEY_IN' ? existingPayment.amount : -existingPayment.amount;
+        // Apply new effect
+        const newEffect = newType === 'MONEY_IN' ? -newAmount : newAmount;
+        netBalanceChange = oldEffect + newEffect;
+
+        if (netBalanceChange !== 0) {
+          await tx.customer.update({
+            where: { id: entityId },
+            data: { outstandingBalance: { increment: netBalanceChange } }
+          });
+        }
+      } else if (entityType === 'SUPPLIER') {
+        // Revert old effect (MONEY_OUT decreased balance, MONEY_IN increased it)
+        const oldEffect = existingPayment.type === 'MONEY_OUT' ? existingPayment.amount : -existingPayment.amount;
+        // Apply new effect
+        const newEffect = newType === 'MONEY_OUT' ? -newAmount : newAmount;
+        netBalanceChange = oldEffect + newEffect;
+
+        if (netBalanceChange !== 0) {
+          await tx.supplier.update({
+            where: { id: entityId },
+            data: { outstandingBalance: { increment: netBalanceChange } }
+          });
+        }
+      }
+
+      const updated = await tx.payment.update({
+        where: { id: id as string },
+        data: {
+          ...(updateData.amount !== undefined && { amount: newAmount }),
+          ...(updateData.type && { type: newType }),
+          ...(updateData.paymentMode && { paymentMode: updateData.paymentMode }),
+          ...(updateData.referenceId !== undefined && { referenceId: updateData.referenceId }),
+          ...(updateData.notes !== undefined && { notes: updateData.notes }),
+        }
+      });
+
+      return updated;
+    });
+
+    res.json(mapEntityId(updatedPayment));
+  } catch (error: any) {
+    if (error.message === 'NOT_FOUND') {
+      res.status(404).json({ error: 'Payment record not found' });
+      return;
+    }
+    logger.error('Error updating payment:', { error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Error updating payment' });
   }
 };
 

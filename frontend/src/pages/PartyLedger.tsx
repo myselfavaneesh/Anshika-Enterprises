@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { FileText, IndianRupee, ArrowLeft, MessageCircle } from 'lucide-react';
+import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2 } from 'lucide-react';
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -21,9 +21,16 @@ export default function PartyLedger() {
   const navigate = useNavigate();
   const isCustomer = type === 'customers';
 
+  // Record Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('CASH');
+
+  // Edit Payment Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editPaymentMode, setEditPaymentMode] = useState('CASH');
 
   // Fetch Ledger Data
   const { data, mutate } = useSWR(
@@ -56,6 +63,47 @@ export default function PartyLedger() {
     } catch (error) {
       console.error('Error recording payment:', error);
       alert('Failed to record payment');
+    }
+  };
+
+  const handleOpenEditPayment = (entry: any) => {
+    setEditingPaymentId(entry._id || entry.id);
+    setEditAmount(entry.amount ? entry.amount.toString() : '');
+    setEditPaymentMode(entry.paymentMode || 'CASH');
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPaymentId) return;
+
+    try {
+      await api.put(`/payments/${editingPaymentId}`, {
+        amount: Number(editAmount),
+        paymentMode: editPaymentMode,
+      });
+
+      setIsEditModalOpen(false);
+      setEditingPaymentId(null);
+      setEditAmount('');
+      mutate();
+    } catch (error: any) {
+      console.error('Error updating payment:', error);
+      alert(error.response?.data?.error || 'Failed to update payment');
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!window.confirm('Are you sure you want to delete this payment record? The outstanding balance will be automatically adjusted.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/payments/${paymentId}`);
+      mutate();
+    } catch (error: any) {
+      console.error('Error deleting payment:', error);
+      alert(error.response?.data?.error || 'Failed to delete payment');
     }
   };
 
@@ -122,7 +170,7 @@ export default function PartyLedger() {
       </div>
 
       <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
-        <Table className="min-w-[600px]">
+        <Table className="min-w-[650px]">
           <TableHeader className="bg-slate-50">
             <TableRow>
               <TableHead>Date</TableHead>
@@ -131,12 +179,13 @@ export default function PartyLedger() {
               <TableHead className="text-right">Bill Amount</TableHead>
               <TableHead className="text-right">Paid Amount</TableHead>
               <TableHead className="text-right">Balance</TableHead>
+              <TableHead className="text-center w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {ledger.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-slate-500">No transactions found.</TableCell>
+                <TableCell colSpan={7} className="text-center py-8 text-slate-500">No transactions found.</TableCell>
               </TableRow>
             ) : (
               ledger.map((entry: any) => {
@@ -184,6 +233,32 @@ export default function PartyLedger() {
                       {paidAmount > 0 ? formatCurrency(paidAmount) : '-'}
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(entry.runningBalance)}</TableCell>
+                    <TableCell className="text-center whitespace-nowrap">
+                      {isPayment ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit Payment"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-800"
+                            onClick={() => handleOpenEditPayment(entry)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Delete Payment"
+                            className="h-8 w-8 text-red-500 hover:text-red-700"
+                            onClick={() => handleDeletePayment(entry._id || entry.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })
@@ -231,6 +306,47 @@ export default function PartyLedger() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Payment Dialog */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Payment Record</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdatePayment} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Amount</label>
+              <Input 
+                type="number" 
+                required 
+                min="1" 
+                value={editAmount} 
+                onChange={(e) => setEditAmount(e.target.value)} 
+                placeholder="Enter correct amount"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Mode</label>
+              <Select value={editPaymentMode} onValueChange={setEditPaymentMode}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="BANK">Bank Transfer</SelectItem>
+                  <SelectItem value="CHEQUE">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="pt-4 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+              <Button type="submit">Update Payment</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

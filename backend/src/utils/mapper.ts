@@ -1,13 +1,19 @@
-export const mapToMongoose = (obj: any): any => {
+/**
+ * Normalizes entity objects by ensuring both `id` and `_id` are populated
+ * for seamless compatibility between PostgreSQL Prisma backend and frontend expectations.
+ */
+export const mapEntityId = (obj: any): any => {
   if (!obj) return obj;
-  if (Array.isArray(obj)) return obj.map(mapToMongoose);
+  if (Array.isArray(obj)) return obj.map(mapEntityId);
   if (typeof obj === 'object' && obj !== null) {
     const { id, ...rest } = obj;
-    // Recursively map any nested objects/arrays if necessary, but shallow is usually enough
-    // For safety, just do shallow map for the top level:
     if (id !== undefined) {
-      return { ...rest, _id: id };
+      return { id, ...rest, _id: id };
     }
   }
   return obj;
 };
+
+// Deprecated alias for backward compatibility
+export const mapToMongoose = mapEntityId;
+
