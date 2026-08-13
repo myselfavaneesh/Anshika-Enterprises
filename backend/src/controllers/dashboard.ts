@@ -144,6 +144,12 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
         currentStock: p._count.productUnits
       }));
 
+    // 5. Total Customer Outstanding
+    const customerOutstandingAggregate = await prisma.customer.aggregate({
+      _sum: { outstandingBalance: true }
+    });
+    const totalCustomerOutstanding = customerOutstandingAggregate._sum.outstandingBalance || 0;
+
     res.json({
       totalProducts,
       totalUnitsInStock,
@@ -153,6 +159,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       totalTaxableSales,
       todaysSales: todaysGrossSales,
       monthlySales: monthlyGrossSales,
+      totalCustomerOutstanding,
       filteredRevenue: filteredTotalRevenue,
       filteredProfit: filteredTotalProfit,
       chartData,

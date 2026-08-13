@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Package, IndianRupee, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Package, IndianRupee, TrendingUp, AlertTriangle, Users } from 'lucide-react';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -13,6 +13,7 @@ interface DashboardStats {
   totalTaxableSales: number;
   todaysSales: number;
   monthlySales: number;
+  totalCustomerOutstanding?: number;
   filteredRevenue: number;
   filteredProfit: number;
   chartData: any[];
@@ -133,7 +134,7 @@ const Dashboard = () => {
       )}
 
       {/* Global Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">All Time Gross Revenue</CardTitle>
@@ -173,7 +174,18 @@ const Dashboard = () => {
             <div className="text-2xl font-bold">{stats.totalProducts}</div>
           </CardContent>
         </Card>
-        
+
+        <Card className="border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-amber-900 dark:text-amber-300">Customer Outstanding</CardTitle>
+            <Users className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+              ₹{(stats.totalCustomerOutstanding || 0).toFixed(2)}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Sales and Profit Chart */}
