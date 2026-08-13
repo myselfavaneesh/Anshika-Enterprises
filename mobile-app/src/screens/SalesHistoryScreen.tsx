@@ -48,7 +48,12 @@ export default function SalesHistoryScreen() {
       </View>
       <View style={styles.row}>
         <Text style={styles.customerName}>{item.customerId?.name || 'Unknown Customer'}</Text>
-        <Text style={styles.amount}>₹{(item.grandTotal || 0).toFixed(2)}</Text>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={styles.amount}>₹{(item.grandTotal || 0).toFixed(2)}</Text>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: (item.profit || 0) >= 0 ? '#16a34a' : '#dc2626' }}>
+            Profit: {(item.profit || 0) >= 0 ? '+' : ''}₹{(item.profit || 0).toFixed(2)}
+          </Text>
+        </View>
       </View>
       <View style={styles.actionRow}>
         <TouchableOpacity style={[styles.printButton, { backgroundColor: designTokens.colors.secondary, marginRight: 6 }]} onPress={() => navigation.navigate('EditSale', { id: item._id || item.id })}>

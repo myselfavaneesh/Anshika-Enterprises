@@ -114,6 +114,29 @@ export const updateSale = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+export const calculateSaleProfit = (sale: any): number => {
+  const revenue = sale.grandTotal || 0;
+  let totalCost = 0;
+
+  const productUnits = sale.productUnits || [];
+  const saleItems = sale.saleItems || [];
+
+  if (productUnits.length > 0) {
+    const unitCost = productUnits.reduce((acc: number, u: any) => acc + (u.purchasePrice || 0), 0);
+    const nonSerialCost = saleItems
+      .filter((item: any) => item.product && !item.product.trackSerials)
+      .reduce((acc: number, item: any) => acc + (item.quantity * (item.product?.purchasePrice || 0)), 0);
+    totalCost = unitCost + nonSerialCost;
+  } else if (saleItems.length > 0) {
+    totalCost = saleItems.reduce((acc: number, item: any) => {
+      const itemCost = item.product?.purchasePrice || 0;
+      return acc + (item.quantity * itemCost);
+    }, 0);
+  }
+
+  return Math.round((revenue - totalCost) * 100) / 100;
+};
+
 export const getSales = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -150,15 +173,26 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
     const total = await prisma.sale.count({ where });
     const sales = await prisma.sale.findMany({
       where,
-      include: { customer: true },
+      include: {
+        customer: true,
+        productUnits: true,
+        saleItems: {
+          include: { product: true }
+        }
+      },
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,
     });
 
     const mappedSales = sales.map(s => {
-      const { customer, ...rest } = s as any;
-      return mapEntityId({ ...rest, customerId: customer });
+      const { customer, productUnits, saleItems, ...rest } = s as any;
+      const profit = calculateSaleProfit(s);
+      return mapEntityId({
+        ...rest,
+        profit,
+        customerId: customer ? mapEntityId(customer) : null
+      });
     });
 
     res.json({
@@ -245,8 +279,19 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
       where: { saleId: id as string }
     });
 
+    const productUnits = await prisma.productUnit.findMany({
+      where: { saleId: id as string }
+    });
+
+    const profit = calculateSaleProfit({
+      ...sale,
+      productUnits,
+      saleItems: rawItems
+    });
+
     res.json(mapEntityId({
       ...sale,
+      profit,
       customerId: customer ? mapEntityId(customer) : null,
       items: items,
       services: services

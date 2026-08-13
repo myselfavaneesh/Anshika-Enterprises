@@ -134,6 +134,7 @@ const Sales = () => {
               <TableHead className="text-right">Discount</TableHead>
               <TableHead className="text-right">Tax</TableHead>
               <TableHead className="text-right">Grand Total</TableHead>
+              <TableHead className="text-right">Profit</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -148,11 +149,12 @@ const Sales = () => {
                   <TableCell><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                   <TableCell><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                   <TableCell><div className="h-4 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
+                  <TableCell><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                   <TableCell><div className="h-8 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                 </TableRow>
               ))
             ) : sales.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center">No sales found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center">No sales found.</TableCell></TableRow>
             ) : (
               sales.map((sale) => (
                 <TableRow key={sale._id}>
@@ -163,6 +165,9 @@ const Sales = () => {
                   <TableCell className="text-right">₹{sale.discount.toFixed(2)}</TableCell>
                   <TableCell className="text-right">₹{((sale.cgstAmount || 0) + (sale.sgstAmount || 0) + (sale.igstAmount || 0) || sale.taxAmount || 0).toFixed(2)}</TableCell>
                   <TableCell className="text-right font-bold text-primary">₹{sale.grandTotal.toFixed(2)}</TableCell>
+                  <TableCell className={`text-right font-semibold ${(sale.profit || 0) > 0 ? 'text-green-600 dark:text-green-400' : (sale.profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500'}`}>
+                    {(sale.profit || 0) >= 0 ? '+' : ''}₹{(sale.profit || 0).toFixed(2)}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title="Print Invoice" onClick={() => handlePrintInvoice(sale._id)}>

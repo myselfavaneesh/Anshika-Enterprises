@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
+import { calculateSaleProfit } from './sale';
 
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -89,13 +90,20 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const recentSales = await prisma.sale.findMany({
       orderBy: { createdAt: 'desc' },
       take: 5,
-      include: { customer: true }
+      include: {
+        customer: true,
+        productUnits: true,
+        saleItems: { include: { product: true } }
+      }
     });
 
     // Fetch filtered sales for profit and chart
     const filteredSalesQuery = await prisma.sale.findMany({
       where: dateFilter,
-      include: { productUnits: true },
+      include: {
+        productUnits: true,
+        saleItems: { include: { product: true } }
+      },
       orderBy: { createdAt: 'asc' }
     });
 
@@ -104,12 +112,10 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const chartDataMap = new Map();
 
     for (const sale of filteredSalesQuery) {
-      // Use grandTotal for gross revenue and profit calculation to match purchasePrice (which is inclusive of GST)
       const revenue = sale.grandTotal || 0;
       filteredTotalRevenue += revenue;
 
-      const cost = sale.productUnits.reduce((acc, unit) => acc + (unit.purchasePrice || 0), 0);
-      const profit = revenue - cost;
+      const profit = calculateSaleProfit(sale);
       filteredTotalProfit += profit;
 
       const dateStr = sale.createdAt.toISOString().split('T')[0];
@@ -166,9 +172,11 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       isFiltered,
       lowStockProducts,
       recentSales: recentSales.map((sale: any) => {
-        const { customer, ...rest } = sale;
+        const { customer, productUnits, saleItems, ...rest } = sale;
+        const profit = calculateSaleProfit(sale);
         return mapEntityId({
           ...rest,
+          profit,
           customerId: customer ? mapEntityId(customer) : null
         });
       })

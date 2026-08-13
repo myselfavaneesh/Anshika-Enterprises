@@ -274,6 +274,7 @@ const Dashboard = () => {
                       <TableHead>Invoice</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -282,6 +283,9 @@ const Dashboard = () => {
                         <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
                         <TableCell>{sale.customerId?.name || 'Unknown'}</TableCell>
                         <TableCell className="text-right">₹{sale.grandTotal.toFixed(2)}</TableCell>
+                        <TableCell className={`text-right font-semibold ${(sale.profit || 0) > 0 ? 'text-green-600 dark:text-green-400' : (sale.profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500'}`}>
+                          {(sale.profit || 0) >= 0 ? '+' : ''}₹{(sale.profit || 0).toFixed(2)}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
