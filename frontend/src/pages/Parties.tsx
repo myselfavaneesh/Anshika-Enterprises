@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Plus, Edit, Trash2, Search, Copy, Download, MessageCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Copy, Download, MessageCircle, Phone } from 'lucide-react';
 
 const INDIAN_STATES = [
   { name: 'Jammu and Kashmir', code: '01' }, { name: 'Himachal Pradesh', code: '02' },
@@ -142,6 +142,16 @@ export default function Parties() {
     }
   };
 
+  const handleCall = (party: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!party.phone) {
+      alert('This party does not have a phone number saved.');
+      return;
+    }
+    const cleanPhone = party.phone.replace(/[^0-9+]/g, '');
+    window.location.href = `tel:${cleanPhone}`;
+  };
+
   const handleSendCommunityInvite = (party: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!party.phone) {
@@ -200,7 +210,20 @@ export default function Parties() {
                 return (
                   <TableRow key={party._id} className="cursor-pointer hover:bg-slate-50" onClick={() => navigate(`/parties/${type}/${party._id}/ledger`)}>
                     <TableCell className="font-medium">{party.name}</TableCell>
-                    <TableCell>{party.phone || '-'}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {party.phone ? (
+                        <a
+                          href={`tel:${party.phone.replace(/[^0-9+]/g, '')}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 font-medium"
+                          title="Click to direct call"
+                        >
+                          <Phone className="h-3.5 w-3.5 text-blue-500" />
+                          {party.phone}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell>{party.email || '-'}</TableCell>
                     <TableCell>{party.gstNumber || '-'}</TableCell>
                     <TableCell className={`text-right ${balColor}`}>
@@ -211,13 +234,23 @@ export default function Parties() {
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/parties/${type}/${party._id}/ledger`); }}>
                           Statement
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-green-600 hover:text-green-700" onClick={(e) => handleSendCommunityInvite(party, e)} title="Send Community Invite">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
+                          onClick={(e) => handleCall(party, e)} 
+                          title={party.phone ? `Direct Call (${party.phone})` : "No phone number available"}
+                          disabled={!party.phone}
+                        >
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={(e) => handleSendCommunityInvite(party, e)} title="Send Community Invite">
                           <MessageCircle className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={(e) => handleEdit(party, e)}>
+                        <Button variant="ghost" size="icon" onClick={(e) => handleEdit(party, e)} title="Edit">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={(e) => handleDelete(party._id, type, e)}>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => handleDelete(party._id, type, e)} title="Delete">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

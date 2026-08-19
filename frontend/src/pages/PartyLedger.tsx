@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2 } from 'lucide-react';
+import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2, Phone } from 'lucide-react';
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -107,6 +107,15 @@ export default function PartyLedger() {
     }
   };
 
+  const handleCall = () => {
+    if (!party?.phone) {
+      alert('No phone number found for this party.');
+      return;
+    }
+    const cleanPhone = party.phone.replace(/[^0-9+]/g, '');
+    window.location.href = `tel:${cleanPhone}`;
+  };
+
   const handleSendReminder = () => {
     if (!party?.phone) {
       alert('No phone number found for this customer.');
@@ -135,7 +144,22 @@ export default function PartyLedger() {
       <div className="bg-white dark:bg-slate-950 p-6 rounded-md border shadow-sm flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <h3 className="text-2xl font-semibold">{party?.name}</h3>
-          <p className="text-sm text-slate-500 mt-1">{party?.phone || 'No Phone'} • {party?.address || 'No Address'}</p>
+          <p className="text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+            {party?.phone ? (
+              <a
+                href={`tel:${party.phone.replace(/[^0-9+]/g, '')}`}
+                className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 font-medium"
+                title="Click to direct call"
+              >
+                <Phone className="w-3.5 h-3.5 text-blue-500" />
+                {party.phone}
+              </a>
+            ) : (
+              'No Phone'
+            )}
+            <span>•</span>
+            <span>{party?.address || 'No Address'}</span>
+          </p>
           <p className="text-sm text-slate-500 mt-1">GSTIN: {party?.gstNumber || 'N/A'}</p>
         </div>
         <div className="w-full sm:w-auto text-left sm:text-right">
@@ -154,7 +178,18 @@ export default function PartyLedger() {
               )}
             </span>
           </p>
-          <div className="flex flex-col sm:flex-row justify-start sm:justify-end gap-2 mt-4 w-full">
+          <div className="flex flex-wrap sm:flex-row justify-start sm:justify-end gap-2 mt-4 w-full">
+            {party?.phone && (
+              <Button 
+                variant="outline" 
+                onClick={handleCall}
+                className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                title={`Call ${party.phone}`}
+              >
+                <Phone className="w-4 h-4 mr-2 text-blue-600" />
+                Call
+              </Button>
+            )}
             {isCustomer && (party?.outstandingBalance || 0) > 0 && (
               <Button variant="outline" onClick={handleSendReminder}>
                 <MessageCircle className="w-4 h-4 mr-2 text-green-600" />

@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Edit, Search, X, Trash2, Copy, Download } from 'lucide-react';
+import { Plus, Edit, Search, X, Trash2, Copy, Download, Phone } from 'lucide-react';
 
 const Customers = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -203,17 +203,44 @@ const Customers = () => {
               filteredCustomers.map((customer) => (
                 <TableRow key={customer._id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.phone || 'N/A'}</TableCell>
+                  <TableCell>
+                    {customer.phone ? (
+                      <a
+                        href={`tel:${customer.phone.replace(/[^0-9+]/g, '')}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 font-medium"
+                        title="Click to direct call"
+                      >
+                        <Phone className="h-3.5 w-3.5 text-blue-500" />
+                        {customer.phone}
+                      </a>
+                    ) : (
+                      'N/A'
+                    )}
+                  </TableCell>
                   <TableCell>{customer.email || 'N/A'}</TableCell>
                   <TableCell>{customer.address || 'N/A'}</TableCell>
                   <TableCell>{customer.gstNumber || 'N/A'}</TableCell>
                   <TableCell>{customer.state ? `${customer.state} (${customer.stateCode})` : 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1 items-center">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}>
+                      {customer.phone && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => {
+                            const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
+                            window.location.href = `tel:${cleanPhone}`;
+                          }}
+                          title={`Call ${customer.phone}`}
+                        >
+                          <Phone className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)} title="Edit">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(customer._id)}>
+                      <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(customer._id)} title="Delete">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
