@@ -18,11 +18,12 @@ import {
   Warehouse,
   Plus,
   Smartphone,
-  Download
+  Download,
+  Shield,
 } from 'lucide-react';
 
 const Layout = () => {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, hasPermission, isAdmin } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -41,16 +42,22 @@ const Layout = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Products', href: '/products', icon: Package },
-    { name: 'Categories', href: '/categories', icon: ListTree },
-    { name: 'Inventory', href: '/inventory', icon: Warehouse },
-    { name: 'Khata Book', href: '/parties', icon: Users },
-    { name: 'Purchases', href: '/purchases', icon: ShoppingBag },
-    { name: 'Sales', href: '/sales', icon: ShoppingCart },
-    { name: 'Quotations', href: '/quotations', icon: FileText },
+  // Build navigation based on permissions
+  const allNavigation = [
+    { name: 'Dashboard', href: '/', icon: LayoutDashboard, permission: 'dashboard:view' },
+    { name: 'Products', href: '/products', icon: Package, permission: 'products:view' },
+    { name: 'Categories', href: '/categories', icon: ListTree, permission: 'categories:view' },
+    { name: 'Inventory', href: '/inventory', icon: Warehouse, permission: 'inventory:view' },
+    { name: 'Khata Book', href: '/parties', icon: Users, permission: 'parties:view' },
+    { name: 'Purchases', href: '/purchases', icon: ShoppingBag, permission: 'purchases:view' },
+    { name: 'Sales', href: '/sales', icon: ShoppingCart, permission: 'sales:view' },
+    { name: 'Quotations', href: '/quotations', icon: FileText, permission: 'quotations:view' },
+    // Staff Management — admin only
+    ...(isAdmin ? [{ name: 'Staff', href: '/staff', icon: Shield, permission: 'staff:view' }] : []),
   ];
+
+  // Filter navigation to only show items user has permission for
+  const navigation = allNavigation.filter((item) => hasPermission(item.permission));
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden">
@@ -122,7 +129,7 @@ const Layout = () => {
               <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
                 {user.name}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate capitalize">
                 {user.role}
               </p>
             </div>
@@ -171,42 +178,50 @@ const Layout = () => {
 
         {/* Mobile Bottom Navigation Bar */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex items-center justify-around z-40 px-1 shadow-lg">
-          <Link 
-            to="/" 
-            className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
-              location.pathname === '/' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            <LayoutDashboard className="h-5 w-5 mb-0.5" />
-            Home
-          </Link>
-          <Link 
-            to="/sales" 
-            className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
-              location.pathname.startsWith('/sales') && location.pathname !== '/sales/new' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            <ShoppingCart className="h-5 w-5 mb-0.5" />
-            Sales
-          </Link>
-          <Link 
-            to="/sales/new" 
-            className="flex flex-col items-center justify-center w-full h-full py-1"
-          >
-            <div className="bg-primary text-primary-foreground p-2.5 rounded-full shadow-md -mt-5 border-2 border-white dark:border-slate-800">
-              <Plus className="h-5 w-5" />
-            </div>
-            <span className="text-[10px] font-semibold text-primary mt-0.5">New Sale</span>
-          </Link>
-          <Link 
-            to="/parties" 
-            className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
-              location.pathname.startsWith('/parties') ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
-            <Users className="h-5 w-5 mb-0.5" />
-            Khata
-          </Link>
+          {hasPermission('dashboard:view') && (
+            <Link 
+              to="/" 
+              className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
+                location.pathname === '/' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <LayoutDashboard className="h-5 w-5 mb-0.5" />
+              Home
+            </Link>
+          )}
+          {hasPermission('sales:view') && (
+            <Link 
+              to="/sales" 
+              className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
+                location.pathname.startsWith('/sales') && location.pathname !== '/sales/new' ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <ShoppingCart className="h-5 w-5 mb-0.5" />
+              Sales
+            </Link>
+          )}
+          {hasPermission('sales:create') && (
+            <Link 
+              to="/sales/new" 
+              className="flex flex-col items-center justify-center w-full h-full py-1"
+            >
+              <div className="bg-primary text-primary-foreground p-2.5 rounded-full shadow-md -mt-5 border-2 border-white dark:border-slate-800">
+                <Plus className="h-5 w-5" />
+              </div>
+              <span className="text-[10px] font-semibold text-primary mt-0.5">New Sale</span>
+            </Link>
+          )}
+          {hasPermission('parties:view') && (
+            <Link 
+              to="/parties" 
+              className={`flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium transition-colors ${
+                location.pathname.startsWith('/parties') ? 'text-primary' : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              <Users className="h-5 w-5 mb-0.5" />
+              Khata
+            </Link>
+          )}
           <button 
             onClick={() => setSidebarOpen(true)}
             className="flex flex-col items-center justify-center w-full h-full py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400"

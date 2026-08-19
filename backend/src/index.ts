@@ -16,6 +16,7 @@ import dashboardRoutes from './routes/dashboard';
 import paymentRoutes from './routes/payment';
 import purchaseRoutes from './routes/purchase';
 import returnRoutes from './routes/return';
+import staffRoutes from './routes/staff';
 
 import morgan from 'morgan';
 import { logger } from './utils/logger';
@@ -71,6 +72,7 @@ app.use('/api/purchases', purchaseRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/returns', returnRoutes);
+app.use('/api/staff', staffRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // Health check

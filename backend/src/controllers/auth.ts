@@ -21,20 +21,44 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Check if user account is active
+    if (!user.isActive) {
+      res.status(403).json({ error: 'Your account has been deactivated. Contact admin.' });
+      return;
+    }
+
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       res.status(400).json({ error: 'Invalid email or password.' });
       return;
     }
 
+    // Parse permissions from JSON field
+    const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+
     const token = jwt.sign(
-      { _id: user.id, role: user.role },
+      {
+        _id: user.id,
+        role: user.role,
+        permissions: permissions,
+        isActive: user.isActive,
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    logger.info(`User logged in: ${email}`);
-    res.json({ token, user: { _id: user.id, name: user.name, email: user.email, role: user.role } });
+    logger.info(`User logged in: ${email} (role: ${user.role})`);
+    res.json({
+      token,
+      user: {
+        _id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        permissions: permissions,
+        phone: user.phone,
+      },
+    });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: 'Invalid email or password format.' });
@@ -63,6 +87,8 @@ export const seedAdmin = async (req: Request, res: Response): Promise<void> => {
         email: 'admin@example.com',
         password: hashedPassword,
         role: 'admin',
+        permissions: [],
+        isActive: true,
       }
     });
 

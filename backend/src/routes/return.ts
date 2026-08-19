@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { processReturn } from '../controllers/return';
-import { authenticate, isAdmin } from '../middleware/auth';
+import { authenticate, checkActive, requirePermission } from '../middleware/auth';
 
 const router = Router();
 
-// Only logged in users can process a return
-router.post('/', authenticate, processReturn);
+router.use(authenticate);
+router.use(checkActive);
+
+// Return requires sales:edit permission (it modifies a sale)
+router.post('/', requirePermission('sales:edit'), processReturn);
 
 export default router;

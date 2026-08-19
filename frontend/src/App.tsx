@@ -21,8 +21,10 @@ import Purchases from './pages/Purchases';
 import NewPurchase from './pages/NewPurchase';
 
 import EditPurchase from './pages/EditPurchase';
+import StaffManagement from './pages/StaffManagement';
 
 import TitleUpdater from './components/TitleUpdater';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -36,22 +38,23 @@ function App() {
           <Route path="/quotations/:id/print" element={<PrintInvoice />} />
           
           <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="products" element={<Products />} />
-            <Route path="categories" element={<Categories />} />
-            <Route path="inventory" element={<Inventory />} />
-            <Route path="customers" element={<Customers />} />
-            <Route path="parties" element={<Parties />} />
-            <Route path="parties/:type/:id/ledger" element={<PartyLedger />} />
-            <Route path="sales" element={<Sales />} />
-            <Route path="sales/new" element={<NewSale />} />
-            <Route path="sales/:id/edit" element={<EditSale />} />
-            <Route path="purchases" element={<Purchases />} />
-            <Route path="purchases/new" element={<NewPurchase />} />
-            <Route path="purchases/:id/edit" element={<EditPurchase />} />
-            <Route path="/quotations" element={<Quotations />} />
-            <Route path="/quotations/new" element={<NewQuotation />} />
-            <Route path="/quotations/:id" element={<EditQuotation />} />
+            <Route index element={<ProtectedRoute permission="dashboard:view"><Dashboard /></ProtectedRoute>} />
+            <Route path="products" element={<ProtectedRoute permission="products:view"><Products /></ProtectedRoute>} />
+            <Route path="categories" element={<ProtectedRoute permission="categories:view"><Categories /></ProtectedRoute>} />
+            <Route path="inventory" element={<ProtectedRoute permission="inventory:view"><Inventory /></ProtectedRoute>} />
+            <Route path="customers" element={<ProtectedRoute permission="parties:view"><Customers /></ProtectedRoute>} />
+            <Route path="parties" element={<ProtectedRoute permission="parties:view"><Parties /></ProtectedRoute>} />
+            <Route path="parties/:type/:id/ledger" element={<ProtectedRoute permission="parties:view"><PartyLedger /></ProtectedRoute>} />
+            <Route path="sales" element={<ProtectedRoute permission="sales:view"><Sales /></ProtectedRoute>} />
+            <Route path="sales/new" element={<ProtectedRoute permission="sales:create"><NewSale /></ProtectedRoute>} />
+            <Route path="sales/:id/edit" element={<ProtectedRoute permission="sales:edit"><EditSale /></ProtectedRoute>} />
+            <Route path="purchases" element={<ProtectedRoute permission="purchases:view"><Purchases /></ProtectedRoute>} />
+            <Route path="purchases/new" element={<ProtectedRoute permission="purchases:create"><NewPurchase /></ProtectedRoute>} />
+            <Route path="purchases/:id/edit" element={<ProtectedRoute permission="purchases:edit"><EditPurchase /></ProtectedRoute>} />
+            <Route path="/quotations" element={<ProtectedRoute permission="quotations:view"><Quotations /></ProtectedRoute>} />
+            <Route path="/quotations/new" element={<ProtectedRoute permission="quotations:create"><NewQuotation /></ProtectedRoute>} />
+            <Route path="/quotations/:id" element={<ProtectedRoute permission="quotations:view"><EditQuotation /></ProtectedRoute>} />
+            <Route path="staff" element={<ProtectedRoute permission="staff:view" adminOnly><StaffManagement /></ProtectedRoute>} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />

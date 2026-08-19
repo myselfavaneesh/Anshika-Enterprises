@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { recordPayment, getLedger, updatePayment, deletePayment } from '../controllers/payment';
-import { authenticate } from '../middleware/auth';
+import { authenticate, checkActive, requirePermission } from '../middleware/auth';
 
 const router = Router();
 
 router.use(authenticate);
+router.use(checkActive);
 
-router.post('/', recordPayment);
-router.get('/ledger', getLedger);
-router.put('/:id', updatePayment);
-router.delete('/:id', deletePayment);
+router.post('/', requirePermission('payments:create'), recordPayment);
+router.get('/ledger', requirePermission('payments:view'), getLedger);
+router.put('/:id', requirePermission('payments:create'), updatePayment);
+router.delete('/:id', requirePermission('payments:create'), deletePayment);
 
 export default router;
