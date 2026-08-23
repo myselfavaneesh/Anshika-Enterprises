@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
@@ -6,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt, PenTool } from 'lucide-react';
+import { Trash2, Receipt, PenTool, Loader2 } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import SignatureCanvas from 'react-signature-canvas';
 
@@ -327,11 +328,11 @@ export default function NewSale() {
 
   const handleGenerateInvoice = async () => {
     if (!selectedCustomerId) {
-      alert('Please select a customer');
+      toast.error('Please select a customer');
       return;
     }
     if (cart.length === 0) {
-      alert('Cart is empty');
+      toast.error('Cart is empty');
       return;
     }
 
@@ -396,7 +397,7 @@ export default function NewSale() {
       window.open(`/sales/${saleId}/print`, '_blank');
       navigate('/parties');
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error creating sale');
+      toast.error(error.response?.data?.error || 'Error creating sale');
     } finally {
       setIsSubmitting(false);
     }
@@ -886,8 +887,11 @@ export default function NewSale() {
                 onClick={handleGenerateInvoice}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
-                <Receipt className="mr-2 h-6 w-6" />
-                Complete Sale (F9)
+                {isSubmitting ? (
+                  <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Processing...</>
+                ) : (
+                  <><Receipt className="mr-2 h-6 w-6" /> Complete Sale (F9)</>
+                )}
               </Button>
             </CardContent>
           </Card>

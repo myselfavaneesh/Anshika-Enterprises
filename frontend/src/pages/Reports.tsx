@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import Papa from 'papaparse';
@@ -52,7 +53,7 @@ export default function Reports() {
       setPartyProfitability(partyProfitabilityRes.data);
     } catch (err) {
       console.error('Failed to fetch reports', err);
-      alert('Failed to generate reports');
+      toast.error('Failed to generate reports');
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
@@ -320,11 +321,11 @@ export default function EditSale() {
 
   const handleUpdateSale = async () => {
     if (!selectedCustomerId) {
-      alert('Please select a customer');
+      toast.error('Please select a customer');
       return;
     }
     if (cart.length === 0) {
-      alert('Cart is empty');
+      toast.error('Cart is empty');
       return;
     }
 
@@ -373,7 +374,7 @@ export default function EditSale() {
       window.open(`/sales/${saleId}/print`, '_blank');
       navigate('/sales');
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error updating sale');
+      toast.error(error.response?.data?.error || 'Error updating sale');
     } finally {
       setIsSubmitting(false);
     }

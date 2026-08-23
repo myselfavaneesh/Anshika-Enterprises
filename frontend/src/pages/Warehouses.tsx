@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Plus, Building, ArrowRightLeft, Edit, Trash2 } from 'lucide-react';
@@ -44,7 +45,7 @@ export default function Warehouses() {
       setIsWarehouseModalOpen(false);
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to save warehouse');
+      toast.error(err.response?.data?.error || 'Failed to save warehouse');
     }
   };
 
@@ -54,7 +55,7 @@ export default function Warehouses() {
       await api.delete(`/warehouses/${id}`);
       fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete warehouse');
+      toast.error(err.response?.data?.error || 'Failed to delete warehouse');
     }
   };
 

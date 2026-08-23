@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -40,7 +41,7 @@ export default function Subscriptions() {
 
   const handleCreate = async () => {
     if (!customerId || !planName || !amount || !startDate) {
-      alert('Please fill all required fields');
+      toast.error('Please fill all required fields');
       return;
     }
     setIsSubmitting(true);
@@ -55,7 +56,7 @@ export default function Subscriptions() {
       setIsOpen(false);
       fetchData();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error creating subscription');
+      toast.error(error.response?.data?.error || 'Error creating subscription');
     } finally {
       setIsSubmitting(false);
     }

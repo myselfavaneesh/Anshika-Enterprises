@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { Shield, Smartphone, Laptop, LogOut, CheckCircle2, XCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
@@ -58,9 +59,9 @@ export default function ProfileSettings() {
     try {
       await api.post('/auth/logout-all');
       fetchSecurityData();
-      alert('Successfully logged out from all other devices.');
+      toast.success('Successfully logged out from all other devices.');
     } catch (error) {
-      alert('Failed to logout from other devices.');
+      toast.error('Failed to logout from other devices.');
     }
   };
 

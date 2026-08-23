@@ -13,7 +13,7 @@ const SupplierSchema = z.object({
   state: z.string().max(100).optional().nullable(),
   stateCode: z.string().max(10).optional().nullable(),
   group: z.string().max(50).optional().nullable(),
-  creditLimit: z.number().nonnegative().optional().nullable(),
+  creditLimit: z.preprocess((val) => (val === '' || val === null || val === undefined ? null : Number(val)), z.number().nonnegative().optional().nullable()),
   outstandingBalance: z.number().default(0),
 });
 

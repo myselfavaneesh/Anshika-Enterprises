@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
@@ -8,7 +9,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2, Phone, Download, Plus } from 'lucide-react';
+import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2, Phone, Download, Plus, Loader2 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
@@ -25,9 +26,11 @@ export default function PartyLedger() {
   // Record Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [bulkPayments, setBulkPayments] = useState([{ amount: '', paymentMode: 'CASH', referenceId: '', notes: '' }]);
+  const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
 
   // Edit Payment Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editPaymentMode, setEditPaymentMode] = useState('CASH');
@@ -47,10 +50,11 @@ export default function PartyLedger() {
 
     const validPayments = bulkPayments.filter(p => Number(p.amount) > 0);
     if (validPayments.length === 0) {
-      alert('Please enter at least one valid payment amount.');
+      toast.error('Please enter at least one valid payment amount.');
       return;
     }
 
+    setIsSubmittingBulk(true);
     try {
       const payload = validPayments.map(p => ({
         entityType: isCustomer ? 'CUSTOMER' : 'SUPPLIER',
@@ -63,13 +67,15 @@ export default function PartyLedger() {
       }));
 
       await api.post('/payments/bulk', payload);
-
+      toast.success('Payments recorded successfully');
       setIsPaymentModalOpen(false);
       setBulkPayments([{ amount: '', paymentMode: 'CASH', referenceId: '', notes: '' }]);
       mutate();
     } catch (error: any) {
       console.error('Error recording payments:', error);
-      alert(error.response?.data?.error || 'Failed to record payments');
+      toast.error(error.response?.data?.error || 'Failed to record payments');
+    } finally {
+      setIsSubmittingBulk(false);
     }
   };
 
@@ -97,19 +103,22 @@ export default function PartyLedger() {
     e.preventDefault();
     if (!editingPaymentId) return;
 
+    setIsSubmittingEdit(true);
     try {
       await api.put(`/payments/${editingPaymentId}`, {
         amount: Number(editAmount),
         paymentMode: editPaymentMode,
       });
-
+      toast.success('Payment updated successfully');
       setIsEditModalOpen(false);
       setEditingPaymentId(null);
       setEditAmount('');
       mutate();
     } catch (error: any) {
       console.error('Error updating payment:', error);
-      alert(error.response?.data?.error || 'Failed to update payment');
+      toast.error(error.response?.data?.error || 'Failed to update payment');
+    } finally {
+      setIsSubmittingEdit(false);
     }
   };
 
@@ -120,16 +129,17 @@ export default function PartyLedger() {
 
     try {
       await api.delete(`/payments/${paymentId}`);
+      toast.success('Payment deleted successfully');
       mutate();
     } catch (error: any) {
       console.error('Error deleting payment:', error);
-      alert(error.response?.data?.error || 'Failed to delete payment');
+      toast.error(error.response?.data?.error || 'Failed to delete payment');
     }
   };
 
   const handleCall = () => {
     if (!party?.phone) {
-      alert('No phone number found for this party.');
+      toast.error('No phone number found for this party.');
       return;
     }
     const cleanPhone = party.phone.replace(/[^0-9+]/g, '');
@@ -138,7 +148,7 @@ export default function PartyLedger() {
 
   const handleSendReminder = () => {
     if (!party?.phone) {
-      alert('No phone number found for this customer.');
+      toast.error('No phone number found for this customer.');
       return;
     }
     const amount = formatCurrency(Math.abs(party.outstandingBalance));
@@ -394,8 +404,10 @@ export default function PartyLedger() {
             </Button>
 
             <div className="pt-4 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
-              <Button type="submit">Save All Payments</Button>
+              <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(false)} disabled={isSubmittingBulk}>Cancel</Button>
+              <Button type="submit" disabled={isSubmittingBulk}>
+                {isSubmittingBulk ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save All Payments'}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -434,8 +446,10 @@ export default function PartyLedger() {
               </Select>
             </div>
             <div className="pt-4 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-              <Button type="submit">Update Payment</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSubmittingEdit}>Cancel</Button>
+              <Button type="submit" disabled={isSubmittingEdit}>
+                {isSubmittingEdit ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</> : 'Update Payment'}
+              </Button>
             </div>
           </form>
         </DialogContent>

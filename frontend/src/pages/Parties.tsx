@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +9,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Plus, Edit, Trash2, Search, Copy, Download, MessageCircle, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Copy, Download, MessageCircle, Phone, Loader2 } from 'lucide-react';
 
 const INDIAN_STATES = [
   { name: 'Jammu and Kashmir', code: '01' }, { name: 'Himachal Pradesh', code: '02' },
@@ -44,6 +45,7 @@ export default function Parties() {
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ 
     name: '', phone: '', email: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0, group: '', creditLimit: '' as number | ''
@@ -82,6 +84,7 @@ export default function Parties() {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (editingId) {
         if (activeTab === 'customers') {
@@ -91,6 +94,7 @@ export default function Parties() {
           await api.put(`/suppliers/${editingId}`, formData);
           mutateSuppliers();
         }
+        toast.success(activeTab === 'customers' ? 'Customer updated successfully' : 'Supplier updated successfully');
       } else {
         if (activeTab === 'customers') {
           await api.post('/customers', formData);
@@ -99,12 +103,15 @@ export default function Parties() {
           await api.post('/suppliers', formData);
           mutateSuppliers();
         }
+        toast.success(activeTab === 'customers' ? 'Customer added successfully' : 'Supplier added successfully');
       }
       setIsAddModalOpen(false);
       resetForm();
     } catch (error: any) {
       console.error('Error saving party', error);
-      alert(error.response?.data?.error || 'Failed to save party');
+      toast.error(error.response?.data?.error || 'Failed to save party');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -137,8 +144,9 @@ export default function Parties() {
           await api.delete(`/suppliers/${id}`);
           mutateSuppliers();
         }
+        toast.success(type === 'customers' ? 'Customer deleted successfully' : 'Supplier deleted successfully');
       } catch (error: any) {
-        alert(error.response?.data?.error || 'Failed to delete');
+        toast.error(error.response?.data?.error || 'Failed to delete');
       }
     }
   };
@@ -146,7 +154,7 @@ export default function Parties() {
   const handleCall = (party: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!party.phone) {
-      alert('This party does not have a phone number saved.');
+      toast.error('This party does not have a phone number saved.');
       return;
     }
     const cleanPhone = party.phone.replace(/[^0-9+]/g, '');
@@ -156,7 +164,7 @@ export default function Parties() {
   const handleSendCommunityInvite = (party: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!party.phone) {
-      alert('This party does not have a phone number saved.');
+      toast.error('This party does not have a phone number saved.');
       return;
     }
     
@@ -289,7 +297,7 @@ export default function Parties() {
     ).join('\n');
     
     if (!vcfData) {
-      alert(`No ${activeTab} with phone numbers found.`);
+      toast.error(`No ${activeTab} with phone numbers found.`);
       return;
     }
     const blob = new Blob([vcfData], { type: 'text/vcard' });
@@ -306,9 +314,9 @@ export default function Parties() {
     const numbers = list.filter((p: any) => p.phone).map((p: any) => p.phone).join(', ');
     if (numbers) {
       navigator.clipboard.writeText(numbers);
-      alert(`Copied all phone numbers of ${activeTab} to clipboard!`);
+      toast.success(`Copied all phone numbers of ${activeTab} to clipboard!`);
     } else {
-      alert(`No phone numbers found for ${activeTab}.`);
+      toast.error(`No phone numbers found for ${activeTab}.`);
     }
   };
 
@@ -417,7 +425,9 @@ export default function Parties() {
                     : "Positive amount means you owe them money."}
                 </p>
               </div>
-              <Button type="submit" className="w-full">Save</Button>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save'}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>

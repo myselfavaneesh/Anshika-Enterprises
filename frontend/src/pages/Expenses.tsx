@@ -1,6 +1,7 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, Edit, PieChart } from 'lucide-react';
+import { Plus, Trash2, Edit, PieChart, Loader2 } from 'lucide-react';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -42,6 +43,9 @@ export default function Expenses() {
     notes: ''
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingCat, setIsSubmittingCat] = useState(false);
+
   const fetchData = async () => {
     try {
       const [expRes, catRes] = await Promise.all([
@@ -61,18 +65,22 @@ export default function Expenses() {
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
+    setIsSubmittingCat(true);
     try {
       await api.post('/expenses/categories', { name: newCategoryName });
       setNewCategoryName('');
       setIsCategoryModalOpen(false);
       fetchData();
     } catch (err) {
-      alert('Failed to add category. It might already exist.');
+      toast.error('Failed to add category. It might already exist.');
+    } finally {
+      setIsSubmittingCat(false);
     }
   };
 
   const handleSaveExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = {
         ...formData,
@@ -88,7 +96,9 @@ export default function Expenses() {
       setIsExpenseModalOpen(false);
       fetchData();
     } catch (err) {
-      alert('Failed to save expense');
+      toast.error('Failed to save expense');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -98,13 +108,13 @@ export default function Expenses() {
       await api.delete(`/expenses/${id}`);
       fetchData();
     } catch (err) {
-      alert('Failed to delete expense');
+      toast.error('Failed to delete expense');
     }
   };
 
   const openNewExpenseModal = () => {
     if (categories.length === 0) {
-      alert('Please add at least one Expense Category first.');
+      toast.error('Please add at least one Expense Category first.');
       return;
     }
     setEditingExpense(null);
@@ -251,8 +261,10 @@ export default function Expenses() {
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsExpenseModalOpen(false)}>Cancel</Button>
-              <Button type="submit">Save Expense</Button>
+              <Button type="button" variant="outline" onClick={() => setIsExpenseModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Expense'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -271,7 +283,9 @@ export default function Expenses() {
                 value={newCategoryName}
                 onChange={e => setNewCategoryName(e.target.value)}
               />
-              <Button onClick={handleAddCategory}>Add</Button>
+              <Button onClick={handleAddCategory} disabled={isSubmittingCat}>
+                {isSubmittingCat ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
+              </Button>
             </div>
             <div className="mt-4 border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
               {categories.length === 0 && <p className="text-sm text-muted-foreground text-center">No categories yet.</p>}

@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
@@ -47,7 +48,7 @@ const Sales = () => {
 
   const handleSendWhatsapp = (sale: any) => {
     if (!sale.customerId?.phone) {
-      alert('No phone number found for this customer.');
+      toast.error('No phone number found for this customer.');
       return;
     }
     const docType = sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Invoice';
@@ -71,14 +72,14 @@ const Sales = () => {
 
   const handleSendEmail = async (sale: any) => {
     if (!sale.customerId?.email) {
-      alert('No email address found for this customer. Please update customer details with an email first.');
+      toast.error('No email address found for this customer. Please update customer details with an email first.');
       return;
     }
     try {
       await api.post(`/sales/${sale._id}/email`);
-      alert(`Invoice email sent successfully to ${sale.customerId.email}`);
+      toast.success(`Invoice email sent successfully to ${sale.customerId.email}`);
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to send email. Make sure SMTP settings in backend .env are correct.');
+      toast.error(error.response?.data?.error || 'Failed to send email. Make sure SMTP settings in backend .env are correct.');
     }
   };
 
@@ -88,7 +89,7 @@ const Sales = () => {
         await api.delete(`/sales/${saleId}`);
         fetchSales();
       } catch (error: any) {
-        alert(error.response?.data?.error || 'Failed to delete sale');
+        toast.error(error.response?.data?.error || 'Failed to delete sale');
       }
     }
   };

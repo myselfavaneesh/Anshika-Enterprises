@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
@@ -239,19 +240,19 @@ export default function EditPurchase() {
 
   const handleSubmit = async () => {
     if (!selectedSupplierId) {
-      alert('Please select a supplier');
+      toast.error('Please select a supplier');
       return;
     }
     if (!purchaseInvoiceNumber) {
-      alert('Please enter the purchase invoice number');
+      toast.error('Please enter the purchase invoice number');
       return;
     }
     if (cart.length === 0) {
-      alert('Cart is empty');
+      toast.error('Cart is empty');
       return;
     }
     if (cart.some(item => item.unitPrice <= 0)) {
-      alert('Please enter a valid unit price for all items');
+      toast.error('Please enter a valid unit price for all items');
       return;
     }
 
@@ -313,7 +314,7 @@ export default function EditPurchase() {
       }
     } catch (error: any) {
       console.error(error);
-      alert(error.response?.data?.error || 'Failed to record purchase');
+      toast.error(error.response?.data?.error || 'Failed to record purchase');
     } finally {
       setIsSubmitting(false);
     }

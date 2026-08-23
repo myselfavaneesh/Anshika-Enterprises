@@ -1,15 +1,17 @@
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 const Products = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0',
@@ -77,6 +79,7 @@ const Products = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = {
         ...formData,
@@ -91,14 +94,18 @@ const Products = () => {
 
       if (editingId) {
         await api.put(`/products/${editingId}`, payload);
+        toast.success('Product updated successfully');
       } else {
         await api.post('/products', payload);
+        toast.success('Product added successfully');
       }
       setIsOpen(false);
       fetchData();
       resetForm();
     } catch (error) {
       console.error('Error saving product', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -106,9 +113,10 @@ const Products = () => {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
         await api.delete(`/products/${id}`);
+        toast.success('Product deleted successfully');
         fetchData();
       } catch (error: any) {
-        alert(error.response?.data?.error || 'Error deleting product');
+        toast.error(error.response?.data?.error || 'Error deleting product');
       }
     }
   };
@@ -217,7 +225,9 @@ const Products = () => {
                   </select>
                 </div>
               </div>
-              <Button type="submit" className="w-full">{editingId ? 'Update' : 'Save'}</Button>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (editingId ? 'Update' : 'Save')}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>

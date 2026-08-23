@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
@@ -85,7 +86,7 @@ const EditQuotation = () => {
 
   const addToCart = () => {
     if (!selectedProductId || Number(quantityInput) <= 0) {
-      alert("Please select a product and valid quantity");
+      toast.error("Please select a product and valid quantity");
       return;
     }
     const product = products.find(p => p._id === selectedProductId);
@@ -234,11 +235,11 @@ const EditQuotation = () => {
 
   const handleUpdateQuotation = async () => {
     if (!selectedCustomerId) {
-      alert('Please select a customer');
+      toast.error('Please select a customer');
       return;
     }
     if (cart.length === 0) {
-      alert('Cart is empty');
+      toast.error('Cart is empty');
       return;
     }
 
@@ -284,7 +285,7 @@ const EditQuotation = () => {
       window.open(`/quotations/${id}/print`, '_blank');
       navigate('/quotations');
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error updating quotation');
+      toast.error(error.response?.data?.error || 'Error updating quotation');
     } finally {
       setIsSubmitting(false);
     }

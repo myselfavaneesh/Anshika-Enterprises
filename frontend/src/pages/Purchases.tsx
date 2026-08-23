@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
@@ -47,7 +48,7 @@ const Purchases = () => {
         await api.delete(`/purchases/${purchaseId}`);
         fetchPurchases();
       } catch (error: any) {
-        alert(error.response?.data?.error || 'Failed to delete purchase');
+        toast.error(error.response?.data?.error || 'Failed to delete purchase');
       }
     }
   };

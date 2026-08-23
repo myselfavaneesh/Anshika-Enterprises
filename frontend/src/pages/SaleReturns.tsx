@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -33,7 +34,7 @@ export default function SaleReturns() {
 
   const handleProcessReturn = async () => {
     if (!saleId || !serialNumber || !refundAmount) {
-      alert('Please fill all required fields');
+      toast.error('Please fill all required fields');
       return;
     }
     setIsSubmitting(true);
@@ -47,7 +48,7 @@ export default function SaleReturns() {
       setIsProcessOpen(false);
       fetchReturns();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error processing return');
+      toast.error(error.response?.data?.error || 'Error processing return');
     } finally {
       setIsSubmitting(false);
     }

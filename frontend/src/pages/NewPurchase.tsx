@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -6,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt, X } from 'lucide-react';
+import { Trash2, Receipt, X, Loader2 } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
@@ -206,19 +207,19 @@ export default function NewPurchase() {
 
   const handleSubmit = async () => {
     if (!selectedSupplierId) {
-      alert('Please select a supplier');
+      toast.error('Please select a supplier');
       return;
     }
     if (!purchaseInvoiceNumber) {
-      alert('Please enter the purchase invoice number');
+      toast.error('Please enter the purchase invoice number');
       return;
     }
     if (cart.length === 0) {
-      alert('Cart is empty');
+      toast.error('Cart is empty');
       return;
     }
     if (cart.some(item => item.unitPrice <= 0)) {
-      alert('Please enter a valid unit price for all items');
+      toast.error('Please enter a valid unit price for all items');
       return;
     }
 
@@ -276,7 +277,7 @@ export default function NewPurchase() {
       }
     } catch (error: any) {
       console.error(error);
-      alert(error.response?.data?.error || 'Failed to record purchase');
+      toast.error(error.response?.data?.error || 'Failed to record purchase');
     } finally {
       setIsSubmitting(false);
     }
@@ -505,7 +506,9 @@ export default function NewPurchase() {
                   onClick={handleSubmit}
                   disabled={isSubmitting || cart.length === 0 || !selectedSupplierId || !purchaseInvoiceNumber}
                 >
-                  {isSubmitting ? 'Processing...' : 'Complete Purchase'}
+                  {isSubmitting ? (
+                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</>
+                  ) : 'Complete Purchase'}
                 </Button>
               </div>
             </CardContent>

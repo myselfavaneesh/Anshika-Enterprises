@@ -8,7 +8,7 @@ import { JWT_SECRET } from '../config';
 import { AuthRequest } from '../middleware/auth';
 
 const LoginSchema = z.object({
-  email: z.string().email().max(255),
+  email: z.string().trim().email().max(255),
   password: z.string().min(1).max(128),
 });
 

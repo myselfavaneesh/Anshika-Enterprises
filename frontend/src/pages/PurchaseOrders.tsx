@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Plus, ShoppingCart, Eye } from 'lucide-react';
@@ -27,7 +28,7 @@ export default function PurchaseOrders() {
       await api.patch(`/purchase-orders/${id}/status`, { status });
       fetchPOs();
     } catch (err) {
-      alert('Failed to update status');
+      toast.error('Failed to update status');
     }
   };
 

@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -6,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
-import { Trash2, Plus, Receipt } from 'lucide-react';
+import { Trash2, Plus, Receipt, Loader2 } from 'lucide-react';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
@@ -71,7 +72,7 @@ const NewQuotation = () => {
 
   const addToCart = () => {
     if (!selectedProductId || Number(quantityInput) <= 0) {
-      alert("Please select a product and valid quantity");
+      toast.error("Please select a product and valid quantity");
       return;
     }
     const product = products.find(p => p._id === selectedProductId);
@@ -221,11 +222,11 @@ const NewQuotation = () => {
 
   const handleGenerateQuotation = async () => {
     if (!selectedCustomerId) {
-      alert('Please select a customer');
+      toast.error('Please select a customer');
       return;
     }
     if (cart.length === 0) {
-      alert('Cart is empty');
+      toast.error('Cart is empty');
       return;
     }
 
@@ -272,7 +273,7 @@ const NewQuotation = () => {
       window.open(`/quotations/${quotationId}/print`, '_blank');
       navigate('/quotations');
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error creating quotation');
+      toast.error(error.response?.data?.error || 'Error creating quotation');
     } finally {
       setIsSubmitting(false);
     }
@@ -569,8 +570,11 @@ const NewQuotation = () => {
                 onClick={handleGenerateQuotation}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
-                <Receipt className="mr-2 h-5 w-5" />
-                Generate Quotation
+                {isSubmitting ? (
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating...</>
+                ) : (
+                  <><Receipt className="mr-2 h-5 w-5" /> Generate Quotation</>
+                )}
               </Button>
             </CardContent>
           </Card>

@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
@@ -135,7 +136,7 @@ const Inventory = () => {
       fetchInventory();
       setStockInForm({ purchaseInvoiceNumber: '', supplierName: '', serialNumbers: '', quantity: '', purchasePrice: '', isFOC: false });
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error adding stock');
+      toast.error(error.response?.data?.error || 'Error adding stock');
     }
   };
 
@@ -154,7 +155,7 @@ const Inventory = () => {
       fetchInventory();
       setStockOutForm({ serialNumbers: '', quantity: '' });
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error removing stock');
+      toast.error(error.response?.data?.error || 'Error removing stock');
     }
   };
 
@@ -191,13 +192,13 @@ const Inventory = () => {
       openSerials(selectedProduct); 
       fetchInventory();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error updating serial');
+      toast.error(error.response?.data?.error || 'Error updating serial');
     }
   };
 
   const handleDeleteSerial = async (id: string, status: string) => {
     if (status === 'SOLD') {
-      alert('Cannot delete a sold serial number.');
+      toast.error('Cannot delete a sold serial number.');
       return;
     }
     if (!confirm('Are you sure you want to delete this serial number? This action cannot be undone.')) return;
@@ -206,7 +207,7 @@ const Inventory = () => {
       openSerials(selectedProduct);
       fetchInventory();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error deleting serial');
+      toast.error(error.response?.data?.error || 'Error deleting serial');
     }
   };
 

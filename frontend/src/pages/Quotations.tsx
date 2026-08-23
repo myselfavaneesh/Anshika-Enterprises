@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -49,7 +50,7 @@ const Quotations = () => {
       await api.patch(`/quotations/${quotationId}/status`, { status: newStatus });
       setQuotations(quotations.map(q => q._id === quotationId ? { ...q, status: newStatus } : q));
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to update status');
+      toast.error(error.response?.data?.error || 'Failed to update status');
     }
   };
 
@@ -59,7 +60,7 @@ const Quotations = () => {
 
   const handleSendWhatsapp = (quotation: any) => {
     if (!quotation.customerId?.phone) {
-      alert('No phone number found for this customer.');
+      toast.error('No phone number found for this customer.');
       return;
     }
     const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
@@ -83,14 +84,14 @@ const Quotations = () => {
 
   const handleSendEmail = async (quotation: any) => {
     if (!quotation.customerId?.email) {
-      alert('No email address found for this customer. Please update customer details with an email first.');
+      toast.error('No email address found for this customer. Please update customer details with an email first.');
       return;
     }
     try {
       await api.post(`/quotations/${quotation._id}/email`);
-      alert(`Quotation/Estimate email sent successfully to ${quotation.customerId.email}`);
+      toast.success(`Quotation/Estimate email sent successfully to ${quotation.customerId.email}`);
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to send email. Make sure SMTP settings in backend .env are correct.');
+      toast.error(error.response?.data?.error || 'Failed to send email. Make sure SMTP settings in backend .env are correct.');
     }
   };
 
@@ -100,7 +101,7 @@ const Quotations = () => {
         await api.delete(`/quotations/${quotationId}`);
         fetchQuotations();
       } catch (error: any) {
-        alert(error.response?.data?.error || 'Failed to delete quotation');
+        toast.error(error.response?.data?.error || 'Failed to delete quotation');
       }
     }
   };

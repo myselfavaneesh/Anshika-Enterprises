@@ -4,12 +4,13 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Edit, Trash2, Search, AlertCircle, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, AlertCircle, X, Loader2 } from 'lucide-react';
 
 const Categories = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +33,7 @@ const Categories = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDialogError(null);
+    setIsSubmitting(true);
     try {
       if (editingId) {
         await api.put(`/categories/${editingId}`, formData);
@@ -44,6 +46,8 @@ const Categories = () => {
     } catch (err: any) {
       console.error('Error saving category', err);
       setDialogError(err.response?.data?.error || 'Failed to save category.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -127,8 +131,8 @@ const Categories = () => {
                   onChange={e => setFormData({...formData, description: e.target.value})} 
                 />
               </div>
-              <Button type="submit" className="w-full mt-2">
-                {editingId ? 'Update' : 'Save'}
+              <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
+                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (editingId ? 'Update' : 'Save')}
               </Button>
             </form>
           </DialogContent>

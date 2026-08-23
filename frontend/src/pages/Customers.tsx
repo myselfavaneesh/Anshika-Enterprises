@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
@@ -45,7 +46,7 @@ const Customers = () => {
       resetForm();
     } catch (error: any) {
       console.error('Error saving customer', error);
-      alert(error.response?.data?.error || 'Failed to save customer');
+      toast.error(error.response?.data?.error || 'Failed to save customer');
     }
   };
 
@@ -74,7 +75,7 @@ const Customers = () => {
         await api.delete(`/customers/${id}`);
         fetchCustomers();
       } catch (error: any) {
-        alert(error.response?.data?.error || 'Failed to delete customer');
+        toast.error(error.response?.data?.error || 'Failed to delete customer');
       }
     }
   };
@@ -85,7 +86,7 @@ const Customers = () => {
     ).join('\n');
     
     if (!vcfData) {
-      alert('No customers with phone numbers found.');
+      toast.error('No customers with phone numbers found.');
       return;
     }
     const blob = new Blob([vcfData], { type: 'text/vcard' });
@@ -101,9 +102,9 @@ const Customers = () => {
     const numbers = customers.filter(c => c.phone).map(c => c.phone).join(', ');
     if (numbers) {
       navigator.clipboard.writeText(numbers);
-      alert('Copied all phone numbers to clipboard!');
+      toast.success('Copied all phone numbers to clipboard!');
     } else {
-      alert('No phone numbers found.');
+      toast.error('No phone numbers found.');
     }
   };
 
