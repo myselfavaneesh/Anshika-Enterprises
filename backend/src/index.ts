@@ -40,7 +40,9 @@ const port = process.env.PORT || 5000;
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 const defaultOrigins = ['http://localhost:5173', 'http://localhost:5000', 'http://localhost', 'capacitor://localhost'];
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(compression());
 app.use(cors({
   origin: [...allowedOrigins, ...defaultOrigins],
