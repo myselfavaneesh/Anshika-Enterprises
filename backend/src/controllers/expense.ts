@@ -47,7 +47,7 @@ export const updateExpenseCategory = async (req: Request, res: Response): Promis
     const { id } = req.params;
     const parsed = CategorySchema.parse(req.body);
     const category = await prisma.expenseCategory.update({
-      where: { id },
+      where: { id: id as string },
       data: parsed
     });
     res.json(category);
@@ -63,12 +63,12 @@ export const updateExpenseCategory = async (req: Request, res: Response): Promis
 export const deleteExpenseCategory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const count = await prisma.expense.count({ where: { categoryId: id } });
+    const count = await prisma.expense.count({ where: { categoryId: id as string } });
     if (count > 0) {
       res.status(400).json({ error: 'Cannot delete category because it has expenses linked to it.' });
       return;
     }
-    await prisma.expenseCategory.delete({ where: { id } });
+    await prisma.expenseCategory.delete({ where: { id: id as string } });
     res.status(204).send();
   } catch (error: any) {
     res.status(500).json({ error: 'Server error' });
@@ -137,7 +137,7 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
     const { id } = req.params;
     const parsed = ExpenseSchema.parse(req.body);
     const expense = await prisma.expense.update({
-      where: { id },
+      where: { id: id as string },
       data: {
         ...parsed,
         date: new Date(parsed.date)
@@ -158,7 +158,7 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
 export const deleteExpense = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    await prisma.expense.delete({ where: { id } });
+    await prisma.expense.delete({ where: { id: id as string } });
     res.status(204).send();
   } catch (error: any) {
     res.status(500).json({ error: 'Server error' });
