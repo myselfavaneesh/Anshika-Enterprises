@@ -96,7 +96,7 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
       where.date = { gte: new Date(startDate as string), lte: new Date(endDate as string) };
     }
     if (categoryId) {
-      where.categoryId = categoryId;
+      where.categoryId = categoryId as string;
     }
 
     const expenses = await prisma.expense.findMany({

@@ -51,7 +51,7 @@ export const createWarehouse = async (req: Request, res: Response) => {
 
 export const updateWarehouse = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { name, location, isActive } = req.body;
 
     const existing = await prisma.warehouse.findUnique({ where: { id } });
@@ -81,7 +81,7 @@ export const updateWarehouse = async (req: Request, res: Response) => {
 
 export const deleteWarehouse = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     
     const count = await prisma.productUnit.count({ where: { warehouseId: id } });
     if (count > 0) {

@@ -65,7 +65,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
 
 export const updatePurchaseOrderStatus = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status } = req.body; // DRAFT, SENT, CANCELLED
 
     const po = await prisma.purchaseOrder.update({

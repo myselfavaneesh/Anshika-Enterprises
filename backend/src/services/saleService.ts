@@ -174,7 +174,7 @@ export class SaleService {
             cgstAmount: data.cgstAmount,
             sgstAmount: data.sgstAmount,
             grandTotal: expectedGrandTotal,
-            status: amountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
+            status: totalAmountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
           }
         });
 
@@ -428,17 +428,17 @@ export class SaleService {
         // 3. Revert Ledger and SalePayments
         await tx.salePayment.deleteMany({ where: { saleId: existingSale.id } });
 
-        const payments = await tx.payment.findMany({ 
+        const existingPayments = await tx.payment.findMany({ 
           where: { 
             referenceId: { startsWith: existingSale.invoiceNumber }, 
             entityType: 'CUSTOMER' 
           } 
         });
-        for (const payment of payments) {
-          await tx.payment.delete({ where: { id: payment.id } });
+        for (const existingPayment of existingPayments) {
+          await tx.payment.delete({ where: { id: existingPayment.id } });
           await tx.customer.update({
             where: { id: existingSale.customerId },
-            data: { outstandingBalance: { increment: payment.amount } }
+            data: { outstandingBalance: { increment: existingPayment.amount } }
           });
         }
         await tx.customer.update({
@@ -643,18 +643,18 @@ export class SaleService {
 
         // 3. Find and delete associated Global Payments
         // Using invoiceNumber as prefix due to the `${invoiceNumber}-${mode}-${date}` pattern used now.
-        const payments = await tx.payment.findMany({ 
+        const existingPayments = await tx.payment.findMany({ 
           where: { 
             referenceId: { startsWith: sale.invoiceNumber }, 
             entityType: 'CUSTOMER' 
           } 
         });
-        for (const payment of payments) {
-          await tx.payment.delete({ where: { id: payment.id } });
+        for (const existingPayment of existingPayments) {
+          await tx.payment.delete({ where: { id: existingPayment.id } });
           // Revert the payment deduction
           await tx.customer.update({
             where: { id: sale.customerId },
-            data: { outstandingBalance: { increment: payment.amount } }
+            data: { outstandingBalance: { increment: existingPayment.amount } }
           });
         }
 

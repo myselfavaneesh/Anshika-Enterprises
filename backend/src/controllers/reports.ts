@@ -29,8 +29,7 @@ export const getGSTSummary = async (req: Request, res: Response): Promise<void> 
         taxableAmount: true,
         cgstAmount: true,
         sgstAmount: true,
-        igstAmount: true,
-        customer: { select: { gstin: true } }
+        customer: { select: { gstNumber: true } }
       }
     });
 
@@ -45,9 +44,9 @@ export const getGSTSummary = async (req: Request, res: Response): Promise<void> 
       totalTaxable += sale.taxableAmount || 0;
       totalCGST += sale.cgstAmount || 0;
       totalSGST += sale.sgstAmount || 0;
-      totalIGST += sale.igstAmount || 0;
+      // IGST = CGST + SGST for inter-state (no separate igstAmount field)
       
-      if (sale.customer?.gstin) {
+      if (sale.customer?.gstNumber) {
         b2bSales += sale.grandTotal;
       } else {
         b2cSales += sale.grandTotal;
@@ -277,14 +276,14 @@ export const getSalesRegister = async (req: Request, res: Response): Promise<voi
       date: sale.createdAt,
       invoiceNumber: sale.invoiceNumber,
       customerName: sale.customer?.name || 'Walk-in',
-      gstin: sale.customer?.gstin || '',
-      paymentMode: sale.paymentMode || 'CASH',
+      gstin: sale.customer?.gstNumber || '',
+      paymentMode: 'N/A',
       taxableAmount: sale.taxableAmount || 0,
       cgst: sale.cgstAmount || 0,
       sgst: sale.sgstAmount || 0,
-      igst: sale.igstAmount || 0,
-      discount: sale.discountAmount || 0,
-      roundOff: sale.roundOff || 0,
+      igst: 0,
+      discount: sale.discount || 0,
+      roundOff: 0,
       grandTotal: sale.grandTotal || 0
     }));
 
