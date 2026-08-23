@@ -20,6 +20,7 @@ import {
   Smartphone,
   Download,
   Shield,
+  Receipt,
 } from 'lucide-react';
 
 const Layout = () => {
@@ -52,6 +53,7 @@ const Layout = () => {
     { name: 'Purchases', href: '/purchases', icon: ShoppingBag, permission: 'purchases:view' },
     { name: 'Sales', href: '/sales', icon: ShoppingCart, permission: 'sales:view' },
     { name: 'Quotations', href: '/quotations', icon: FileText, permission: 'quotations:view' },
+    { name: 'Expenses', href: '/expenses', icon: Receipt, permission: 'expenses:view' },
     // Staff Management — admin only
     ...(isAdmin ? [{ name: 'Staff', href: '/staff', icon: Shield, permission: 'staff:view' }] : []),
   ];
