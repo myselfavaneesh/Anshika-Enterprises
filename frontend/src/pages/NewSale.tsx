@@ -411,13 +411,11 @@ export default function NewSale() {
         }))
       };
 
-      let response;
       if (quotationId) {
-        response = await api.post(`/quotations/${quotationId}/convert`, payload);
+        await api.post(`/quotations/${quotationId}/convert`, payload);
       } else {
-        response = await api.post('/sales', payload);
+        await api.post('/sales', payload);
       }
-      const saleId = response.data._id;
       
       navigate('/sales');
     } catch (error: any) {

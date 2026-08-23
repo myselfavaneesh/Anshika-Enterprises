@@ -270,8 +270,7 @@ const NewQuotation = () => {
         validUntil: validUntil || undefined,
       };
 
-      const response = await api.post('/quotations', payload);
-      const quotationId = response.data._id;
+      await api.post('/quotations', payload);
       
       navigate('/quotations');
     } catch (error: any) {
