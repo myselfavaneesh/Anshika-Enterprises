@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Camera, X, Loader2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -11,11 +11,11 @@ interface BarcodeScannerProps {
 export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: BarcodeScannerProps) => {
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const codeReaderRef = useRef<any>(null);
+  const scannerRef = useRef<any>(null);
+  const scannerContainerId = useRef(`scanner-${Date.now()}`);
   const isNative = Capacitor.isNativePlatform();
 
-  const playBeep = () => {
+  const playBeep = useCallback(() => {
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const oscillator = audioCtx.createOscillator();
@@ -26,20 +26,54 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
       oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
       gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
       oscillator.start();
-      setTimeout(() => oscillator.stop(), 150);
+      setTimeout(() => {
+        oscillator.stop();
+        audioCtx.close();
+      }, 150);
     } catch (_) {}
-  };
+  }, []);
 
   const onScanRef = useRef(onScan);
   useEffect(() => { onScanRef.current = onScan; }, [onScan]);
 
-  // ─── NATIVE Android Scanner (scan() — simple one-shot) ───────────
+  // Deduplicate scans — prevent same code triggering repeatedly
+  const lastScannedRef = useRef('');
+  const lastTimeRef = useRef(0);
+
+  const handleDecodedResult = useCallback((decodedText: string) => {
+    const now = Date.now();
+    if (decodedText === lastScannedRef.current && now - lastTimeRef.current < 2500) return;
+    lastScannedRef.current = decodedText;
+    lastTimeRef.current = now;
+    playBeep();
+    onScanRef.current(decodedText);
+  }, [playBeep]);
+
+  // ─── Cleanup scanner on unmount ────────────────────────────────────
+  const stopScanner = useCallback(async () => {
+    try {
+      if (scannerRef.current) {
+        const state = scannerRef.current.getState?.();
+        // State 2 = SCANNING, State 3 = PAUSED
+        if (state === 2 || state === 3) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+        scannerRef.current = null;
+      }
+    } catch (_) {
+      scannerRef.current = null;
+    }
+    setIsScanning(false);
+  }, []);
+
+  // ─── NATIVE Android Scanner (MLKit — one-shot) ────────────────────
   const startNativeScanner = async () => {
     setError(null);
     try {
       const { BarcodeScanner: MLKit } = await import('@capacitor-mlkit/barcode-scanning');
 
-      // 1. Check & request camera permission
+      // Check & request camera permission
       const permResult = await MLKit.checkPermissions();
       if (permResult.camera !== 'granted') {
         const req = await MLKit.requestPermissions();
@@ -51,8 +85,20 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
 
       setIsScanning(true);
 
-      // 2. One-shot scan — opens camera, scans, returns result, closes camera
-      const { barcodes } = await MLKit.scan({ formats: [] });
+      // Specify common formats for faster detection instead of scanning ALL formats
+      const { BarcodeFormat } = await import('@capacitor-mlkit/barcode-scanning');
+      const { barcodes } = await MLKit.scan({
+        formats: [
+          BarcodeFormat.QrCode,     // QR_CODE
+          BarcodeFormat.Ean13,      // EAN_13
+          BarcodeFormat.Ean8,       // EAN_8
+          BarcodeFormat.UpcA,       // UPC_A
+          BarcodeFormat.UpcE,       // UPC_E
+          BarcodeFormat.Code128,    // CODE_128
+          BarcodeFormat.Code39,     // CODE_39
+          BarcodeFormat.Itf,        // ITF
+        ],
+      });
 
       setIsScanning(false);
 
@@ -76,51 +122,59 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
     }
   };
 
-  // ─── WEB Browser Scanner (zxing fallback) ────────────────────────
+  // ─── WEB Browser Scanner (html5-qrcode — much faster than zxing) ──
   useEffect(() => {
-    if (isNative || !isScanning || !videoRef.current) return;
+    if (isNative || !isScanning) return;
 
     let mounted = true;
-    const lastScannedRef = { current: '' };
-    const lastTimeRef = { current: 0 };
 
     const startWebScanner = async () => {
       try {
-        const { BrowserMultiFormatReader, NotFoundException } = await import('@zxing/library');
-        codeReaderRef.current = new BrowserMultiFormatReader();
-        await codeReaderRef.current.decodeFromVideoDevice(
-          null,
-          videoRef.current!,
-          (result: any, err: any) => {
+        const { Html5Qrcode } = await import('html5-qrcode');
+
+        // Wait a tick for DOM to render the container
+        await new Promise(r => setTimeout(r, 50));
+
+        const containerEl = document.getElementById(scannerContainerId.current);
+        if (!containerEl || !mounted) return;
+
+        const scanner = new Html5Qrcode(scannerContainerId.current, {
+          verbose: false,
+        });
+        scannerRef.current = scanner;
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 15,                    // High FPS for faster detection
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+            disableFlip: false,
+          },
+          (decodedText: string) => {
             if (!mounted) return;
-            if (result) {
-              const text = result.getText();
-              const now = Date.now();
-              if (text === lastScannedRef.current && now - lastTimeRef.current < 2000) return;
-              lastScannedRef.current = text;
-              lastTimeRef.current = now;
-              playBeep();
-              onScanRef.current(text);
-            }
-            if (err && !(err instanceof NotFoundException)) { /* ignore */ }
+            handleDecodedResult(decodedText);
+          },
+          () => {
+            // Ignore scan failures (no code found in frame)
           }
         );
+
       } catch (err: any) {
-        if (mounted) setError('Camera error: ' + (err?.message ?? 'Cannot access camera'));
+        console.error('Web scanner error:', err);
+        if (mounted) {
+          setError('Camera error: ' + (err?.message ?? 'Cannot access camera'));
+        }
       }
     };
 
     startWebScanner();
+
     return () => {
       mounted = false;
-      codeReaderRef.current?.reset();
+      stopScanner();
     };
-  }, [isScanning, isNative]);
-
-  const stopWebScanner = () => {
-    codeReaderRef.current?.reset();
-    setIsScanning(false);
-  };
+  }, [isScanning, isNative, handleDecodedResult, stopScanner]);
 
   // ─── RENDER ──────────────────────────────────────────────────────
 
@@ -156,28 +210,28 @@ export const BarcodeScanner = ({ onScan, buttonText = "Scan QR/Barcode" }: Barco
     );
   }
 
-  // Web scanning → show video element
+  // Web scanning → html5-qrcode renders into this container
   return (
     <div className="space-y-4 w-full">
-      <div className="w-full max-w-xs sm:max-w-sm mx-auto overflow-hidden rounded-md border bg-black relative aspect-square">
-        <video
-          ref={videoRef}
-          className="w-full h-full object-cover"
-          autoPlay muted playsInline
+      <div className="w-full max-w-xs sm:max-w-sm mx-auto overflow-hidden rounded-md border bg-black relative">
+        <div
+          id={scannerContainerId.current}
+          className="w-full"
+          style={{ minHeight: '300px' }}
         />
-        <div className="absolute inset-8 border-2 border-red-500/50 rounded-lg pointer-events-none shadow-[0_0_0_4000px_rgba(0,0,0,0.5)]">
-          <div className="absolute top-1/2 left-0 w-full h-[1px] bg-red-500/50" />
+        {/* Corner markers overlay */}
+        <div className="absolute inset-8 pointer-events-none">
+          <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-green-400" />
+          <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-green-400" />
+          <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-green-400" />
+          <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-green-400" />
         </div>
-        <div className="absolute top-5 left-5 w-5 h-5 border-t-2 border-l-2 border-green-400 pointer-events-none" />
-        <div className="absolute top-5 right-5 w-5 h-5 border-t-2 border-r-2 border-green-400 pointer-events-none" />
-        <div className="absolute bottom-5 left-5 w-5 h-5 border-b-2 border-l-2 border-green-400 pointer-events-none" />
-        <div className="absolute bottom-5 right-5 w-5 h-5 border-b-2 border-r-2 border-green-400 pointer-events-none" />
       </div>
       {error && <p className="text-xs text-red-500 text-center">{error}</p>}
       <Button
         type="button"
         variant="destructive"
-        onClick={stopWebScanner}
+        onClick={stopScanner}
         className="w-full max-w-xs sm:max-w-sm mx-auto flex items-center gap-2"
       >
         <X className="h-4 w-4" /> Stop Scanning
