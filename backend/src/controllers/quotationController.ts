@@ -399,7 +399,7 @@ export const convertQuotation = async (req: Request, res: Response): Promise<voi
     res.json(mapEntityId(newSale));
   } catch (error: any) {
     logger.error('Error converting quotation', { error: error.message, stack: error.stack });
-    res.status(400).json({ error: 'Error converting quotation' });
+    res.status(400).json({ error: error.message || 'Error converting quotation' });
   }
 };
 

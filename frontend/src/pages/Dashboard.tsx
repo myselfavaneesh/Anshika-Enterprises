@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Package, IndianRupee, TrendingUp, AlertTriangle, Users } from 'lucide-react';
+import { Package, IndianRupee, TrendingUp, AlertTriangle, Users, Calendar, ShoppingCart } from 'lucide-react';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -21,6 +21,56 @@ interface DashboardStats {
   lowStockProducts: any[];
   recentSales: any[];
 }
+
+const DATE_FILTERS = [
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: '7 Days' },
+  { value: 'month', label: 'Month' },
+  { value: '30days', label: '30 Days' },
+  { value: 'all', label: 'All Time' },
+  { value: 'custom', label: 'Custom' },
+];
+
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  colorClass,
+  iconBg,
+  subtext,
+}: {
+  title: string;
+  value: string;
+  icon: any;
+  colorClass: string;
+  iconBg: string;
+  subtext?: string;
+}) => (
+  <Card className={`relative overflow-hidden border-0 shadow-sm ${colorClass}`}>
+    <CardContent className="p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</p>
+          <p className="text-2xl font-extrabold tracking-tight">{value}</p>
+          {subtext && <p className="text-xs opacity-60 mt-0.5">{subtext}</p>}
+        </div>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+          <Icon className="h-5 w-5 opacity-90" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const SkeletonCard = () => (
+  <div className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 space-y-3 shadow-sm">
+    <div className="flex justify-between items-center">
+      <div className="h-3 w-28 shimmer rounded-full" />
+      <div className="h-8 w-8 shimmer rounded-xl" />
+    </div>
+    <div className="h-7 w-36 shimmer rounded-full" />
+  </div>
+);
 
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -68,189 +118,209 @@ const Dashboard = () => {
     fetchStats();
   }, [dateRangeType, customStartDate, customEndDate]);
 
-  if (!stats) return <div className="p-8">Loading dashboard...</div>;
-
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <div className="flex items-center space-x-2">
-          <select 
-            value={dateRangeType} 
-            onChange={(e) => setDateRangeType(e.target.value)}
-            className="border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
-          >
-            <option value="today">Today</option>
-            <option value="week">Last 7 Days</option>
-            <option value="month">This Month</option>
-            <option value="30days">Last 30 Days</option>
-            <option value="all">All Time</option>
-            <option value="custom">Custom Range</option>
-          </select>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Dashboard</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Business overview & analytics</p>
+        </div>
+
+        {/* Pill Date Filter */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm flex-wrap">
+            {DATE_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setDateRangeType(f.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                  dateRangeType === f.value
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
 
           {dateRangeType === 'custom' && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 shadow-sm">
+              <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
               <input 
                 type="date" 
                 value={customStartDate} 
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
+                className="border-0 outline-none text-xs bg-transparent text-slate-700 dark:text-slate-300"
               />
-              <span className="text-muted-foreground text-sm">to</span>
+              <span className="text-slate-400 text-xs">→</span>
               <input 
                 type="date" 
                 value={customEndDate} 
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900"
+                className="border-0 outline-none text-xs bg-transparent text-slate-700 dark:text-slate-300"
               />
             </div>
           )}
         </div>
       </div>
       
-      {/* Dynamic Filtered Stats */}
-      {stats.isFiltered && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 mb-6">
-          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered Sales Revenue</CardTitle>
-              <IndianRupee className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-800 dark:text-blue-100">₹{stats.filteredRevenue.toFixed(2)}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Filtered Gross Profit</CardTitle>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-800 dark:text-emerald-100">₹{stats.filteredProfit.toFixed(2)}</div>
-            </CardContent>
-          </Card>
+      {/* Filtered Stats Banner */}
+      {stats?.isFiltered && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <StatCard
+            title="Filtered Sales Revenue"
+            value={`₹${stats.filteredRevenue.toFixed(2)}`}
+            icon={IndianRupee}
+            colorClass="bg-gradient-to-br from-blue-500 to-blue-600 text-white"
+            iconBg="bg-white/20"
+          />
+          <StatCard
+            title="Filtered Gross Profit"
+            value={`₹${stats.filteredProfit.toFixed(2)}`}
+            icon={TrendingUp}
+            colorClass="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white"
+            iconBg="bg-white/20"
+          />
         </div>
       )}
 
       {/* Global Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">All Time Gross Revenue</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">₹{stats.totalSales.toFixed(2)}</div>
-          </CardContent>
-        </Card>
+      {!stats ? (
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : (
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+          <StatCard
+            title="All Time Revenue"
+            value={`₹${stats.totalSales.toFixed(2)}`}
+            icon={IndianRupee}
+            colorClass="bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
+            iconBg="bg-white/20"
+          />
+          <StatCard
+            title="Taxable Revenue"
+            value={`₹${(stats.totalTaxableSales || 0).toFixed(2)}`}
+            icon={IndianRupee}
+            colorClass="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
+            iconBg="bg-slate-100 dark:bg-slate-700 text-slate-500"
+          />
+          <StatCard
+            title="Today's Sales"
+            value={`₹${stats.todaysSales.toFixed(2)}`}
+            icon={ShoppingCart}
+            colorClass="bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md shadow-sky-200 dark:shadow-sky-900/30"
+            iconBg="bg-white/20"
+          />
+          <StatCard
+            title="Total Products"
+            value={`${stats.totalProducts}`}
+            icon={Package}
+            colorClass="bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200 dark:shadow-violet-900/30"
+            iconBg="bg-white/20"
+          />
+          <StatCard
+            title="Outstanding"
+            value={`₹${(stats.totalCustomerOutstanding || 0).toFixed(2)}`}
+            icon={Users}
+            colorClass="bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-200 dark:shadow-amber-900/30"
+            iconBg="bg-white/20"
+            subtext="Customer balance due"
+          />
+        </div>
+      )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">All Time Taxable Revenue</CardTitle>
-            <IndianRupee className="h-4 w-4 text-slate-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-slate-700 dark:text-slate-300">₹{(stats.totalTaxableSales || 0).toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Sales</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{stats.todaysSales.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProducts}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-amber-900 dark:text-amber-300">Customer Outstanding</CardTitle>
-            <Users className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">
-              ₹{(stats.totalCustomerOutstanding || 0).toFixed(2)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Sales and Profit Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sales & Profit Trend {dateRangeType !== 'all' ? '(Filtered)' : ''}</CardTitle>
+      {/* Chart */}
+      <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-indigo-500" />
+            Sales & Profit Trend {dateRangeType !== 'all' ? <span className="text-xs font-normal text-slate-400 ml-1">(filtered)</span> : ''}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[350px] w-full">
-            {stats.chartData && stats.chartData.length > 0 ? (
+          <div className="h-[320px] w-full">
+            {!stats ? (
+              <div className="h-full shimmer rounded-xl" />
+            ) : stats.chartData && stats.chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={stats.chartData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-800" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis 
                     dataKey="date" 
                     tickFormatter={(val) => {
                       const d = new Date(val);
                       return `${d.getDate()}/${d.getMonth()+1}`;
                     }}
-                    className="text-xs text-muted-foreground"
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   />
-                  <YAxis className="text-xs text-muted-foreground" tickFormatter={(val) => `₹${val}`} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(val) => `₹${val}`} />
                   <RechartsTooltip 
                     formatter={(value: any) => [`₹${Number(value).toFixed(2)}`, undefined]}
                     labelFormatter={(label) => `Date: ${label}`}
+                    contentStyle={{
+                      background: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                    }}
                   />
-                  <Legend />
-                  <Line type="monotone" dataKey="sales" name="Sales" stroke="#3b82f6" activeDot={{ r: 8 }} strokeWidth={2} />
-                  <Line type="monotone" dataKey="profit" name="Gross Profit" stroke="#10b981" strokeWidth={2} />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Line type="monotone" dataKey="sales" name="Sales" stroke="#6366f1" activeDot={{ r: 6 }} strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="profit" name="Gross Profit" stroke="#10b981" strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                No data available for the selected period
+              <div className="flex h-full items-center justify-center text-slate-400 dark:text-slate-600 flex-col gap-2">
+                <TrendingUp className="h-10 w-10 opacity-30" />
+                <p className="text-sm">No data for selected period</p>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
+      {/* Bottom Grid */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="col-span-1 border-red-200 dark:border-red-900">
-          <CardHeader className="bg-red-50 dark:bg-red-900/20 rounded-t-lg">
-            <CardTitle className="flex items-center text-red-600 dark:text-red-400">
-              <AlertTriangle className="mr-2 h-5 w-5" />
+        {/* Low Stock */}
+        <Card className="border border-red-200 dark:border-red-900/40 shadow-sm">
+          <CardHeader className="bg-red-50 dark:bg-red-900/20 rounded-t-xl pb-3">
+            <CardTitle className="flex items-center text-sm font-semibold text-red-700 dark:text-red-400">
+              <AlertTriangle className="mr-2 h-4 w-4" />
               Low Stock Alerts
+              {stats && stats.lowStockProducts.length > 0 && (
+                <span className="ml-auto text-xs bg-red-600 text-white rounded-full px-2 py-0.5 font-bold">
+                  {stats.lowStockProducts.length}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            {stats.lowStockProducts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All products are adequately stocked.</p>
+            {!stats ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-10 shimmer rounded-lg" />)}
+              </div>
+            ) : stats.lowStockProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-emerald-600 dark:text-emerald-400">
+                <Package className="h-8 w-8 mb-2 opacity-60" />
+                <p className="text-sm font-medium">All products adequately stocked</p>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 {stats.lowStockProducts.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                  <div key={index} className="flex items-center justify-between rounded-lg bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 px-3 py-2">
                     <div>
-                      <p className="font-medium text-sm">{item.product?.name}</p>
-                      <p className="text-xs text-muted-foreground">SKU: {item.product?.sku}</p>
+                      <p className="font-semibold text-sm text-slate-800 dark:text-white">{item.product?.name}</p>
+                      <p className="text-xs text-slate-400">SKU: {item.product?.sku}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-red-600">{item.currentStock} left</p>
-                      <p className="text-xs text-muted-foreground">Threshold: {item.product?.lowStockThreshold}</p>
+                      <p className="text-sm font-bold text-red-600 dark:text-red-400">{item.currentStock} left</p>
+                      <p className="text-xs text-slate-400">Min: {item.product?.lowStockThreshold}</p>
                     </div>
                   </div>
                 ))}
@@ -259,31 +329,42 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Recent Sales</CardTitle>
+        {/* Recent Sales */}
+        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4 text-indigo-500" />
+              Recent Sales
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {stats.recentSales.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent sales.</p>
+            {!stats ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-10 shimmer rounded-lg" />)}
+              </div>
+            ) : stats.recentSales.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400">
+                <ShoppingCart className="h-8 w-8 mb-2 opacity-40" />
+                <p className="text-sm">No recent sales</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Profit</TableHead>
+                    <TableRow className="border-slate-100 dark:border-slate-800">
+                      <TableHead className="text-xs font-semibold">Invoice</TableHead>
+                      <TableHead className="text-xs font-semibold">Customer</TableHead>
+                      <TableHead className="text-right text-xs font-semibold">Amount</TableHead>
+                      <TableHead className="text-right text-xs font-semibold">Profit</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {stats.recentSales.map((sale) => (
-                      <TableRow key={sale._id}>
-                        <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
-                        <TableCell>{sale.customerId?.name || 'Unknown'}</TableCell>
-                        <TableCell className="text-right">₹{sale.grandTotal.toFixed(2)}</TableCell>
-                        <TableCell className={`text-right font-semibold ${(sale.profit || 0) > 0 ? 'text-green-600 dark:text-green-400' : (sale.profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500'}`}>
+                      <TableRow key={sale._id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <TableCell className="font-semibold text-indigo-600 dark:text-indigo-400 text-sm py-2.5">{sale.invoiceNumber}</TableCell>
+                        <TableCell className="text-sm py-2.5 text-slate-600 dark:text-slate-300">{sale.customerId?.name || 'Unknown'}</TableCell>
+                        <TableCell className="text-right text-sm py-2.5 font-medium">₹{sale.grandTotal.toFixed(2)}</TableCell>
+                        <TableCell className={`text-right font-bold text-sm py-2.5 ${(sale.profit || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : (sale.profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
                           {(sale.profit || 0) >= 0 ? '+' : ''}₹{(sale.profit || 0).toFixed(2)}
                         </TableCell>
                       </TableRow>

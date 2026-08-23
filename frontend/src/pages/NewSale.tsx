@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt, PenTool, Loader2 } from 'lucide-react';
+import { Trash2, Receipt, PenTool, Loader2, Search, X, ChevronDown } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 import SignatureCanvas from 'react-signature-canvas';
 
@@ -27,6 +27,7 @@ export default function NewSale() {
   const [customerSearch, setCustomerSearch] = useState('');
   
   const [productSearch, setProductSearch] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   
   const [cart, setCart] = useState<any[]>([]);
@@ -108,11 +109,20 @@ export default function NewSale() {
     fetchData();
   }, [quotationId]);
 
-  // Handle Customer Selection
+  // Handle Customer Selection from search input (only when user is typing, not on quotation load)
   useEffect(() => {
-    const c = customers.find(c => `${c.name} (${c.phone})` === customerSearch);
+    if (!customerSearch) {
+      // Only clear if nothing is typed — don't clear ID set by quotation load
+      setSelectedCustomerId('');
+      return;
+    }
+    const c = customers.find(c =>
+      `${c.name} (${c.phone})` === customerSearch ||
+      `${c.name} (${c.phone || 'No Phone'})` === customerSearch
+    );
     if (c) setSelectedCustomerId(c._id);
-    else setSelectedCustomerId('');
+    // If no exact match found, do NOT clear selectedCustomerId — 
+    // it may have been set directly from quotation load (by _id)
   }, [customerSearch, customers]);
 
   // Handle Product Selection
@@ -336,6 +346,21 @@ export default function NewSale() {
       return;
     }
 
+    // Validate serial numbers for serial-tracked products
+    for (const item of cart) {
+      const product = products.find(p => p._id === item.productId);
+      if (product?.trackSerials !== false) {
+        // This product tracks serials
+        if (!item.serialNumbers || item.serialNumbers.length !== item.quantity) {
+          toast.error(
+            `Please select ${item.quantity} serial number(s) for "${item.name}" before generating invoice. Click the "Serials" button next to the product search.`,
+            { duration: 6000 }
+          );
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const payload = {
@@ -394,8 +419,7 @@ export default function NewSale() {
       }
       const saleId = response.data._id;
       
-      window.open(`/sales/${saleId}/print`, '_blank');
-      navigate('/parties');
+      navigate('/sales');
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error creating sale');
     } finally {
@@ -514,21 +538,86 @@ export default function NewSale() {
               <CardTitle className="text-lg">Cart Items</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Product Search & Select */}
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 w-full">
-                <div className="w-full space-y-2">
-                  <Input 
-                    list="products-list"
-                    placeholder="Search Product by Name or SKU..."
-                    value={productSearch}
-                    onChange={e => setProductSearch(e.target.value)}
-                    ref={productInputRef}
-                    className="text-lg font-medium"
-                  />
-                  <datalist id="products-list">
-                    {products.map(p => <option key={p._id} value={p.sku ? `${p.name} (${p.sku})` : p.name} />)}
-                  </datalist>
+                <div className="w-full relative">
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      ref={productInputRef}
+                      type="text"
+                      placeholder="Search Product by Name or SKU..."
+                      className="flex h-11 w-full rounded-md border border-input bg-background pl-9 pr-9 py-2 text-sm font-medium ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      value={productSearch}
+                      onChange={e => {
+                        setProductSearch(e.target.value);
+                        setSelectedProductId('');
+                        setShowProductDropdown(true);
+                      }}
+                      onFocus={() => setShowProductDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowProductDropdown(false), 150)}
+                      autoComplete="off"
+                    />
+                    {productSearch ? (
+                      <button
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        onMouseDown={e => { e.preventDefault(); setProductSearch(''); setSelectedProductId(''); setShowProductDropdown(true); productInputRef.current?.focus(); }}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    )}
+                  </div>
+
+                  {/* Dropdown */}
+                  {showProductDropdown && (
+                    <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {(() => {
+                        const q = productSearch.toLowerCase();
+                        const filtered = products.filter(p =>
+                          !q ||
+                          p.name?.toLowerCase().includes(q) ||
+                          p.sku?.toLowerCase().includes(q)
+                        ).slice(0, 30);
+                        if (filtered.length === 0) return <div className="px-4 py-3 text-sm text-slate-400">No products found</div>;
+                        return filtered.map(p => (
+                          <button
+                            key={p._id}
+                            type="button"
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between gap-3 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 ${
+                              selectedProductId === p._id ? 'bg-primary/5 text-primary font-semibold' : 'text-slate-700 dark:text-slate-200'
+                            }`}
+                            onMouseDown={e => {
+                              e.preventDefault();
+                              setSelectedProductId(p._id);
+                              setProductSearch(p.sku ? `${p.name} (${p.sku})` : p.name);
+                              setShowProductDropdown(false);
+                              setAvailableSerials([]);
+                              setSelectedSerials([]);
+                              // Immediately trigger serial fetch or quantity dialog
+                              if (p.trackSerials === false) {
+                                setSelectedQuantity('1');
+                                setIsQuantityDialogOpen(true);
+                              } else {
+                                fetchSerials(p._id);
+                              }
+                            }}
+                          >
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{p.name}</div>
+                              {p.sku && <div className="text-xs text-slate-400">SKU: {p.sku}</div>}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-xs font-semibold text-primary">₹{p.sellingPrice?.toFixed(2) || '0.00'}</div>
+                            </div>
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  )}
                 </div>
-                <Button 
+                <Button
                   onClick={() => {
                     const p = products.find(prod => prod._id === selectedProductId);
                     if (p?.trackSerials === false) {

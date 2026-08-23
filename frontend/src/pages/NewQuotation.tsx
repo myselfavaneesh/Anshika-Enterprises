@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
-import { Trash2, Plus, Receipt, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Receipt, Loader2, Search, X, ChevronDown } from 'lucide-react';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
@@ -16,10 +16,14 @@ const NewQuotation = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const customerInputRef = useRef<HTMLInputElement>(null);
   
   const [cart, setCart] = useState<any[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
   const productInputRef = useRef<HTMLInputElement>(null);
   
   // Serial numbers are not needed for quotations since inventory isn't deducted
@@ -64,9 +68,8 @@ const NewQuotation = () => {
     });
     if (foundProduct) {
       setSelectedProductId(foundProduct._id);
-    } else {
-      setSelectedProductId('');
     }
+    // Don't clear ID if already set by clicking a dropdown item
   }, [productSearch, products]);
 
 
@@ -270,7 +273,6 @@ const NewQuotation = () => {
       const response = await api.post('/quotations', payload);
       const quotationId = response.data._id;
       
-      window.open(`/quotations/${quotationId}/print`, '_blank');
       navigate('/quotations');
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error creating quotation');
@@ -311,14 +313,82 @@ const NewQuotation = () => {
               <CardTitle>Customer Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <select 
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                value={selectedCustomerId}
-                onChange={e => setSelectedCustomerId(e.target.value)}
-              >
-                <option value="">Select a Customer...</option>
-                {customers.map(c => <option key={c._id} value={c._id}>{c.name} ({c.phone})</option>)}
-              </select>
+              {/* Customer Search & Select */}
+              <div className="relative">
+                <div className="relative flex items-center">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <input
+                    ref={customerInputRef}
+                    type="text"
+                    placeholder="Search customer by name or phone..."
+                    className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-9 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={customerSearch}
+                    onChange={e => {
+                      setCustomerSearch(e.target.value);
+                      setSelectedCustomerId('');
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
+                    autoComplete="off"
+                  />
+                  {selectedCustomerId ? (
+                    <button
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      onMouseDown={e => { e.preventDefault(); setCustomerSearch(''); setSelectedCustomerId(''); setShowCustomerDropdown(true); customerInputRef.current?.focus(); }}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  )}
+                </div>
+
+                {/* Dropdown */}
+                {showCustomerDropdown && (
+                  <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                    {(() => {
+                      const filtered = customers.filter(c => {
+                        const q = customerSearch.toLowerCase();
+                        return !q || c.name?.toLowerCase().includes(q) || c.phone?.includes(q);
+                      });
+                      if (filtered.length === 0) {
+                        return <div className="px-4 py-3 text-sm text-slate-400">No customers found</div>;
+                      }
+                      return filtered.map(c => (
+                        <button
+                          key={c._id}
+                          type="button"
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between transition-colors ${
+                            selectedCustomerId === c._id ? 'bg-primary/5 text-primary font-semibold' : 'text-slate-700 dark:text-slate-200'
+                          }`}
+                          onMouseDown={e => {
+                            e.preventDefault();
+                            setSelectedCustomerId(c._id);
+                            setCustomerSearch(`${c.name} (${c.phone || 'No Phone'})`);
+                            setShowCustomerDropdown(false);
+                          }}
+                        >
+                          <span>{c.name}</span>
+                          <span className="text-xs text-slate-400">{c.phone || ''}</span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected customer chip */}
+              {selectedCustomerId && (() => {
+                const c = customers.find(x => x._id === selectedCustomerId);
+                return c ? (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                    Selected: <span className="font-semibold text-slate-700 dark:text-slate-200">{c.name}</span>
+                    {c.phone && <span>• {c.phone}</span>}
+                  </div>
+                ) : null;
+              })()}
             </CardContent>
           </Card>
 
@@ -328,25 +398,82 @@ const NewQuotation = () => {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end w-full">
-                <div className="w-full space-y-2">
-                  <Input 
-                    list="products-list"
-                    placeholder="Search Product by Name or SKU..."
-                    value={productSearch}
-                    onChange={e => setProductSearch(e.target.value)}
-                    ref={productInputRef}
-                    className="text-lg font-medium"
-                  />
-                  <datalist id="products-list">
-                    {products.map(p => <option key={p._id} value={p.sku ? `${p.name} (${p.sku})` : p.name} />)}
-                  </datalist>
+                {/* Product Search & Select */}
+                <div className="w-full relative">
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      ref={productInputRef}
+                      type="text"
+                      placeholder="Search Product by Name or SKU..."
+                      className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-9 py-2 text-sm font-medium ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      value={productSearch}
+                      onChange={e => {
+                        setProductSearch(e.target.value);
+                        setSelectedProductId('');
+                        setShowProductDropdown(true);
+                      }}
+                      onFocus={() => setShowProductDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowProductDropdown(false), 150)}
+                      autoComplete="off"
+                    />
+                    {productSearch ? (
+                      <button
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        onMouseDown={e => { e.preventDefault(); setProductSearch(''); setSelectedProductId(''); setShowProductDropdown(true); productInputRef.current?.focus(); }}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    )}
+                  </div>
+
+                  {/* Dropdown */}
+                  {showProductDropdown && (
+                    <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {(() => {
+                        const q = productSearch.toLowerCase();
+                        const filtered = products.filter(p =>
+                          !q ||
+                          p.name?.toLowerCase().includes(q) ||
+                          p.sku?.toLowerCase().includes(q)
+                        ).slice(0, 30);
+                        if (filtered.length === 0) return <div className="px-4 py-3 text-sm text-slate-400">No products found</div>;
+                        return filtered.map(p => (
+                          <button
+                            key={p._id}
+                            type="button"
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between gap-3 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 ${
+                              selectedProductId === p._id ? 'bg-primary/5 text-primary font-semibold' : 'text-slate-700 dark:text-slate-200'
+                            }`}
+                            onMouseDown={e => {
+                              e.preventDefault();
+                              setSelectedProductId(p._id);
+                              setProductSearch(p.sku ? `${p.name} (${p.sku})` : p.name);
+                              setShowProductDropdown(false);
+                            }}
+                          >
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{p.name}</div>
+                              {p.sku && <div className="text-xs text-slate-400">SKU: {p.sku}</div>}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-xs font-semibold text-primary">₹{p.sellingPrice?.toFixed(2) || '0.00'}</div>
+                            </div>
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  )}
                 </div>
-                <div className="w-24 space-y-2">
+
+                <div className="w-24 space-y-2 flex-shrink-0">
                   <label className="text-sm font-medium">Qty</label>
                   <Input type="number" min="1" value={quantityInput} onChange={e => setQuantityInput(e.target.value)} />
                 </div>
-                
-                <Button onClick={addToCart} disabled={!selectedProductId} className="w-full sm:w-auto mt-2 sm:mt-0"><Plus className="mr-2 h-4 w-4" /> Add</Button>
+
+                <Button onClick={addToCart} disabled={!selectedProductId} className="w-full sm:w-auto mt-2 sm:mt-0 flex-shrink-0"><Plus className="mr-2 h-4 w-4" /> Add</Button>
               </div>
 
               <div className="mt-6 overflow-x-auto rounded-md border">

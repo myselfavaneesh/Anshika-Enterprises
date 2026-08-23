@@ -62,6 +62,7 @@ function App() {
             <Route path="/quotations" element={<ProtectedRoute permission="quotations:view"><Quotations /></ProtectedRoute>} />
             <Route path="/quotations/new" element={<ProtectedRoute permission="quotations:create"><NewQuotation /></ProtectedRoute>} />
             <Route path="/quotations/:id" element={<ProtectedRoute permission="quotations:view"><EditQuotation /></ProtectedRoute>} />
+            <Route path="/quotations/:id/edit" element={<ProtectedRoute permission="quotations:view"><EditQuotation /></ProtectedRoute>} />
             <Route path="staff" element={<ProtectedRoute permission="staff:view" adminOnly><StaffManagement /></ProtectedRoute>} />
             <Route path="profile" element={<ProfileSettings />} />
             <Route path="expenses" element={<ProtectedRoute permission="expenses:view"><Expenses /></ProtectedRoute>} />
