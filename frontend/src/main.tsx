@@ -9,22 +9,20 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Register Service Worker for PWA support with Auto-Update feature
+// Register Service Worker for PWA support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
         console.log('Service Worker registered:', reg.scope);
-        // Automatically check for updates when user opens or returns to app
+        // Check for updates but don't auto-reload — user may be filling a form
         reg.onupdatefound = () => {
           const installingWorker = reg.installing;
           if (installingWorker) {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New update deployed on server! Automatically update client
-                console.log('New updates detected! Refreshing for latest version...');
-                window.location.reload();
+                console.log('New updates available. They will apply on the next page load.');
               }
             };
           }

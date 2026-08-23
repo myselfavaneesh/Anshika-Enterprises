@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth';
 import categoryRoutes from './routes/category';
@@ -29,15 +30,18 @@ import { logger } from './utils/logger';
 import { initBackupCron } from './utils/backup';
 import { initInventoryCron } from './utils/inventoryCron';
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// dotenv is already loaded by config.ts (imported via routes/middleware)
 
 const app = express();
+app.set('trust proxy', 1);
 const port = process.env.PORT || 5000;
 
 // Middleware
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 const defaultOrigins = ['http://localhost:5173', 'http://localhost:5000', 'http://localhost', 'capacitor://localhost'];
 
+app.use(helmet());
+app.use(compression());
 app.use(cors({
   origin: [...allowedOrigins, ...defaultOrigins],
   credentials: true,
@@ -147,6 +151,22 @@ app.listen(port, () => {
 // Initialize Cron Jobs
 initBackupCron();
 initInventoryCron();
+
+// Session cleanup: delete expired sessions every 6 hours
+import cron from 'node-cron';
+cron.schedule('0 */6 * * *', async () => {
+  try {
+    const result = await prisma.session.deleteMany({
+      where: { expiresAt: { lt: new Date() } }
+    });
+    if (result.count > 0) {
+      logger.info(`Cleaned up ${result.count} expired sessions`);
+    }
+  } catch (error: any) {
+    logger.error('Error cleaning up expired sessions', { error: error.message });
+  }
+});
+logger.info('Session cleanup cron initialized (every 6 hours)');
 
 
 

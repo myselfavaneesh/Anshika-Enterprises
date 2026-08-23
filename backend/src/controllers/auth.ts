@@ -212,7 +212,7 @@ export const seedAdmin = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash('admin123', salt);
 
     const admin = await prisma.user.create({

@@ -391,6 +391,8 @@ model Session {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   expiresAt DateTime
+
+  @@index([userId, isActive])
 }
 
 model LoginHistory {
