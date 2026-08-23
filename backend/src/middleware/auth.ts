@@ -1,12 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config';
+import prisma from '../prisma';
 
 export interface AuthRequest extends Request {
   user?: any;
+  token?: string;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
+export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   let token = req.header('Authorization')?.replace('Bearer ', '');
 
   if (!token && req.query.token) {
@@ -20,10 +22,19 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Check if session exists and is active
+    const session = await prisma.session.findUnique({ where: { token } });
+    if (!session || !session.isActive) {
+      res.status(401).json({ error: 'Session expired or invalid. Please login again.' });
+      return;
+    }
+
     req.user = decoded;
+    req.token = token;
     next();
   } catch (ex) {
-    res.status(400).json({ error: 'Invalid token.' });
+    res.status(401).json({ error: 'Invalid token.' });
   }
 };
 

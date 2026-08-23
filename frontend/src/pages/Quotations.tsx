@@ -9,6 +9,8 @@ const Quotations = () => {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [expiringSoon, setExpiringSoon] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -18,7 +20,7 @@ const Quotations = () => {
     setIsLoading(true);
     try {
       const response = await api.get('/quotations', {
-        params: { page, limit, q: searchTerm || undefined }
+        params: { page, limit, q: searchTerm || undefined, status: statusFilter || undefined, expiringSoon: expiringSoon ? 'true' : undefined }
       });
       setQuotations(response.data.data || response.data);
       if (response.data.pagination) {
@@ -36,11 +38,20 @@ const Quotations = () => {
       fetchQuotations();
     }, 300);
     return () => clearTimeout(timer);
-  }, [page, limit, searchTerm]);
+  }, [page, limit, searchTerm, statusFilter, expiringSoon]);
 
   useEffect(() => {
     if (page !== 1) setPage(1);
-  }, [searchTerm, limit]);
+  }, [searchTerm, limit, statusFilter, expiringSoon]);
+
+  const handleUpdateStatus = async (quotationId: string, newStatus: string) => {
+    try {
+      await api.patch(`/quotations/${quotationId}/status`, { status: newStatus });
+      setQuotations(quotations.map(q => q._id === quotationId ? { ...q, status: newStatus } : q));
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to update status');
+    }
+  };
 
   const handlePrintQuotation = (quotationId: string) => {
     window.open(`/quotations/${quotationId}/print`, '_blank');
@@ -110,7 +121,7 @@ const Quotations = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 w-full">
+      <div className="flex flex-wrap items-center gap-4 w-full">
         <div className="flex flex-1 items-center gap-2 bg-white dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-3 py-1.5 shadow-sm max-w-lg w-full">
           <Search className="h-4 w-4 text-slate-400" />
           <input 
@@ -126,6 +137,21 @@ const Quotations = () => {
             </button>
           )}
         </div>
+        <select
+          className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-1.5 text-sm shadow-sm outline-none"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="DRAFT">Draft</option>
+          <option value="SENT">Sent</option>
+          <option value="ACCEPTED">Accepted</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-orange-50 px-3 py-1.5 rounded-md border border-orange-200 cursor-pointer">
+          <input type="checkbox" checked={expiringSoon} onChange={e => setExpiringSoon(e.target.checked)} className="rounded border-orange-400 text-orange-600 focus:ring-orange-500" />
+          Expiring Soon
+        </label>
       </div>
 
       <div className="rounded-md border bg-white dark:bg-slate-950 overflow-x-auto">
@@ -135,6 +161,8 @@ const Quotations = () => {
               <TableHead>Quotation #</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Customer</TableHead>
+              <TableHead>Valid Until</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Subtotal</TableHead>
               <TableHead className="text-right">Discount</TableHead>
               <TableHead className="text-right">Tax</TableHead>
@@ -148,7 +176,10 @@ const Quotations = () => {
                 <TableRow key={`skeleton-${index}`}>
                   <TableCell><div className="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
                   <TableCell><div className="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
                   <TableCell><div className="h-4 w-48 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
+                  <TableCell><div className="h-4 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800"></div></TableCell>
                   <TableCell><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                   <TableCell><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                   <TableCell><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
@@ -164,6 +195,30 @@ const Quotations = () => {
                   <TableCell className="font-medium">{quotation.quotationNumber}</TableCell>
                   <TableCell>{new Date(quotation.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>{quotation.customerId ? `${quotation.customerId.name} (${quotation.customerId.phone || 'No Phone'})` : 'Unknown'}</TableCell>
+                  <TableCell>
+                    {quotation.validUntil ? (
+                      <span className={new Date(quotation.validUntil) < new Date() ? 'text-red-600 font-medium' : 'text-slate-600'}>
+                        {new Date(quotation.validUntil).toLocaleDateString()}
+                      </span>
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      className={`text-xs font-semibold px-2 py-1 rounded-full border outline-none ${
+                        quotation.status === 'ACCEPTED' ? 'bg-green-100 text-green-800 border-green-200' :
+                        quotation.status === 'REJECTED' ? 'bg-red-100 text-red-800 border-red-200' :
+                        quotation.status === 'SENT' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                        'bg-slate-100 text-slate-800 border-slate-200'
+                      }`}
+                      value={quotation.status || 'DRAFT'}
+                      onChange={(e) => handleUpdateStatus(quotation._id, e.target.value)}
+                    >
+                      <option value="DRAFT">DRAFT</option>
+                      <option value="SENT">SENT</option>
+                      <option value="ACCEPTED">ACCEPTED</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
+                  </TableCell>
                   <TableCell className="text-right">₹{quotation.subtotal.toFixed(2)}</TableCell>
                   <TableCell className="text-right">₹{quotation.discount.toFixed(2)}</TableCell>
                   <TableCell className="text-right">₹{((quotation.cgstAmount || 0) + (quotation.sgstAmount || 0) + (quotation.igstAmount || 0) || quotation.taxAmount || 0).toFixed(2)}</TableCell>

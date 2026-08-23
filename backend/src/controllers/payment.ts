@@ -72,6 +72,82 @@ export const recordPayment = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+const BulkPaymentSchema = z.array(PaymentSchema);
+
+// Record multiple payments and update the ledger balance securely
+export const bulkRecordPayment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const paymentsData = BulkPaymentSchema.parse(req.body);
+
+    const payments = await prisma.$transaction(async (tx) => {
+      const createdPayments = [];
+      let customerBalances: Record<string, number> = {};
+      let supplierBalances: Record<string, number> = {};
+
+      for (const data of paymentsData) {
+        const numAmount = Number(data.amount);
+        
+        const newPayment = await tx.payment.create({
+          data: {
+            entityType: data.entityType,
+            entityId: data.entityId,
+            type: data.type,
+            amount: numAmount,
+            paymentMode: data.paymentMode,
+            referenceId: data.referenceId,
+            notes: data.notes,
+          }
+        });
+        createdPayments.push(newPayment);
+
+        if (data.entityType === 'CUSTOMER') {
+          const balanceChange = data.type === 'MONEY_IN' ? -numAmount : numAmount;
+          customerBalances[data.entityId] = (customerBalances[data.entityId] || 0) + balanceChange;
+        } else if (data.entityType === 'SUPPLIER') {
+          const balanceChange = data.type === 'MONEY_OUT' ? -numAmount : numAmount;
+          supplierBalances[data.entityId] = (supplierBalances[data.entityId] || 0) + balanceChange;
+        }
+      }
+
+      for (const [entityId, change] of Object.entries(customerBalances)) {
+        if (change !== 0) {
+          await tx.customer.update({
+            where: { id: entityId },
+            data: { outstandingBalance: { increment: change } }
+          });
+        }
+      }
+
+      for (const [entityId, change] of Object.entries(supplierBalances)) {
+        if (change !== 0) {
+          await tx.supplier.update({
+            where: { id: entityId },
+            data: { outstandingBalance: { increment: change } }
+          });
+        }
+      }
+
+      return createdPayments;
+    });
+
+    res.status(201).json(payments.map(mapEntityId));
+  } catch (error: any) {
+    logger.error('Error in bulkRecordPayment transaction:', { error: error.message, stack: error.stack });
+    
+    if (error.code === 'P2002' && error.meta?.target?.includes('referenceId')) {
+      res.status(400).json({ error: 'One or more UPI/Bank Reference Numbers have already been used.' });
+      return;
+    }
+    
+    if (error.code === 'P2025') {
+       res.status(404).json({ error: 'Entity (Customer/Supplier) not found' });
+       return;
+    }
+
+    res.status(400).json({ error: 'Error recording bulk payments' });
+  }
+};
+
 // Get ledger for a specific entity
 export const getLedger = async (req: Request, res: Response): Promise<void> => {
   try {

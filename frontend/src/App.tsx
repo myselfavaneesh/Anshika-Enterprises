@@ -22,6 +22,14 @@ import NewPurchase from './pages/NewPurchase';
 
 import EditPurchase from './pages/EditPurchase';
 import StaffManagement from './pages/StaffManagement';
+import ProfileSettings from './pages/ProfileSettings';
+import Expenses from './pages/Expenses';
+import Reports from './pages/Reports';
+import Warehouses from './pages/Warehouses';
+import PurchaseOrders from './pages/PurchaseOrders';
+import InventoryAudits from './pages/InventoryAudits';
+import SaleReturns from './pages/SaleReturns';
+import Subscriptions from './pages/Subscriptions';
 
 import TitleUpdater from './components/TitleUpdater';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -55,6 +63,14 @@ function App() {
             <Route path="/quotations/new" element={<ProtectedRoute permission="quotations:create"><NewQuotation /></ProtectedRoute>} />
             <Route path="/quotations/:id" element={<ProtectedRoute permission="quotations:view"><EditQuotation /></ProtectedRoute>} />
             <Route path="staff" element={<ProtectedRoute permission="staff:view" adminOnly><StaffManagement /></ProtectedRoute>} />
+            <Route path="profile" element={<ProfileSettings />} />
+            <Route path="expenses" element={<ProtectedRoute permission="expenses:view"><Expenses /></ProtectedRoute>} />
+            <Route path="reports" element={<ProtectedRoute permission="reports:view"><Reports /></ProtectedRoute>} />
+            <Route path="warehouses" element={<ProtectedRoute permission="inventory:view"><Warehouses /></ProtectedRoute>} />
+            <Route path="purchase-orders" element={<ProtectedRoute permission="purchases:view"><PurchaseOrders /></ProtectedRoute>} />
+            <Route path="inventory-audits" element={<ProtectedRoute permission="inventory:view"><InventoryAudits /></ProtectedRoute>} />
+            <Route path="returns" element={<ProtectedRoute permission="sales:view"><SaleReturns /></ProtectedRoute>} />
+            <Route path="subscriptions" element={<ProtectedRoute permission="sales:view"><Subscriptions /></ProtectedRoute>} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />

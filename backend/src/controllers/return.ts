@@ -11,6 +11,16 @@ const ProcessReturnSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const getReturns = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const returns = await ReturnService.getReturns();
+    res.json(returns.map(mapEntityId));
+  } catch (error: any) {
+    logger.error('Error fetching returns', { error: error.message });
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 export const processReturn = async (req: Request, res: Response): Promise<void> => {
   try {
     const validatedData = ProcessReturnSchema.parse(req.body);

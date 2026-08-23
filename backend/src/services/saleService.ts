@@ -25,9 +25,18 @@ export interface SaleServiceInput {
   isGstInclusive: boolean;
 }
 
+export interface SalePaymentInput {
+  paymentMode: string;
+  amount: number;
+  referenceNumber?: string;
+  emiProvider?: string;
+  emiReferenceNumber?: string;
+}
+
 export interface SaleInput {
   customerId: string;
   invoiceType: string;
+  documentType?: string;
   items: SaleItemInput[];
   services?: SaleServiceInput[];
   subtotal: number;
@@ -38,15 +47,27 @@ export interface SaleInput {
   cgstAmount: number;
   sgstAmount: number;
   grandTotal: number;
-  amountPaid: number;
-  paymentMode?: string;
+  
+  // Replaced amountPaid and paymentMode with payments array
+  payments?: SalePaymentInput[];
+
+  // Compliance
+  eInvoiceAckNo?: string;
+  eWayBillNo?: string;
+  customerSignatureUrl?: string;
 }
 
 export class SaleService {
   static async createSale(data: SaleInput): Promise<any> {
     try {
       const sale = await prisma.$transaction(async (tx) => {
-        const { customerId, invoiceType, items, services = [], discount, grandTotal, amountPaid, paymentMode } = data;
+        const { 
+          customerId, invoiceType, documentType = 'TAX_INVOICE', 
+          items, services = [], discount, grandTotal, 
+          payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl 
+        } = data;
+        
+        const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
         // Generate Sequential Invoice Number
         const date = new Date();
         const year = date.getFullYear().toString().slice(-2);
@@ -129,6 +150,16 @@ export class SaleService {
           throw new Error('Financial calculation mismatch. Potential payload tampering.');
         }
 
+        const customer = await tx.customer.findUnique({ where: { id: customerId } });
+        if (!customer) throw new Error('Customer not found');
+
+        if (customer.creditLimit !== null && customer.creditLimit > 0) {
+          const newBalance = customer.outstandingBalance + expectedGrandTotal - totalAmountPaid;
+          if (newBalance > customer.creditLimit) {
+            throw new Error(`Credit Limit Exceeded. Customer has a credit limit of ₹${customer.creditLimit}. This transaction results in a balance of ₹${newBalance}. Please increase amount paid.`);
+          }
+        }
+
         // 1. Create Sale
         const newSale = await tx.sale.create({
           data: {
@@ -190,6 +221,22 @@ export class SaleService {
 
           if (product?.trackSerials) {
             for (const serial of item.serialNumbers!) {
+              // Check for duplicate invoice detection first to provide a helpful error
+              const existingUnit = await tx.productUnit.findUnique({
+                where: { serialNumber: serial },
+                include: { sale: true }
+              });
+
+              if (!existingUnit) {
+                throw new Error(`Serial number ${serial} does not exist in inventory.`);
+              }
+              if (existingUnit.status !== 'IN_STOCK') {
+                if (existingUnit.sale) {
+                   throw new Error(`Serial number ${serial} was already sold in invoice ${existingUnit.sale.invoiceNumber}. Duplicate invoice detected.`);
+                }
+                throw new Error(`Serial number ${serial} is unavailable (status: ${existingUnit.status}).`);
+              }
+
               const updatedUnit = await tx.productUnit.updateMany({
                 where: { serialNumber: serial, status: 'IN_STOCK' },
                 data: { status: 'SOLD', saleId: newSale.id, saleItemId: saleItem.id }
@@ -218,23 +265,41 @@ export class SaleService {
           data: { outstandingBalance: { increment: expectedGrandTotal } }
         });
 
-        // Step B: If money is paid, create Payment and reduce the balance
-        if (amountPaid > 0) {
-          await tx.payment.create({
-            data: {
-              entityType: 'CUSTOMER',
-              entityId: customerId,
-              type: 'MONEY_IN',
-              amount: amountPaid,
-              paymentMode: paymentMode || 'CASH',
-              referenceId: invoiceNumber,
-              notes: `Payment for Sale ${invoiceNumber}`,
+        // Step B: If money is paid, create SalePayments, Global Payments, and reduce balance
+        if (totalAmountPaid > 0) {
+          for (const p of payments) {
+            if (p.amount > 0) {
+              // Create Sale Payment specifically for this invoice's multi-payment breakdown
+              await tx.salePayment.create({
+                data: {
+                  saleId: newSale.id,
+                  paymentMode: p.paymentMode,
+                  amount: p.amount,
+                  referenceNumber: p.referenceNumber,
+                  emiProvider: p.emiProvider,
+                  emiReferenceNumber: p.emiReferenceNumber,
+                  notes: `Payment for Sale ${invoiceNumber}`,
+                }
+              });
+
+              // Create global ledger payment
+              await tx.payment.create({
+                data: {
+                  entityType: 'CUSTOMER',
+                  entityId: customerId,
+                  type: 'MONEY_IN',
+                  amount: p.amount,
+                  paymentMode: p.paymentMode,
+                  referenceId: `${invoiceNumber}-${p.paymentMode}-${Date.now()}`, // Unique ref for ledger
+                  notes: `Payment for Sale ${invoiceNumber} via ${p.paymentMode}`,
+                }
+              });
             }
-          });
+          }
 
           await tx.customer.update({
             where: { id: customerId },
-            data: { outstandingBalance: { decrement: amountPaid } }
+            data: { outstandingBalance: { decrement: totalAmountPaid } }
           });
         }
 
@@ -258,7 +323,13 @@ export class SaleService {
         });
         if (!existingSale) throw new Error('Sale not found');
 
-        const { customerId, invoiceType, items, services = [], discount, grandTotal, amountPaid, paymentMode } = data;
+        const { 
+          customerId, invoiceType, documentType = 'TAX_INVOICE', 
+          items, services = [], discount, grandTotal, 
+          payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl 
+        } = data;
+        
+        const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
         // Validation
         let expectedSubtotal = 0;
@@ -321,6 +392,17 @@ export class SaleService {
           throw new Error('Financial calculation mismatch. Potential payload tampering.');
         }
 
+        const customer = await tx.customer.findUnique({ where: { id: customerId } });
+        if (!customer) throw new Error('Customer not found');
+
+        // Note: For update, we must calculate the net change because the old invoice grandTotal is currently in outstandingBalance
+        if (customer.creditLimit !== null && customer.creditLimit > 0) {
+          // Revert old invoice impact
+          const oldAmountPaid = payments.length > 0 ? 0 : 0; // It's complex to know old amount paid perfectly here without looking at DB, but we know existingSale.grandTotal and existingSale.status
+          // Actually, we'll revert the DB balance first, THEN check credit limit to be safe, but we are inside transaction.
+          // Wait, let's revert first, then check. So we move the check down after reverting.
+        }
+
         // REVERT EXISTING SALE DATA
         // 1. Revert ProductUnits
         await tx.productUnit.updateMany({
@@ -343,9 +425,16 @@ export class SaleService {
         await tx.saleItem.deleteMany({ where: { saleId: existingSale.id } });
         await tx.saleService.deleteMany({ where: { saleId: existingSale.id } });
 
-        // 3. Revert Ledger
-        const payment = await tx.payment.findFirst({ where: { referenceId: existingSale.invoiceNumber, entityType: 'CUSTOMER' } });
-        if (payment) {
+        // 3. Revert Ledger and SalePayments
+        await tx.salePayment.deleteMany({ where: { saleId: existingSale.id } });
+
+        const payments = await tx.payment.findMany({ 
+          where: { 
+            referenceId: { startsWith: existingSale.invoiceNumber }, 
+            entityType: 'CUSTOMER' 
+          } 
+        });
+        for (const payment of payments) {
           await tx.payment.delete({ where: { id: payment.id } });
           await tx.customer.update({
             where: { id: existingSale.customerId },
@@ -358,6 +447,16 @@ export class SaleService {
         });
 
         // APPLY NEW SALE DATA
+        const updatedCustomerBalance = (await tx.customer.findUnique({ where: { id: customerId } }))?.outstandingBalance || 0;
+        const customerRef = await tx.customer.findUnique({ where: { id: customerId } });
+
+        if (customerRef && customerRef.creditLimit !== null && customerRef.creditLimit > 0) {
+          const newBalance = updatedCustomerBalance + expectedGrandTotal - totalAmountPaid;
+          if (newBalance > customerRef.creditLimit) {
+            throw new Error(`Credit Limit Exceeded. Customer has a credit limit of ₹${customerRef.creditLimit}. This update results in a balance of ₹${newBalance}.`);
+          }
+        }
+
         const sale = await tx.sale.update({
           where: { id: existingSale.id },
           data: {
@@ -371,7 +470,11 @@ export class SaleService {
             cgstAmount: data.cgstAmount,
             sgstAmount: data.sgstAmount,
             grandTotal: expectedGrandTotal,
-            status: amountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
+            status: totalAmountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
+            documentType,
+            eInvoiceAckNo,
+            eWayBillNo,
+            customerSignatureUrl,
           }
         });
 
@@ -416,8 +519,23 @@ export class SaleService {
 
           if (product?.trackSerials) {
             for (const serial of item.serialNumbers!) {
+              const existingUnit = await tx.productUnit.findUnique({
+                where: { serialNumber: serial },
+                include: { sale: true }
+              });
+
+              if (!existingUnit) {
+                throw new Error(`Serial number ${serial} does not exist in inventory.`);
+              }
+              if (existingUnit.status !== 'IN_STOCK' && existingUnit.saleId !== sale.id) {
+                if (existingUnit.sale) {
+                   throw new Error(`Serial number ${serial} was already sold in invoice ${existingUnit.sale.invoiceNumber}. Duplicate invoice detected.`);
+                }
+                throw new Error(`Serial number ${serial} is unavailable (status: ${existingUnit.status}).`);
+              }
+
               const updatedUnit = await tx.productUnit.updateMany({
-                where: { serialNumber: serial, status: 'IN_STOCK' },
+                where: { serialNumber: serial },
                 data: { status: 'SOLD', saleId: sale.id, saleItemId: saleItem.id }
               });
               if (updatedUnit.count === 0) {
@@ -442,22 +560,42 @@ export class SaleService {
           data: { outstandingBalance: { increment: expectedGrandTotal } }
         });
 
-        // Step B: If money is paid, create Payment and reduce the balance
-        if (amountPaid > 0) {
-          await tx.payment.create({
-            data: {
-              entityType: 'CUSTOMER',
-              entityId: customerId,
-              type: 'MONEY_IN',
-              amount: amountPaid,
-              paymentMode: paymentMode || 'CASH',
-              referenceId: sale.invoiceNumber,
-              notes: `Payment for Sale ${sale.invoiceNumber}`,
+        // Delete old SalePayments first when reverting
+        await tx.salePayment.deleteMany({ where: { saleId: existingSale.id } });
+
+        // Step B: If money is paid, create SalePayments and global payments, and reduce balance
+        if (totalAmountPaid > 0) {
+          for (const p of payments) {
+            if (p.amount > 0) {
+              await tx.salePayment.create({
+                data: {
+                  saleId: sale.id,
+                  paymentMode: p.paymentMode,
+                  amount: p.amount,
+                  referenceNumber: p.referenceNumber,
+                  emiProvider: p.emiProvider,
+                  emiReferenceNumber: p.emiReferenceNumber,
+                  notes: `Payment for Sale ${sale.invoiceNumber}`,
+                }
+              });
+
+              await tx.payment.create({
+                data: {
+                  entityType: 'CUSTOMER',
+                  entityId: customerId,
+                  type: 'MONEY_IN',
+                  amount: p.amount,
+                  paymentMode: p.paymentMode,
+                  referenceId: `${sale.invoiceNumber}-${p.paymentMode}-${Date.now()}`,
+                  notes: `Payment for Sale ${sale.invoiceNumber} via ${p.paymentMode}`,
+                }
+              });
             }
-          });
+          }
+
           await tx.customer.update({
             where: { id: customerId },
-            data: { outstandingBalance: { decrement: amountPaid } }
+            data: { outstandingBalance: { decrement: totalAmountPaid } }
           });
         }
 
@@ -498,13 +636,20 @@ export class SaleService {
           }
         }
 
-        // 2. Delete SaleItems and SaleServices
+        // 2. Delete SaleItems, SaleServices, SalePayments
         await tx.saleItem.deleteMany({ where: { saleId: sale.id } });
         await tx.saleService.deleteMany({ where: { saleId: sale.id } });
+        await tx.salePayment.deleteMany({ where: { saleId: sale.id } });
 
-        // 3. Find and delete associated Payment
-        const payment = await tx.payment.findFirst({ where: { referenceId: sale.invoiceNumber, entityType: 'CUSTOMER' } });
-        if (payment) {
+        // 3. Find and delete associated Global Payments
+        // Using invoiceNumber as prefix due to the `${invoiceNumber}-${mode}-${date}` pattern used now.
+        const payments = await tx.payment.findMany({ 
+          where: { 
+            referenceId: { startsWith: sale.invoiceNumber }, 
+            entityType: 'CUSTOMER' 
+          } 
+        });
+        for (const payment of payments) {
           await tx.payment.delete({ where: { id: payment.id } });
           // Revert the payment deduction
           await tx.customer.update({

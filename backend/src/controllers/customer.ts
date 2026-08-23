@@ -12,6 +12,8 @@ const CustomerSchema = z.object({
   gstNumber: z.string().max(20).optional().nullable(),
   state: z.string().max(100).optional().nullable(),
   stateCode: z.string().max(10).optional().nullable(),
+  group: z.string().max(50).optional().nullable(),
+  creditLimit: z.number().nonnegative().optional().nullable(),
   outstandingBalance: z.number().default(0),
 });
 
@@ -27,7 +29,7 @@ export const getCustomers = async (req: Request, res: Response) => {
 
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = CustomerSchema.parse(req.body);
+    const { name, phone, email, address, gstNumber, state, stateCode, group, creditLimit, outstandingBalance } = CustomerSchema.parse(req.body);
 
     const trimmedPhone = phone ? phone.trim() : null;
     const trimmedEmail = email ? email.trim() : null;
@@ -62,6 +64,8 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
         gstNumber,
         state,
         stateCode,
+        group,
+        creditLimit: creditLimit !== undefined && creditLimit !== null ? Number(creditLimit) : null,
         outstandingBalance: outstandingBalance !== undefined ? Number(outstandingBalance) : 0,
       },
     });
@@ -79,7 +83,7 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
 export const updateCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, phone, email, address, gstNumber, state, stateCode, outstandingBalance } = CustomerSchema.parse(req.body);
+    const { name, phone, email, address, gstNumber, state, stateCode, group, creditLimit, outstandingBalance } = CustomerSchema.parse(req.body);
 
     const trimmedPhone = phone ? phone.trim() : null;
     const trimmedEmail = email ? email.trim() : null;
@@ -118,6 +122,8 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
         gstNumber,
         state,
         stateCode,
+        group,
+        ...(creditLimit !== undefined && { creditLimit: creditLimit !== null ? Number(creditLimit) : null }),
         ...(outstandingBalance !== undefined && { outstandingBalance: Number(outstandingBalance) }),
       },
     });

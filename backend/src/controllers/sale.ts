@@ -92,7 +92,7 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
       return;
     }
     logger.error('Error processing sale', { error: error.message });
-    res.status(400).json({ error: 'Error processing sale' });
+    res.status(400).json({ error: error.message || 'Error processing sale' });
   }
 };
 
@@ -110,7 +110,7 @@ export const updateSale = async (req: Request, res: Response): Promise<void> => 
       return;
     }
     logger.error('Error updating sale', { error: error.message });
-    res.status(400).json({ error: 'Error updating sale' });
+    res.status(400).json({ error: error.message || 'Error updating sale' });
   }
 };
 

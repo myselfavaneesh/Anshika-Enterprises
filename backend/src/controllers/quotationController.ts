@@ -43,6 +43,7 @@ const QuotationInputSchema = z.object({
   sgstAmount: z.number().min(0).default(0),
   grandTotal: z.number().min(0),
   validUntil: z.string().optional().nullable(),
+  status: z.enum(['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED']).optional().default('DRAFT'),
 });
 
 const generateQuotationNumber = async (): Promise<string> => {
@@ -70,7 +71,7 @@ const generateQuotationNumber = async (): Promise<string> => {
 
 export const createQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = QuotationInputSchema.parse(req.body);
+    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil, status } = QuotationInputSchema.parse(req.body);
 
     const quotationNumber = await generateQuotationNumber();
 
@@ -88,6 +89,7 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
         sgstAmount: Number(sgstAmount),
         grandTotal: Number(grandTotal),
         validUntil: validUntil ? new Date(validUntil) : null,
+        status: status || 'DRAFT',
         quotationItems: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -162,11 +164,24 @@ export const getQuotations = async (req: Request, res: Response): Promise<void> 
 
     const search = typeof req.query.q === 'string' ? req.query.q : undefined;
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const expiringSoon = req.query.expiringSoon === 'true';
 
     const where: any = {};
 
     if (status) {
       where.status = status;
+    }
+
+    if (expiringSoon) {
+      const now = new Date();
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(now.getDate() + 3);
+      
+      where.status = { in: ['DRAFT', 'SENT'] };
+      where.validUntil = {
+        gte: now,
+        lte: threeDaysFromNow
+      };
     }
 
     if (search) {
@@ -279,7 +294,7 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
 export const updateQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil } = QuotationInputSchema.parse(req.body);
+    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil, status } = QuotationInputSchema.parse(req.body);
 
     const quotation = await prisma.quotation.findUnique({ where: { id: id as string } });
     if (!quotation) {
@@ -308,6 +323,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
           sgstAmount: Number(sgstAmount),
           grandTotal: Number(grandTotal),
           validUntil: validUntil ? new Date(validUntil) : null,
+          status: status || 'DRAFT',
           quotationItems: {
             create: items.map((item: any) => ({
               productId: item.productId,
@@ -458,6 +474,33 @@ export const sendQuotationEmailController = async (req: Request, res: Response):
   } catch (error: any) {
     logger.error('Error sending quotation email', { quotationId: req.params.id, error: error.message });
     res.status(500).json({ error: 'Error sending quotation email' });
+  }
+};
+
+const QuotationStatusSchema = z.object({
+  status: z.enum(['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED']),
+});
+
+export const updateQuotationStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { status } = QuotationStatusSchema.parse(req.body);
+    
+    const quotation = await prisma.quotation.findUnique({ where: { id: id as string } });
+    if (!quotation) {
+      res.status(404).json({ error: 'Quotation not found' });
+      return;
+    }
+
+    const updated = await prisma.quotation.update({
+      where: { id: id as string },
+      data: { status }
+    });
+    
+    res.json(mapEntityId(updated));
+  } catch (error: any) {
+    logger.error('Error updating quotation status', { error: error.message, stack: error.stack });
+    res.status(400).json({ error: 'Error updating quotation status' });
   }
 };
 

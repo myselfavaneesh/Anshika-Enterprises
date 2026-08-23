@@ -133,6 +133,18 @@ const PERMISSION_MODULES = [
       { key: 'staff:delete', label: 'Delete', icon: '🗑️' },
     ],
   },
+  {
+    module: 'Expenses',
+    permissions: [
+      { key: 'expenses:view', label: 'Manage Expenses', icon: '💸' },
+    ],
+  },
+  {
+    module: 'Reports',
+    permissions: [
+      { key: 'reports:view', label: 'View Reports', icon: '📈' },
+    ],
+  },
 ];
 
 // ---- Role badge colors ----

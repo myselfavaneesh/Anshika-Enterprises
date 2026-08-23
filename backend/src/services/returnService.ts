@@ -2,6 +2,16 @@ import prisma from '../prisma';
 import { logger } from '../utils/logger';
 
 export class ReturnService {
+  static async getReturns(): Promise<any[]> {
+    return prisma.saleReturn.findMany({
+      include: {
+        originalSale: true,
+        customer: true,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
   static async processReturn(saleId: string, serialNumber: string, refundAmount: number, notes?: string): Promise<any> {
     try {
       const saleReturn = await prisma.$transaction(async (tx) => {

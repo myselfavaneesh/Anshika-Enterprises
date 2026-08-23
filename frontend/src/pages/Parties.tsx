@@ -46,7 +46,7 @@ export default function Parties() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ 
-    name: '', phone: '', email: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0 
+    name: '', phone: '', email: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0, group: '', creditLimit: '' as number | ''
   });
 
   // Fetch lists
@@ -77,8 +77,7 @@ export default function Parties() {
   const filteredSuppliers = suppliers.filter(applyFilters);
 
   const resetForm = () => {
-    setEditingId(null);
-    setFormData({ name: '', phone: '', email: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0 });
+    setFormData({ name: '', phone: '', email: '', address: '', gstNumber: '', state: 'Uttar Pradesh', stateCode: '09', outstandingBalance: 0, group: '', creditLimit: '' });
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -120,6 +119,8 @@ export default function Parties() {
       gstNumber: party.gstNumber || '',
       state: party.state || 'Uttar Pradesh',
       stateCode: party.stateCode || '09',
+      group: party.group || '',
+      creditLimit: party.creditLimit || '',
       outstandingBalance: party.outstandingBalance || 0
     });
     setIsAddModalOpen(true);
@@ -180,7 +181,7 @@ export default function Parties() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Phone</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Group</TableHead>
               <TableHead>GST Number</TableHead>
               <TableHead className="text-right">Outstanding Balance</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -209,7 +210,10 @@ export default function Parties() {
 
                 return (
                   <TableRow key={party._id} className="cursor-pointer hover:bg-slate-50" onClick={() => navigate(`/parties/${type}/${party._id}/ledger`)}>
-                    <TableCell className="font-medium">{party.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {party.name}
+                      {party.group && <span className="ml-2 inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800">{party.group}</span>}
+                    </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {party.phone ? (
                         <a
@@ -224,7 +228,7 @@ export default function Parties() {
                         '-'
                       )}
                     </TableCell>
-                    <TableCell>{party.email || '-'}</TableCell>
+                    <TableCell>{party.group || '-'}</TableCell>
                     <TableCell>{party.gstNumber || '-'}</TableCell>
                     <TableCell className={`text-right ${balColor}`}>
                       {formatCurrency(Math.abs(bal))} <span className="text-xs opacity-80">{bal !== 0 && balLabel}</span>
@@ -382,6 +386,21 @@ export default function Parties() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">State Code</label>
                   <Input value={formData.stateCode} readOnly className="bg-slate-50 cursor-not-allowed text-slate-500 font-semibold" tabIndex={-1} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Group (Tag)</label>
+                  <Input value={formData.group} onChange={e => setFormData({...formData, group: e.target.value})} placeholder="e.g. VIP, Builder, Local" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Credit Limit (₹)</label>
+                  <Input 
+                    type="number" 
+                    value={formData.creditLimit} 
+                    onChange={e => setFormData({...formData, creditLimit: e.target.value === '' ? '' : Number(e.target.value)})} 
+                    placeholder="Optional" 
+                  />
                 </div>
               </div>
               <div className="space-y-2">

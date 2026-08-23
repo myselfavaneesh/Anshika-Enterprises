@@ -1,5 +1,6 @@
 import express from 'express';
-import { login, seedAdmin } from '../controllers/auth';
+import { login, seedAdmin, getSessions, logout, logoutAllOther, getLoginHistory } from '../controllers/auth';
+import { authenticate } from '../middleware/auth';
 
 import rateLimit from 'express-rate-limit';
 
@@ -12,6 +13,10 @@ const loginLimiter = rateLimit({
 const router = express.Router();
 
 router.post('/login', loginLimiter, login);
+router.get('/sessions', authenticate, getSessions);
+router.post('/logout', authenticate, logout);
+router.post('/logout-all', authenticate, logoutAllOther);
+router.get('/history', authenticate, getLoginHistory);
 
 // Only expose seed endpoint in development
 if (process.env.NODE_ENV !== 'production') {

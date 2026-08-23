@@ -13,6 +13,10 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    const thisYearStart = new Date(today.getFullYear(), 0, 1);
+    const lastYearStart = new Date(today.getFullYear() - 1, 0, 1);
+    const lastYearEnd = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()); // YTD last year
+
     // 1. Total Products
     const totalProducts = await prisma.product.count();
 
@@ -97,6 +101,25 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       }
     });
 
+    // YoY Calculation (Year-to-Date this year vs Year-to-Date last year)
+    const ytdSalesThisYear = await prisma.sale.aggregate({
+      where: { createdAt: { gte: thisYearStart, lte: today } },
+      _sum: { grandTotal: true }
+    });
+    const ytdSalesLastYear = await prisma.sale.aggregate({
+      where: { createdAt: { gte: lastYearStart, lte: lastYearEnd } },
+      _sum: { grandTotal: true }
+    });
+    
+    const ytdThisYear = ytdSalesThisYear._sum.grandTotal || 0;
+    const ytdLastYear = ytdSalesLastYear._sum.grandTotal || 0;
+    let yoyGrowth = 0;
+    if (ytdLastYear > 0) {
+      yoyGrowth = ((ytdThisYear - ytdLastYear) / ytdLastYear) * 100;
+    } else if (ytdThisYear > 0) {
+      yoyGrowth = 100; // 100% growth if no sales last year but sales this year
+    }
+
     // Fetch filtered sales for profit and chart
     const filteredSalesQuery = await prisma.sale.findMany({
       where: dateFilter,
@@ -127,7 +150,28 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       dateData.profit += profit;
     }
 
-    const chartData = Array.from(chartDataMap.values());
+    const chartData = Array.from(chartDataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Fetch filtered purchases for analytics chart
+    const filteredPurchasesQuery = await prisma.purchase.findMany({
+      where: dateFilter,
+      orderBy: { createdAt: 'asc' }
+    });
+
+    let filteredTotalPurchases = 0;
+    for (const purchase of filteredPurchasesQuery) {
+      const amount = purchase.grandTotal || 0;
+      filteredTotalPurchases += amount;
+      const dateStr = purchase.createdAt.toISOString().split('T')[0];
+      if (!chartDataMap.has(dateStr)) {
+        chartDataMap.set(dateStr, { date: dateStr, sales: 0, profit: 0, purchases: 0 });
+      }
+      const dateData = chartDataMap.get(dateStr);
+      dateData.purchases = (dateData.purchases || 0) + amount;
+    }
+
+    // Re-create chartData to include purchases and sort by date
+    const finalChartData = Array.from(chartDataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
     // 4. Low stock products aggregation
     const products = await prisma.product.findMany({
@@ -168,7 +212,9 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       totalCustomerOutstanding,
       filteredRevenue: filteredTotalRevenue,
       filteredProfit: filteredTotalProfit,
-      chartData,
+      filteredPurchases: filteredTotalPurchases,
+      yoyGrowth,
+      chartData: finalChartData,
       isFiltered,
       lowStockProducts,
       recentSales: recentSales.map((sale: any) => {

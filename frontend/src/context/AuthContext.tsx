@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api from '../services/api';
 
 interface User {
   _id: string;
@@ -60,7 +61,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('user', JSON.stringify(userWithPermissions));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (token) {
+      try {
+        await api.post('/auth/logout');
+      } catch (e) {
+        console.error('Logout failed on backend', e);
+      }
+    }
     setToken(null);
     setUser(null);
     localStorage.removeItem('token');

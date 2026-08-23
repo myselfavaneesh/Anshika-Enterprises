@@ -17,10 +17,17 @@ import paymentRoutes from './routes/payment';
 import purchaseRoutes from './routes/purchase';
 import returnRoutes from './routes/return';
 import staffRoutes from './routes/staff';
+import expenseRoutes from './routes/expense';
+import reportsRoutes from './routes/reports';
+import warehouseRoutes from './routes/warehouse';
+import purchaseOrderRoutes from './routes/purchaseOrder';
+import inventoryAuditRoutes from './routes/inventoryAudit';
+import subscriptionRoutes from './routes/subscription';
 
 import morgan from 'morgan';
 import { logger } from './utils/logger';
 import { initBackupCron } from './utils/backup';
+import { initInventoryCron } from './utils/inventoryCron';
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
@@ -74,6 +81,12 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/returns', returnRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/warehouses', warehouseRoutes);
+app.use('/api/purchase-orders', purchaseOrderRoutes);
+app.use('/api/inventory-audits', inventoryAuditRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -130,6 +143,7 @@ app.listen(port, () => {
 
 // Initialize Cron Jobs
 initBackupCron();
+initInventoryCron();
 
 
 

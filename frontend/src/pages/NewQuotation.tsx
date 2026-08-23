@@ -26,6 +26,7 @@ const NewQuotation = () => {
   
   const [discount, setDiscount] = useState('0');
   const [invoiceType, setInvoiceType] = useState('GST'); 
+  const [validUntil, setValidUntil] = useState('');
   
   // Dynamic Services selected
   const [selectedServices, setSelectedServices] = useState<{name: string, amount: string, gstRate: string, isGstInclusive: boolean}[]>([]);
@@ -262,6 +263,7 @@ const NewQuotation = () => {
           isGstInclusive: Boolean(s.isGstInclusive)
         })),
         grandTotal,
+        validUntil: validUntil || undefined,
       };
 
       const response = await api.post('/quotations', payload);
@@ -545,6 +547,16 @@ const NewQuotation = () => {
                   )}
                 </>
               )}
+
+              <div className="flex justify-between items-center border-t pt-4">
+                <span className="text-slate-500">Valid Until</span>
+                <Input 
+                  type="date" 
+                  className="w-40 h-8" 
+                  value={validUntil} 
+                  onChange={e => setValidUntil(e.target.value)} 
+                />
+              </div>
 
               <div className="border-t pt-4 flex justify-between items-center">
                 <span className="text-lg font-bold">Grand Total</span>

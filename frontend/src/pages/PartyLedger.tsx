@@ -8,7 +8,8 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2, Phone } from 'lucide-react';
+import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2, Phone, Download, Plus } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -23,8 +24,7 @@ export default function PartyLedger() {
 
   // Record Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMode, setPaymentMode] = useState('CASH');
+  const [bulkPayments, setBulkPayments] = useState([{ amount: '', paymentMode: 'CASH', referenceId: '', notes: '' }]);
 
   // Edit Payment Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -45,25 +45,45 @@ export default function PartyLedger() {
     e.preventDefault();
     if (!party) return;
 
+    const validPayments = bulkPayments.filter(p => Number(p.amount) > 0);
+    if (validPayments.length === 0) {
+      alert('Please enter at least one valid payment amount.');
+      return;
+    }
+
     try {
-      await api.post('/payments', {
+      const payload = validPayments.map(p => ({
         entityType: isCustomer ? 'CUSTOMER' : 'SUPPLIER',
         entityId: party._id,
-        // If customer, we are receiving money (MONEY_IN). If supplier, we are paying (MONEY_OUT)
         type: isCustomer ? 'MONEY_IN' : 'MONEY_OUT',
-        amount: Number(paymentAmount),
-        paymentMode,
-      });
+        amount: Number(p.amount),
+        paymentMode: p.paymentMode,
+        referenceId: p.referenceId || undefined,
+        notes: p.notes || undefined,
+      }));
+
+      await api.post('/payments/bulk', payload);
 
       setIsPaymentModalOpen(false);
-      setPaymentAmount('');
-      
-      // Refresh Data
+      setBulkPayments([{ amount: '', paymentMode: 'CASH', referenceId: '', notes: '' }]);
       mutate();
-    } catch (error) {
-      console.error('Error recording payment:', error);
-      alert('Failed to record payment');
+    } catch (error: any) {
+      console.error('Error recording payments:', error);
+      alert(error.response?.data?.error || 'Failed to record payments');
     }
+  };
+
+  const handleExportPDF = () => {
+    const element = document.getElementById('ledger-table-container');
+    if (!element) return;
+    const opt = {
+      margin: 0.5,
+      filename: `${party?.name}_Ledger.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt as any).from(element).save();
   };
 
   const handleOpenEditPayment = (entry: any) => {
@@ -196,15 +216,19 @@ export default function PartyLedger() {
                 Send Reminder
               </Button>
             )}
+            <Button variant="outline" onClick={handleExportPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
             <Button onClick={() => setIsPaymentModalOpen(true)} className="w-full sm:w-auto">
               <IndianRupee className="w-4 h-4 mr-2" />
-              Record Payment
+              Record Payment(s)
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
+      <div id="ledger-table-container" className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
         <Table className="min-w-[650px]">
           <TableHeader className="bg-slate-50">
             <TableRow>
@@ -304,39 +328,74 @@ export default function PartyLedger() {
 
       {/* Record Payment Dialog */}
       <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+            <DialogTitle>Record Payment(s)</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleRecordPayment} className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Amount</label>
-              <Input 
-                type="number" 
-                required 
-                min="1" 
-                value={paymentAmount} 
-                onChange={(e) => setPaymentAmount(e.target.value)} 
-                placeholder="Enter amount"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Payment Mode</label>
-              <Select value={paymentMode} onValueChange={setPaymentMode}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CASH">Cash</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="BANK">Bank Transfer</SelectItem>
-                  <SelectItem value="CHEQUE">Cheque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {bulkPayments.map((p, idx) => (
+              <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-end border-b pb-4 mb-2">
+                <div className="space-y-2 flex-1 w-full">
+                  <label className="text-sm font-medium">Amount</label>
+                  <Input 
+                    type="number" 
+                    required 
+                    min="1" 
+                    value={p.amount} 
+                    onChange={(e) => {
+                      const newB = [...bulkPayments];
+                      newB[idx].amount = e.target.value;
+                      setBulkPayments(newB);
+                    }} 
+                    placeholder="Amount"
+                  />
+                </div>
+                <div className="space-y-2 flex-1 w-full">
+                  <label className="text-sm font-medium">Mode</label>
+                  <Select value={p.paymentMode} onValueChange={(val) => {
+                    const newB = [...bulkPayments];
+                    newB[idx].paymentMode = val;
+                    setBulkPayments(newB);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CASH">Cash</SelectItem>
+                      <SelectItem value="UPI">UPI</SelectItem>
+                      <SelectItem value="BANK">Bank Transfer</SelectItem>
+                      <SelectItem value="CHEQUE">Cheque</SelectItem>
+                      <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 flex-1 w-full">
+                  <label className="text-sm font-medium">Ref No (Opt)</label>
+                  <Input 
+                    value={p.referenceId} 
+                    onChange={(e) => {
+                      const newB = [...bulkPayments];
+                      newB[idx].referenceId = e.target.value;
+                      setBulkPayments(newB);
+                    }} 
+                    placeholder="Ref No"
+                  />
+                </div>
+                {bulkPayments.length > 1 && (
+                  <Button type="button" variant="ghost" size="icon" className="text-red-500 mb-0.5" onClick={() => setBulkPayments(bulkPayments.filter((_, i) => i !== idx))}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            
+            <Button type="button" variant="outline" className="w-full border-dashed" onClick={() => setBulkPayments([...bulkPayments, { amount: '', paymentMode: 'CASH', referenceId: '', notes: '' }])}>
+              <Plus className="h-4 w-4 mr-2" /> Add Another Payment
+            </Button>
+
             <div className="pt-4 flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
-              <Button type="submit">Save Payment</Button>
+              <Button type="submit">Save All Payments</Button>
             </div>
           </form>
         </DialogContent>

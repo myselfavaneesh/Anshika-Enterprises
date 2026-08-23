@@ -6,8 +6,9 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt } from 'lucide-react';
+import { Trash2, Receipt, PenTool } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
+import SignatureCanvas from 'react-signature-canvas';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
@@ -38,12 +39,18 @@ export default function NewSale() {
   
   const [discount, setDiscount] = useState('0');
   const [invoiceType, setInvoiceType] = useState('GST');
+  const [documentType, setDocumentType] = useState('TAX_INVOICE');
   
   // Dynamic Services selected
   const [selectedServices, setSelectedServices] = useState<{name: string, amount: string, gstRate: string, isGstInclusive: boolean}[]>([]);
 
-  const [amountPaid, setAmountPaid] = useState('');
-  const [paymentMode, setPaymentMode] = useState('CASH');
+  // Multiple Payments
+  const [payments, setPayments] = useState([{ paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }]);
+  
+  // Compliance
+  const [eInvoiceAckNo, setEInvoiceAckNo] = useState('');
+  const [eWayBillNo, setEWayBillNo] = useState('');
+  const signatureRef = useRef<SignatureCanvas>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -363,8 +370,19 @@ export default function NewSale() {
           isGstInclusive: Boolean(s.isGstInclusive)
         })),
         grandTotal,
-        amountPaid: Number(amountPaid) || 0,
-        paymentMode
+        documentType,
+        eInvoiceAckNo,
+        eWayBillNo,
+        customerSignatureUrl: signatureRef.current && !signatureRef.current.isEmpty() 
+          ? signatureRef.current.toDataURL() 
+          : undefined,
+        payments: payments.map(p => ({
+          paymentMode: p.paymentMode,
+          amount: Number(p.amount) || 0,
+          referenceNumber: p.referenceNumber,
+          emiProvider: p.emiProvider,
+          emiReferenceNumber: p.emiReferenceNumber
+        }))
       };
 
       let response;
@@ -405,6 +423,15 @@ export default function NewSale() {
         <h2 className="text-3xl font-bold tracking-tight">POS / New Sale</h2>
         
         <div className="flex items-center gap-6">
+            <select 
+              className="h-9 px-3 rounded-md border text-sm font-medium bg-white shadow-sm"
+              value={documentType}
+              onChange={e => setDocumentType(e.target.value)}
+            >
+              <option value="TAX_INVOICE">Tax Invoice</option>
+              <option value="PROFORMA">Proforma Invoice</option>
+              <option value="CHALLAN">Delivery Challan</option>
+            </select>
           <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg border">
             <Button 
               size="sm" 
@@ -449,17 +476,35 @@ export default function NewSale() {
               <datalist id="customers-list">
                 {customers.map(c => <option key={c._id} value={`${c.name} (${c.phone})`} />)}
               </datalist>
-              {selectedCustomer && (
-                <div className="mt-3 p-3 bg-green-50 text-green-800 rounded-md flex justify-between items-center text-sm">
-                  <div>
-                    <span className="font-semibold">{selectedCustomer.name}</span> • {selectedCustomer.phone}
-                    {selectedCustomer.gstNumber && ` • GST: ${selectedCustomer.gstNumber}`}
+              {selectedCustomer && (() => {
+                const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                const projectedBalance = selectedCustomer.outstandingBalance + grandTotal - totalPaid;
+                const creditLimit = selectedCustomer.creditLimit;
+                const isExceeded = creditLimit !== null && creditLimit !== undefined && projectedBalance > creditLimit;
+
+                return (
+                  <div className={`mt-3 p-3 rounded-md flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm ${isExceeded ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-green-50 text-green-800'}`}>
+                    <div>
+                      <span className="font-semibold">{selectedCustomer.name}</span> • {selectedCustomer.phone}
+                      {selectedCustomer.gstNumber && ` • GST: ${selectedCustomer.gstNumber}`}
+                      <div className="mt-1 font-medium text-xs opacity-90">
+                        State Code: {selectedCustomer.stateCode || '-'} {isInterState ? '(IGST)' : '(CGST/SGST)'}
+                      </div>
+                    </div>
+                    <div className="font-medium text-right mt-2 sm:mt-0">
+                      <div>Current Bal: ₹{selectedCustomer.outstandingBalance.toFixed(2)}</div>
+                      {creditLimit !== null && creditLimit !== undefined && (
+                        <div className="text-xs mt-0.5">Credit Limit: ₹{creditLimit.toFixed(2)}</div>
+                      )}
+                      {isExceeded && (
+                        <div className="font-bold text-red-600 flex items-center mt-1">
+                          ⚠️ Credit Limit Exceeded
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="font-medium">
-                    State Code: {selectedCustomer.stateCode || '-'} {isInterState ? '(IGST)' : '(CGST/SGST)'}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </CardContent>
           </Card>
 
@@ -704,40 +749,135 @@ export default function NewSale() {
                 <span className="text-3xl font-black text-primary">₹{grandTotal.toFixed(2)}</span>
               </div>
 
-              <div className="border-t-2 border-dashed pt-5 mt-5">
-                <label className="text-sm font-bold text-slate-700 mb-2 block">Payment Received</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
-                    <Input 
-                      type="number" 
-                      min="0" 
-                      ref={amountPaidRef}
-                      className="pl-7 h-12 text-xl font-bold text-green-700" 
-                      placeholder="0.00"
-                      value={amountPaid} 
-                      onChange={e => setAmountPaid(e.target.value)} 
-                    />
-                  </div>
-                  <select 
-                    className="w-28 h-12 rounded-md border border-input bg-background px-3 font-medium"
-                    value={paymentMode}
-                    onChange={e => setPaymentMode(e.target.value)}
+              <div className="border-t-2 border-dashed pt-5 mt-5 space-y-4">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm font-bold text-slate-700">Payment(s) Received</label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-xs"
+                    onClick={() => setPayments([...payments, { paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }])}
                   >
-                    <option value="CASH">CASH</option>
-                    <option value="UPI">UPI</option>
-                    <option value="BANK">BANK</option>
-                  </select>
+                    + Add Payment
+                  </Button>
                 </div>
-                {Number(amountPaid) > 0 && (
+                
+                {payments.map((p, idx) => (
+                  <div key={idx} className="bg-slate-50 p-3 rounded-lg border space-y-3 relative">
+                    {payments.length > 1 && (
+                      <button 
+                        className="absolute right-2 top-2 text-red-500 hover:text-red-700"
+                        onClick={() => {
+                          const newP = [...payments];
+                          newP.splice(idx, 1);
+                          setPayments(newP);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    <div className="flex gap-2 pr-6">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          className="pl-7 h-10 text-lg font-bold text-green-700 bg-white" 
+                          placeholder="Amount"
+                          value={p.amount} 
+                          onChange={e => {
+                            const newP = [...payments];
+                            newP[idx].amount = e.target.value;
+                            setPayments(newP);
+                          }} 
+                        />
+                      </div>
+                      <select 
+                        className="w-32 h-10 rounded-md border border-input bg-white px-2 font-medium text-sm"
+                        value={p.paymentMode}
+                        onChange={e => {
+                          const newP = [...payments];
+                          newP[idx].paymentMode = e.target.value;
+                          setPayments(newP);
+                        }}
+                      >
+                        <option value="CASH">CASH</option>
+                        <option value="UPI">UPI</option>
+                        <option value="BANK">BANK</option>
+                        <option value="CHEQUE">CHEQUE</option>
+                        <option value="CREDIT_CARD">CREDIT CARD</option>
+                        <option value="BAJAJ_FINANCE">BAJAJ FINANCE</option>
+                      </select>
+                    </div>
+                    {p.paymentMode === 'BAJAJ_FINANCE' && (
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Provider (e.g. Bajaj, HDFC)" 
+                          className="h-9 bg-white text-sm"
+                          value={p.emiProvider}
+                          onChange={e => {
+                            const newP = [...payments];
+                            newP[idx].emiProvider = e.target.value;
+                            setPayments(newP);
+                          }}
+                        />
+                        <Input 
+                          placeholder="EMI Ref / Loan No" 
+                          className="h-9 bg-white text-sm"
+                          value={p.emiReferenceNumber}
+                          onChange={e => {
+                            const newP = [...payments];
+                            newP[idx].emiReferenceNumber = e.target.value;
+                            setPayments(newP);
+                          }}
+                        />
+                      </div>
+                    )}
+                    {['UPI', 'BANK', 'CHEQUE', 'CREDIT_CARD'].includes(p.paymentMode) && (
+                       <Input 
+                         placeholder="Transaction / Cheque No" 
+                         className="h-9 bg-white text-sm w-full"
+                         value={p.referenceNumber}
+                         onChange={e => {
+                           const newP = [...payments];
+                           newP[idx].referenceNumber = e.target.value;
+                           setPayments(newP);
+                         }}
+                       />
+                    )}
+                  </div>
+                ))}
+
+                {payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) > 0 && (
                   <div className="mt-2 text-right text-sm">
-                    {Number(amountPaid) > grandTotal ? (
-                      <span className="text-orange-600 font-medium">Return Change: ₹{(Number(amountPaid) - grandTotal).toFixed(2)}</span>
+                    {payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) > grandTotal ? (
+                      <span className="text-orange-600 font-medium">Return Change: ₹{(payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) - grandTotal).toFixed(2)}</span>
                     ) : (
-                      <span className="text-red-600 font-medium">Due Balance: ₹{(grandTotal - Number(amountPaid)).toFixed(2)}</span>
+                      <span className="text-red-600 font-medium">Due Balance: ₹{(grandTotal - payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)).toFixed(2)}</span>
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="border-t-2 border-dashed pt-5 mt-5 space-y-4">
+                <label className="text-sm font-bold text-slate-700 block">Compliance & E-Way Bill (Optional)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input placeholder="E-Invoice Ack No" value={eInvoiceAckNo} onChange={e => setEInvoiceAckNo(e.target.value)} />
+                  <Input placeholder="E-Way Bill No" value={eWayBillNo} onChange={e => setEWayBillNo(e.target.value)} />
+                </div>
+                
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-medium text-slate-600 flex items-center gap-1"><PenTool className="w-4 h-4" /> Customer Signature</label>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs text-slate-500" onClick={() => signatureRef.current?.clear()}>Clear</Button>
+                  </div>
+                  <div className="border rounded-md bg-white overflow-hidden shadow-inner">
+                    <SignatureCanvas 
+                      ref={signatureRef}
+                      canvasProps={{ width: 500, height: 120, className: 'w-full h-full cursor-crosshair' }} 
+                    />
+                  </div>
+                </div>
               </div>
 
               <Button 

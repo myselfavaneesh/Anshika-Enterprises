@@ -5,6 +5,7 @@ import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { JWT_SECRET } from '../config';
+import { AuthRequest } from '../middleware/auth';
 
 const LoginSchema = z.object({
   email: z.string().email().max(255),
@@ -12,28 +13,66 @@ const LoginSchema = z.object({
 });
 
 export const login = async (req: Request, res: Response): Promise<void> => {
+  const ipAddress = req.ip || req.connection?.remoteAddress || 'Unknown IP';
+  const userAgent = req.headers['user-agent'] || 'Unknown Device';
+  let emailAttempt = '';
+
   try {
-    const { email, password } = LoginSchema.parse(req.body);
+    const parsed = LoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid email or password format.' });
+      return;
+    }
     
+    const { email, password } = parsed.data;
+    emailAttempt = email;
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      await prisma.loginHistory.create({
+        data: {
+          email,
+          ipAddress,
+          userAgent,
+          status: 'FAILED',
+          reason: 'Invalid email',
+        }
+      });
       res.status(400).json({ error: 'Invalid email or password.' });
       return;
     }
 
-    // Check if user account is active
     if (!user.isActive) {
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          email,
+          ipAddress,
+          userAgent,
+          status: 'FAILED',
+          reason: 'Account deactivated',
+        }
+      });
       res.status(403).json({ error: 'Your account has been deactivated. Contact admin.' });
       return;
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          email,
+          ipAddress,
+          userAgent,
+          status: 'FAILED',
+          reason: 'Invalid password',
+        }
+      });
       res.status(400).json({ error: 'Invalid email or password.' });
       return;
     }
 
-    // Parse permissions from JSON field
     const permissions = Array.isArray(user.permissions) ? user.permissions : [];
 
     const token = jwt.sign(
@@ -46,6 +85,29 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token: token,
+        ipAddress,
+        userAgent,
+        expiresAt,
+      }
+    });
+
+    await prisma.loginHistory.create({
+      data: {
+        userId: user.id,
+        email,
+        ipAddress,
+        userAgent,
+        status: 'SUCCESS',
+      }
+    });
 
     logger.info(`User logged in: ${email} (role: ${user.role})`);
     res.json({
@@ -60,12 +122,84 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Invalid email or password format.' });
-      return;
-    }
     logger.error('Server error during login', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error during login' });
+  }
+};
+
+export const getSessions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user._id;
+    const sessions = await prisma.session.findMany({
+      where: { userId, isActive: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    const safeSessions = sessions.map(s => ({
+      id: s.id,
+      ipAddress: s.ipAddress,
+      userAgent: s.userAgent,
+      createdAt: s.createdAt,
+      lastActive: s.createdAt, // Just using createdAt for now
+      expiresAt: s.expiresAt,
+      isCurrent: s.token === req.token,
+    }));
+    res.json(safeSessions);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error fetching sessions' });
+  }
+};
+
+export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const token = req.token;
+    if (token) {
+      await prisma.session.updateMany({
+        where: { token },
+        data: { isActive: false }
+      });
+    }
+    res.json({ message: 'Logged out successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error logging out' });
+  }
+};
+
+export const logoutAllOther = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user._id;
+    const currentToken = req.token;
+    
+    if (!currentToken) {
+      res.status(401).json({ error: 'No token found' });
+      return;
+    }
+    
+    await prisma.session.updateMany({
+      where: { 
+        userId, 
+        token: { not: currentToken },
+        isActive: true
+      },
+      data: { isActive: false }
+    });
+    res.json({ message: 'Logged out from all other devices' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error logging out from other devices' });
+  }
+};
+
+export const getLoginHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user._id;
+    const history = await prisma.loginHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+    res.json(history);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error fetching login history' });
   }
 };
 
