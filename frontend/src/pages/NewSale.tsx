@@ -1,22 +1,19 @@
 import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt, PenTool, Loader2, Search, X, ChevronDown } from 'lucide-react';
+import { Trash2, Receipt, Loader2, Search, X, ChevronDown } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
-import SignatureCanvas from 'react-signature-canvas';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
 export default function NewSale() {
   const navigate = useNavigate();
-  const { isDark } = useTheme();
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('quotationId');
   
@@ -54,7 +51,6 @@ export default function NewSale() {
   // Compliance
   const [eInvoiceAckNo, setEInvoiceAckNo] = useState('');
   const [eWayBillNo, setEWayBillNo] = useState('');
-  const signatureRef = useRef<SignatureCanvas>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -401,9 +397,6 @@ export default function NewSale() {
         documentType,
         eInvoiceAckNo,
         eWayBillNo,
-        customerSignatureUrl: signatureRef.current && !signatureRef.current.isEmpty() 
-          ? signatureRef.current.toDataURL() 
-          : undefined,
         payments: payments.map(p => ({
           paymentMode: p.paymentMode,
           amount: Number(p.amount) || 0,
@@ -957,20 +950,6 @@ export default function NewSale() {
                 <div className="grid grid-cols-2 gap-3">
                   <Input placeholder="E-Invoice Ack No" value={eInvoiceAckNo} onChange={e => setEInvoiceAckNo(e.target.value)} className="text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" />
                   <Input placeholder="E-Way Bill No" value={eWayBillNo} onChange={e => setEWayBillNo(e.target.value)} className="text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1"><PenTool className="w-3.5 h-3.5" /> Customer Signature</label>
-                    <Button variant="ghost" size="sm" className="h-6 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" onClick={() => signatureRef.current?.clear()}>Clear</Button>
-                  </div>
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 overflow-hidden shadow-inner">
-                    <SignatureCanvas 
-                      ref={signatureRef}
-                      penColor={isDark ? '#f8fafc' : '#0f172a'}
-                      canvasProps={{ width: 500, height: 110, className: 'w-full h-full cursor-crosshair' }} 
-                    />
-                  </div>
                 </div>
               </div>
 

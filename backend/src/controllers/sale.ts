@@ -31,9 +31,18 @@ const SaleServiceSchema = z.object({
   isGstInclusive: z.boolean().default(true),
 });
 
+const SalePaymentSchema = z.object({
+  paymentMode: z.string(),
+  amount: z.number().min(0),
+  referenceNumber: z.string().optional(),
+  emiProvider: z.string().optional(),
+  emiReferenceNumber: z.string().optional(),
+});
+
 const SaleInputSchema = z.object({
   customerId: z.string(),
   invoiceType: z.enum(['GST', 'NON_GST']).default('GST'),
+  documentType: z.string().optional(),
   items: z.array(SaleItemSchema).min(1),
   services: z.array(SaleServiceSchema).optional(),
   subtotal: z.number().min(0),
@@ -44,8 +53,12 @@ const SaleInputSchema = z.object({
   cgstAmount: z.number().min(0).default(0),
   sgstAmount: z.number().min(0).default(0),
   grandTotal: z.number().min(0),
-  amountPaid: z.number().min(0).default(0),
+  payments: z.array(SalePaymentSchema).optional(),
+  amountPaid: z.number().min(0).optional(),
   paymentMode: z.string().optional(),
+  eInvoiceAckNo: z.string().optional(),
+  eWayBillNo: z.string().optional(),
+  customerSignatureUrl: z.string().optional(),
 });
 
 export const createSale = async (req: Request, res: Response): Promise<void> => {
@@ -283,6 +296,10 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
       where: { saleId: id as string }
     });
 
+    const salePayments = await prisma.salePayment.findMany({
+      where: { saleId: id as string }
+    });
+
     const profit = calculateSaleProfit({
       ...sale,
       productUnits,
@@ -294,7 +311,8 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
       profit,
       customerId: customer ? mapEntityId(customer) : null,
       items: items,
-      services: services
+      services: services,
+      payments: salePayments.map(mapEntityId)
     }));
   } catch (error: any) {
     logger.error('Error fetching sale by id', { saleId: req.params.id, error: error.message });

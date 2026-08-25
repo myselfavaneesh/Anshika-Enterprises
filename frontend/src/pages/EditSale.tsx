@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt } from 'lucide-react';
+import { Trash2, Receipt, Loader2 } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
@@ -38,18 +38,22 @@ export default function EditSale() {
   
   const [discount, setDiscount] = useState('0');
   const [invoiceType, setInvoiceType] = useState('GST'); 
+  const [documentType, setDocumentType] = useState('TAX_INVOICE');
   
   // Dynamic Services selected
   const [selectedServices, setSelectedServices] = useState<{name: string, amount: string, gstRate: string, isGstInclusive: boolean}[]>([]);
 
-  const [amountPaid, setAmountPaid] = useState('');
-  const [paymentMode, setPaymentMode] = useState('CASH');
+  // Multiple Payments
+  const [payments, setPayments] = useState([{ paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }]);
   
+  // Compliance
+  const [eInvoiceAckNo, setEInvoiceAckNo] = useState('');
+  const [eWayBillNo, setEWayBillNo] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Refs for keyboard navigation
   const productInputRef = useRef<HTMLInputElement>(null);
-  const amountPaidRef = useRef<HTMLInputElement>(null);
   const submitBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -90,8 +94,38 @@ export default function EditSale() {
           isGstInclusive: item.productId.isGstInclusive !== undefined ? item.productId.isGstInclusive : true,
           wattage: item.wattage || item.productId.wattage || 0
         })));
-        setAmountPaid(s.amountPaid?.toString() || '0');
-        setPaymentMode(s.paymentMode || 'CASH');
+
+        if (s.documentType) {
+          setDocumentType(s.documentType);
+        }
+        if (s.eInvoiceAckNo) setEInvoiceAckNo(s.eInvoiceAckNo);
+        if (s.eWayBillNo) setEWayBillNo(s.eWayBillNo);
+
+        if (s.payments && s.payments.length > 0) {
+          setPayments(s.payments.map((p: any) => ({
+            paymentMode: p.paymentMode || 'CASH',
+            amount: p.amount?.toString() || '',
+            emiProvider: p.emiProvider || '',
+            emiReferenceNumber: p.emiReferenceNumber || '',
+            referenceNumber: p.referenceNumber || ''
+          })));
+        } else if (s.salePayments && s.salePayments.length > 0) {
+          setPayments(s.salePayments.map((p: any) => ({
+            paymentMode: p.paymentMode || 'CASH',
+            amount: p.amount?.toString() || '',
+            emiProvider: p.emiProvider || '',
+            emiReferenceNumber: p.emiReferenceNumber || '',
+            referenceNumber: p.referenceNumber || ''
+          })));
+        } else if (s.amountPaid) {
+          setPayments([{
+            paymentMode: s.paymentMode || 'CASH',
+            amount: s.amountPaid.toString(),
+            emiProvider: '',
+            emiReferenceNumber: '',
+            referenceNumber: ''
+          }]);
+        }
       } catch (error) {
         console.error('Error fetching data', error);
       }
@@ -334,6 +368,9 @@ export default function EditSale() {
       const payload = {
         customerId: selectedCustomerId,
         invoiceType,
+        documentType,
+        eInvoiceAckNo,
+        eWayBillNo,
         items: processedCart.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -364,8 +401,13 @@ export default function EditSale() {
           isGstInclusive: Boolean(s.isGstInclusive)
         })),
         grandTotal,
-        amountPaid: Number(amountPaid) || 0,
-        paymentMode
+        payments: payments.map(p => ({
+          paymentMode: p.paymentMode,
+          amount: Number(p.amount) || 0,
+          referenceNumber: p.referenceNumber,
+          emiProvider: p.emiProvider,
+          emiReferenceNumber: p.emiReferenceNumber
+        }))
       };
 
       const response = await api.put(`/sales/${id}`, payload);
@@ -383,10 +425,7 @@ export default function EditSale() {
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F8') {
-        e.preventDefault();
-        amountPaidRef.current?.focus();
-      } else if (e.key === 'F9') {
+      if (e.key === 'F9') {
         e.preventDefault();
         submitBtnRef.current?.click();
       }
@@ -404,6 +443,15 @@ export default function EditSale() {
         </div>
         
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <select 
+            className="h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            value={documentType}
+            onChange={e => setDocumentType(e.target.value)}
+          >
+            <option value="TAX_INVOICE">Tax Invoice</option>
+            <option value="PROFORMA">Proforma Invoice</option>
+            <option value="CHALLAN">Delivery Challan</option>
+          </select>
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
             <Button 
               size="sm" 
@@ -424,8 +472,7 @@ export default function EditSale() {
           </div>
           
           <div className="text-xs text-slate-500 dark:text-slate-400 hidden lg:flex items-center gap-2">
-            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F8</kbd> Payment</div>
-            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F9</kbd> Submit</div>
+            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F9</kbd> Update</div>
           </div>
         </div>
       </div>
@@ -695,40 +742,122 @@ export default function EditSale() {
                 <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">₹{grandTotal.toFixed(2)}</span>
               </div>
 
-              <div className="border-t border-slate-200/80 dark:border-slate-800 pt-4">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 block">Payment Received</label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-xs">₹</span>
-                    <Input 
-                      type="number" 
-                      min="0" 
-                      ref={amountPaidRef}
-                      className="pl-7 h-10 text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
-                      placeholder="0.00"
-                      value={amountPaid} 
-                      onChange={e => setAmountPaid(e.target.value)} 
-                    />
-                  </div>
-                  <select 
-                    className="w-28 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-2 font-medium text-xs"
-                    value={paymentMode}
-                    onChange={e => setPaymentMode(e.target.value)}
+              <div className="border-t border-slate-200/80 dark:border-slate-800 pt-4 space-y-3">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Payment(s) Received</label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-[11px] rounded-lg"
+                    onClick={() => setPayments([...payments, { paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }])}
                   >
-                    <option value="CASH">CASH</option>
-                    <option value="UPI">UPI</option>
-                    <option value="BANK">BANK</option>
-                  </select>
+                    + Add Payment
+                  </Button>
                 </div>
-                {Number(amountPaid) > 0 && (
+                
+                {payments.map((p, idx) => (
+                  <div key={idx} className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2 relative">
+                    {payments.length > 1 && (
+                      <button 
+                        className="absolute right-2 top-2 text-red-500 hover:text-red-700 p-1"
+                        onClick={() => {
+                          const newP = [...payments];
+                          newP.splice(idx, 1);
+                          setPayments(newP);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <div className="flex gap-2 pr-5">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-xs">₹</span>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          className="pl-7 h-9 text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
+                          placeholder="Amount"
+                          value={p.amount} 
+                          onChange={e => {
+                            const newP = [...payments];
+                            newP[idx].amount = e.target.value;
+                            setPayments(newP);
+                          }} 
+                        />
+                      </div>
+                      <select 
+                        className="w-32 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-2 font-medium text-xs"
+                        value={p.paymentMode}
+                        onChange={e => {
+                          const newP = [...payments];
+                          newP[idx].paymentMode = e.target.value;
+                          setPayments(newP);
+                        }}
+                      >
+                        <option value="CASH">CASH</option>
+                        <option value="UPI">UPI</option>
+                        <option value="BANK">BANK</option>
+                        <option value="CHEQUE">CHEQUE</option>
+                        <option value="CREDIT_CARD">CREDIT CARD</option>
+                        <option value="BAJAJ_FINANCE">BAJAJ FINANCE</option>
+                      </select>
+                    </div>
+                    {p.paymentMode === 'BAJAJ_FINANCE' && (
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Provider (e.g. Bajaj, HDFC)" 
+                          className="h-8 bg-white dark:bg-slate-950 text-xs"
+                          value={p.emiProvider}
+                          onChange={e => {
+                            const newP = [...payments];
+                            newP[idx].emiProvider = e.target.value;
+                            setPayments(newP);
+                          }}
+                        />
+                        <Input 
+                          placeholder="EMI Ref / Loan No" 
+                          className="h-8 bg-white dark:bg-slate-950 text-xs"
+                          value={p.emiReferenceNumber}
+                          onChange={e => {
+                            const newP = [...payments];
+                            newP[idx].emiReferenceNumber = e.target.value;
+                            setPayments(newP);
+                          }}
+                        />
+                      </div>
+                    )}
+                    {['UPI', 'BANK', 'CHEQUE', 'CREDIT_CARD'].includes(p.paymentMode) && (
+                       <Input 
+                         placeholder="Transaction / Cheque No" 
+                         className="h-8 bg-white dark:bg-slate-950 text-xs w-full"
+                         value={p.referenceNumber}
+                         onChange={e => {
+                           const newP = [...payments];
+                           newP[idx].referenceNumber = e.target.value;
+                           setPayments(newP);
+                         }}
+                       />
+                    )}
+                  </div>
+                ))}
+
+                {payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) > 0 && (
                   <div className="mt-1 text-right text-xs font-mono font-bold">
-                    {Number(amountPaid) > grandTotal ? (
-                      <span className="text-amber-600 dark:text-amber-400">Return Change: ₹{(Number(amountPaid) - grandTotal).toFixed(2)}</span>
+                    {payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) > grandTotal ? (
+                      <span className="text-amber-600 dark:text-amber-400">Return Change: ₹{(payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) - grandTotal).toFixed(2)}</span>
                     ) : (
-                      <span className="text-red-600 dark:text-red-400">Due Balance: ₹{(grandTotal - Number(amountPaid)).toFixed(2)}</span>
+                      <span className="text-red-600 dark:text-red-400">Due Balance: ₹{(grandTotal - payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)).toFixed(2)}</span>
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="border-t border-slate-200/80 dark:border-slate-800 pt-4 space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">Compliance & E-Way Bill (Optional)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input placeholder="E-Invoice Ack No" value={eInvoiceAckNo} onChange={e => setEInvoiceAckNo(e.target.value)} className="text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" />
+                  <Input placeholder="E-Way Bill No" value={eWayBillNo} onChange={e => setEWayBillNo(e.target.value)} className="text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" />
+                </div>
               </div>
 
               <Button 
@@ -737,8 +866,11 @@ export default function EditSale() {
                 onClick={handleUpdateSale}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
-                <Receipt className="mr-2 h-5 w-5" />
-                Update Sale (F9)
+                {isSubmitting ? (
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Updating...</>
+                ) : (
+                  <><Receipt className="mr-2 h-5 w-5" /> Update Sale (F9)</>
+                )}
               </Button>
             </CardContent>
           </Card>
