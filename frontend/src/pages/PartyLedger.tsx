@@ -240,15 +240,15 @@ export default function PartyLedger() {
 
       <div id="ledger-table-container" className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
         <Table className="min-w-[650px]">
-          <TableHeader className="bg-slate-50">
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Ref No.</TableHead>
-              <TableHead className="text-right">Bill Amount</TableHead>
-              <TableHead className="text-right">Paid Amount</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead className="text-center w-24">Actions</TableHead>
+          <TableHeader className="bg-slate-50 dark:bg-slate-900/60">
+            <TableRow className="border-slate-200 dark:border-slate-800">
+              <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Date</TableHead>
+              <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Description</TableHead>
+              <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Ref No.</TableHead>
+              <TableHead className="text-right text-xs font-bold text-slate-700 dark:text-slate-300">Bill Amount</TableHead>
+              <TableHead className="text-right text-xs font-bold text-slate-700 dark:text-slate-300">Paid Amount</TableHead>
+              <TableHead className="text-right text-xs font-bold text-slate-700 dark:text-slate-300">Balance</TableHead>
+              <TableHead className="text-center w-24 text-xs font-bold text-slate-700 dark:text-slate-300">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

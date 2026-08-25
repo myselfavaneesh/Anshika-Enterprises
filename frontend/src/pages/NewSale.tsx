@@ -1,6 +1,7 @@
 import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -15,6 +16,7 @@ const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
 export default function NewSale() {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('quotationId');
   
@@ -443,23 +445,26 @@ export default function NewSale() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight">POS / New Sale</h2>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">POS / New Sale</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Create a point of sale invoice</p>
+        </div>
         
-        <div className="flex items-center gap-6">
-            <select 
-              className="h-9 px-3 rounded-md border text-sm font-medium bg-white shadow-sm"
-              value={documentType}
-              onChange={e => setDocumentType(e.target.value)}
-            >
-              <option value="TAX_INVOICE">Tax Invoice</option>
-              <option value="PROFORMA">Proforma Invoice</option>
-              <option value="CHALLAN">Delivery Challan</option>
-            </select>
-          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg border">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <select 
+            className="h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            value={documentType}
+            onChange={e => setDocumentType(e.target.value)}
+          >
+            <option value="TAX_INVOICE">Tax Invoice</option>
+            <option value="PROFORMA">Proforma Invoice</option>
+            <option value="CHALLAN">Delivery Challan</option>
+          </select>
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
             <Button 
               size="sm" 
               variant={invoiceType === 'GST' ? 'default' : 'ghost'} 
-              className={invoiceType === 'GST' ? 'shadow-sm' : ''}
+              className={`rounded-lg text-xs font-semibold ${invoiceType === 'GST' ? 'shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
               onClick={() => setInvoiceType('GST')}
             >
               GST Invoice
@@ -467,25 +472,25 @@ export default function NewSale() {
             <Button 
               size="sm" 
               variant={invoiceType === 'NON_GST' ? 'default' : 'ghost'}
-              className={invoiceType === 'NON_GST' ? 'shadow-sm' : ''}
+              className={`rounded-lg text-xs font-semibold ${invoiceType === 'NON_GST' ? 'shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
               onClick={() => setInvoiceType('NON_GST')}
             >
               Non-GST Invoice
             </Button>
           </div>
           
-          <div className="text-sm text-slate-500 hidden md:block">
-            <kbd className="px-2 py-1 bg-slate-100 border rounded mr-2">F8</kbd> Jump to Payment
-            <kbd className="px-2 py-1 bg-slate-100 border rounded ml-4 mr-2">F9</kbd> Submit
+          <div className="text-xs text-slate-500 dark:text-slate-400 hidden lg:flex items-center gap-2">
+            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F8</kbd> Payment</div>
+            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F9</kbd> Submit</div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-t-4 border-t-primary shadow-sm">
+          <Card className="border-t-4 border-t-primary shadow-soft">
             <CardHeader className="py-4">
-              <CardTitle className="text-lg">Customer Selection</CardTitle>
+              <CardTitle className="text-base font-bold text-slate-900 dark:text-white">Customer Selection</CardTitle>
             </CardHeader>
             <CardContent>
               <Input 
@@ -493,7 +498,7 @@ export default function NewSale() {
                 placeholder="Search Customer by Name or Phone... (Press Tab to move)"
                 value={customerSearch}
                 onChange={e => setCustomerSearch(e.target.value)}
-                className="text-lg py-6 shadow-inner"
+                className="text-base py-5 shadow-inner bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 autoFocus
               />
               <datalist id="customers-list">
@@ -506,21 +511,21 @@ export default function NewSale() {
                 const isExceeded = creditLimit !== null && creditLimit !== undefined && projectedBalance > creditLimit;
 
                 return (
-                  <div className={`mt-3 p-3 rounded-md flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm ${isExceeded ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-green-50 text-green-800'}`}>
+                  <div className={`mt-3 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs font-medium ${isExceeded ? 'bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-900' : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900'}`}>
                     <div>
-                      <span className="font-semibold">{selectedCustomer.name}</span> • {selectedCustomer.phone}
+                      <span className="font-bold text-sm">{selectedCustomer.name}</span> • {selectedCustomer.phone}
                       {selectedCustomer.gstNumber && ` • GST: ${selectedCustomer.gstNumber}`}
-                      <div className="mt-1 font-medium text-xs opacity-90">
+                      <div className="mt-1 font-medium opacity-90">
                         State Code: {selectedCustomer.stateCode || '-'} {isInterState ? '(IGST)' : '(CGST/SGST)'}
                       </div>
                     </div>
-                    <div className="font-medium text-right mt-2 sm:mt-0">
+                    <div className="font-medium text-right mt-2 sm:mt-0 font-mono">
                       <div>Current Bal: ₹{selectedCustomer.outstandingBalance.toFixed(2)}</div>
                       {creditLimit !== null && creditLimit !== undefined && (
-                        <div className="text-xs mt-0.5">Credit Limit: ₹{creditLimit.toFixed(2)}</div>
+                        <div className="opacity-80 mt-0.5">Credit Limit: ₹{creditLimit.toFixed(2)}</div>
                       )}
                       {isExceeded && (
-                        <div className="font-bold text-red-600 flex items-center mt-1">
+                        <div className="font-bold text-red-600 dark:text-red-400 flex items-center mt-1">
                           ⚠️ Credit Limit Exceeded
                         </div>
                       )}
@@ -632,53 +637,53 @@ export default function NewSale() {
                 </Button>
               </div>
 
-              <div className="rounded-md border overflow-x-auto">
+              <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-x-auto">
                 <Table className="min-w-[600px]">
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right w-16">Qty</TableHead>
-                      <TableHead className="text-right w-32">Rate / Price (Inc. Tax)</TableHead>
-                      <TableHead className="text-right w-32">Total</TableHead>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-900/60">
+                    <TableRow className="border-slate-200 dark:border-slate-800">
+                      <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Product</TableHead>
+                      <TableHead className="text-right w-16 text-xs font-bold text-slate-700 dark:text-slate-300">Qty</TableHead>
+                      <TableHead className="text-right w-36 text-xs font-bold text-slate-700 dark:text-slate-300">Rate (Inc. Tax)</TableHead>
+                      <TableHead className="text-right w-32 text-xs font-bold text-slate-700 dark:text-slate-300">Total</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cart.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Cart is empty. Scan a product to begin.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400 dark:text-slate-600 text-xs font-medium">Cart is empty. Scan or search a product to begin.</TableCell></TableRow>
                     ) : (
                       cart.map((item) => (
-                        <TableRow key={item.productId} className="hover:bg-slate-50">
+                        <TableRow key={item.productId} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800/80">
                           <TableCell className="font-medium">
-                            <div>{item.name}</div>
+                            <div className="text-slate-900 dark:text-white font-semibold text-xs">{item.name}</div>
                             {item.serialNumbers.length > 0 && (
-                              <div className="text-xs font-mono text-slate-500 mt-1 truncate max-w-[250px]">
+                              <div className="text-[11px] font-mono text-slate-400 mt-0.5 truncate max-w-[250px]">
                                 {item.serialNumbers.join(', ')}
                               </div>
                             )}
                             {item.wattage > 0 && (
-                              <div className="text-xs text-blue-600 font-semibold mt-1">
+                              <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 font-mono">
                                 Panel Wattage: {item.wattage}W | Total: {item.wattage * item.quantity}W
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-right font-bold text-lg">{item.quantity}</TableCell>
+                          <TableCell className="text-right font-bold text-base font-mono">{item.quantity}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex flex-col items-end">
                               <Input 
                                 type="number" 
                                 min="0" 
-                                className="w-full h-8 text-right font-medium" 
+                                className="w-full h-8 text-right font-medium font-mono text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
                                 value={item.unitPrice || ''} 
                                 onChange={e => updateItemPrice(item.productId, Number(e.target.value))}
                                 placeholder="0.00"
                               />
-                              {item.wattage > 0 && <span className="text-xs text-muted-foreground mt-1">Per Watt</span>}
+                              {item.wattage > 0 && <span className="text-[10px] text-slate-400 mt-0.5">Per Watt</span>}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-bold text-lg text-primary">₹{item.totalPrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-bold text-sm text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">₹{item.totalPrice.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeFromCart(item.productId)}>
+                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg h-8 w-8" onClick={() => removeFromCart(item.productId)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -693,46 +698,46 @@ export default function NewSale() {
         </div>
 
         <div className="space-y-6">
-          <Card className="shadow-lg border-primary/20 sticky top-6">
-            <CardHeader className="bg-slate-50 border-b pb-4">
-              <CardTitle>Billing Summary</CardTitle>
+          <Card className="shadow-soft border-slate-200/80 dark:border-slate-800 sticky top-6">
+            <CardHeader className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+              <CardTitle className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Billing Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-5 pt-6">
-              <div className="flex justify-between items-center text-slate-600">
+            <CardContent className="space-y-4 pt-5">
+              <div className="flex justify-between items-center text-slate-700 dark:text-slate-300 text-xs font-semibold">
                 <span>Subtotal (Inc. Tax)</span>
-                <span className="font-semibold text-lg">₹{subtotal.toFixed(2)}</span>
+                <span className="font-bold text-base font-mono tabular-nums text-slate-900 dark:text-white">₹{subtotal.toFixed(2)}</span>
               </div>
               
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">Discount</span>
+              <div className="flex justify-between items-center text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span>Discount</span>
                 <div className="relative w-32">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">₹</span>
                   <Input 
                     type="number" 
                     min="0" 
-                    className="pl-7 text-right font-medium" 
+                    className="pl-7 text-right font-bold font-mono text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
                     value={discount} 
                     onChange={e => setDiscount(e.target.value)} 
                   />
                 </div>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
               {selectedServices.map((service, index) => (
-                <div key={index} className="flex flex-col sm:flex-row gap-2 p-3 bg-slate-50 rounded border">
+                <div key={index} className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800">
                   <div className="flex-1 space-y-2">
                     <Input
-                      placeholder="Cost Name (e.g., Installation)"
+                      placeholder="Charge Name (e.g. Installation)"
                       value={service.name}
                       onChange={(e) => {
                         const newServices = [...selectedServices];
                         newServices[index].name = e.target.value;
                         setSelectedServices(newServices);
                       }}
-                      className="font-medium text-sm"
+                      className="font-medium text-xs bg-white dark:bg-slate-950"
                     />
                     <div className="flex gap-2">
                       <select 
-                        className="w-1/2 rounded-md border border-input bg-background px-3 text-sm"
+                        className="w-1/2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs text-slate-900 dark:text-white"
                         value={service.gstRate || "0"}
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -747,7 +752,7 @@ export default function NewSale() {
                         <option value="28">28% GST</option>
                       </select>
                       <select 
-                        className="w-1/2 rounded-md border border-input bg-background px-3 text-sm"
+                        className="w-1/2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs text-slate-900 dark:text-white"
                         value={service.isGstInclusive ? "true" : "false"}
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -761,11 +766,11 @@ export default function NewSale() {
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2">
-                    <div className="relative w-32">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₹</span>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">₹</span>
                       <Input 
-                        type="number" min="0" className="pl-7 text-right font-medium" 
+                        type="number" min="0" className="pl-7 text-right font-bold font-mono text-xs bg-white dark:bg-slate-950" 
                         value={service.amount} 
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -777,7 +782,7 @@ export default function NewSale() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="text-red-400 hover:text-red-600 h-10 w-10 shrink-0" 
+                      className="text-red-400 hover:text-red-600 rounded-lg h-8 w-8 shrink-0" 
                       onClick={() => {
                         const newServices = selectedServices.filter((_, i) => i !== index);
                         setSelectedServices(newServices);
@@ -793,11 +798,11 @@ export default function NewSale() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="w-full border-dashed mt-2"
+                className="w-full border-dashed text-xs rounded-xl"
                 onClick={() => {
                   setSelectedServices([...selectedServices, { 
                     name: '', 
-                    amount: '0',
+                    amount: '0', 
                     gstRate: '18',
                     isGstInclusive: true
                   }]);
@@ -807,43 +812,43 @@ export default function NewSale() {
               </Button>
               
               {invoiceType === 'GST' && (
-              <div className="bg-slate-50 p-3 rounded-lg space-y-2 text-sm border">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Taxable Value</span>
-                  <span className="font-medium">₹{taxableAmount.toFixed(2)}</span>
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl space-y-2 text-xs border border-slate-200/80 dark:border-slate-800">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Taxable Value</span>
+                  <span className="font-bold font-mono tabular-nums text-slate-900 dark:text-white">₹{taxableAmount.toFixed(2)}</span>
                 </div>
                 {isInterState ? (
-                  <div className="flex justify-between text-indigo-600">
+                  <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
                     <span>IGST</span>
-                    <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
+                    <span>₹{taxAmount.toFixed(2)}</span>
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between text-indigo-600">
+                    <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
                       <span>CGST</span>
-                      <span className="font-medium">₹{cgstAmount.toFixed(2)}</span>
+                      <span>₹{cgstAmount.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-indigo-600">
+                    <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
                       <span>SGST</span>
-                      <span className="font-medium">₹{sgstAmount.toFixed(2)}</span>
+                      <span>₹{sgstAmount.toFixed(2)}</span>
                     </div>
                   </>
                 )}
               </div>
               )}
 
-              <div className="pt-2 flex justify-between items-center">
-                <span className="text-xl font-bold">Grand Total</span>
-                <span className="text-3xl font-black text-primary">₹{grandTotal.toFixed(2)}</span>
+              <div className="pt-2 flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
+                <span className="text-sm font-bold uppercase text-slate-900 dark:text-white">Grand Total</span>
+                <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">₹{grandTotal.toFixed(2)}</span>
               </div>
 
-              <div className="border-t-2 border-dashed pt-5 mt-5 space-y-4">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-bold text-slate-700">Payment(s) Received</label>
+              <div className="border-t border-slate-200/80 dark:border-slate-800 pt-4 space-y-3">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Payment(s) Received</label>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="h-8 text-xs"
+                    className="h-7 text-[11px] rounded-lg"
                     onClick={() => setPayments([...payments, { paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }])}
                   >
                     + Add Payment
@@ -851,26 +856,26 @@ export default function NewSale() {
                 </div>
                 
                 {payments.map((p, idx) => (
-                  <div key={idx} className="bg-slate-50 p-3 rounded-lg border space-y-3 relative">
+                  <div key={idx} className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2 relative">
                     {payments.length > 1 && (
                       <button 
-                        className="absolute right-2 top-2 text-red-500 hover:text-red-700"
+                        className="absolute right-2 top-2 text-red-500 hover:text-red-700 p-1"
                         onClick={() => {
                           const newP = [...payments];
                           newP.splice(idx, 1);
                           setPayments(newP);
                         }}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
-                    <div className="flex gap-2 pr-6">
+                    <div className="flex gap-2 pr-5">
                       <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-xs">₹</span>
                         <Input 
                           type="number" 
                           min="0" 
-                          className="pl-7 h-10 text-lg font-bold text-green-700 bg-white" 
+                          className="pl-7 h-9 text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
                           placeholder="Amount"
                           value={p.amount} 
                           onChange={e => {
@@ -881,7 +886,7 @@ export default function NewSale() {
                         />
                       </div>
                       <select 
-                        className="w-32 h-10 rounded-md border border-input bg-white px-2 font-medium text-sm"
+                        className="w-32 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-2 font-medium text-xs"
                         value={p.paymentMode}
                         onChange={e => {
                           const newP = [...payments];
@@ -901,7 +906,7 @@ export default function NewSale() {
                       <div className="flex gap-2">
                         <Input 
                           placeholder="Provider (e.g. Bajaj, HDFC)" 
-                          className="h-9 bg-white text-sm"
+                          className="h-8 bg-white dark:bg-slate-950 text-xs"
                           value={p.emiProvider}
                           onChange={e => {
                             const newP = [...payments];
@@ -911,7 +916,7 @@ export default function NewSale() {
                         />
                         <Input 
                           placeholder="EMI Ref / Loan No" 
-                          className="h-9 bg-white text-sm"
+                          className="h-8 bg-white dark:bg-slate-950 text-xs"
                           value={p.emiReferenceNumber}
                           onChange={e => {
                             const newP = [...payments];
@@ -924,7 +929,7 @@ export default function NewSale() {
                     {['UPI', 'BANK', 'CHEQUE', 'CREDIT_CARD'].includes(p.paymentMode) && (
                        <Input 
                          placeholder="Transaction / Cheque No" 
-                         className="h-9 bg-white text-sm w-full"
+                         className="h-8 bg-white dark:bg-slate-950 text-xs w-full"
                          value={p.referenceNumber}
                          onChange={e => {
                            const newP = [...payments];
@@ -937,32 +942,33 @@ export default function NewSale() {
                 ))}
 
                 {payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) > 0 && (
-                  <div className="mt-2 text-right text-sm">
+                  <div className="mt-1 text-right text-xs font-mono font-bold">
                     {payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) > grandTotal ? (
-                      <span className="text-orange-600 font-medium">Return Change: ₹{(payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) - grandTotal).toFixed(2)}</span>
+                      <span className="text-amber-600 dark:text-amber-400">Return Change: ₹{(payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) - grandTotal).toFixed(2)}</span>
                     ) : (
-                      <span className="text-red-600 font-medium">Due Balance: ₹{(grandTotal - payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)).toFixed(2)}</span>
+                      <span className="text-red-600 dark:text-red-400">Due Balance: ₹{(grandTotal - payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)).toFixed(2)}</span>
                     )}
                   </div>
                 )}
               </div>
 
-              <div className="border-t-2 border-dashed pt-5 mt-5 space-y-4">
-                <label className="text-sm font-bold text-slate-700 block">Compliance & E-Way Bill (Optional)</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="E-Invoice Ack No" value={eInvoiceAckNo} onChange={e => setEInvoiceAckNo(e.target.value)} />
-                  <Input placeholder="E-Way Bill No" value={eWayBillNo} onChange={e => setEWayBillNo(e.target.value)} />
+              <div className="border-t border-slate-200/80 dark:border-slate-800 pt-4 space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block">Compliance & E-Way Bill (Optional)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input placeholder="E-Invoice Ack No" value={eInvoiceAckNo} onChange={e => setEInvoiceAckNo(e.target.value)} className="text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" />
+                  <Input placeholder="E-Way Bill No" value={eWayBillNo} onChange={e => setEWayBillNo(e.target.value)} className="text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" />
                 </div>
                 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm font-medium text-slate-600 flex items-center gap-1"><PenTool className="w-4 h-4" /> Customer Signature</label>
-                    <Button variant="ghost" size="sm" className="h-6 text-xs text-slate-500" onClick={() => signatureRef.current?.clear()}>Clear</Button>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1"><PenTool className="w-3.5 h-3.5" /> Customer Signature</label>
+                    <Button variant="ghost" size="sm" className="h-6 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" onClick={() => signatureRef.current?.clear()}>Clear</Button>
                   </div>
-                  <div className="border rounded-md bg-white overflow-hidden shadow-inner">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 overflow-hidden shadow-inner">
                     <SignatureCanvas 
                       ref={signatureRef}
-                      canvasProps={{ width: 500, height: 120, className: 'w-full h-full cursor-crosshair' }} 
+                      penColor={isDark ? '#f8fafc' : '#0f172a'}
+                      canvasProps={{ width: 500, height: 110, className: 'w-full h-full cursor-crosshair' }} 
                     />
                   </div>
                 </div>
@@ -970,14 +976,14 @@ export default function NewSale() {
 
               <Button 
                 ref={submitBtnRef}
-                className="w-full h-14 text-lg font-bold mt-4 shadow-md" 
+                className="w-full h-12 text-base font-bold mt-3 shadow-md rounded-xl" 
                 onClick={handleGenerateInvoice}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
                 {isSubmitting ? (
-                  <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Processing...</>
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</>
                 ) : (
-                  <><Receipt className="mr-2 h-6 w-6" /> Complete Sale (F9)</>
+                  <><Receipt className="mr-2 h-5 w-5" /> Complete Sale (F9)</>
                 )}
               </Button>
             </CardContent>
@@ -1012,10 +1018,10 @@ export default function NewSale() {
                   <div 
                     key={s._id}
                     onClick={() => toggleSerialSelection(s.serialNumber)}
-                    className={`p-3 border-2 rounded-lg cursor-pointer transition-all text-sm font-mono text-center select-none ${
+                    className={`p-3 border-2 rounded-xl cursor-pointer transition-all text-xs font-mono text-center select-none ${
                       isSelected 
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm scale-[0.98]' 
-                      : 'hover:border-primary/50 hover:bg-slate-50 bg-white'
+                      : 'hover:border-primary/50 hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white'
                     }`}
                   >
                     {s.serialNumber}

@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Package, IndianRupee, TrendingUp, AlertTriangle, Users, Calendar, ShoppingCart } from 'lucide-react';
-
+import { Package, TrendingUp, AlertTriangle, Users, Calendar, ShoppingCart, ShieldCheck } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface DashboardStats {
@@ -24,9 +23,9 @@ interface DashboardStats {
 
 const DATE_FILTERS = [
   { value: 'today', label: 'Today' },
-  { value: 'week', label: '7 Days' },
+  { value: 'week', label: '7D' },
   { value: 'month', label: 'Month' },
-  { value: '30days', label: '30 Days' },
+  { value: '30days', label: '30D' },
   { value: 'all', label: 'All Time' },
   { value: 'custom', label: 'Custom' },
 ];
@@ -35,40 +34,38 @@ const StatCard = ({
   title,
   value,
   icon: Icon,
-  colorClass,
-  iconBg,
-  subtext,
+  badgeText,
 }: {
   title: string;
   value: string;
-  icon: any;
-  colorClass: string;
-  iconBg: string;
-  subtext?: string;
-}) => (
-  <Card className={`relative overflow-hidden border-0 shadow-sm ${colorClass}`}>
-    <CardContent className="p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">{title}</p>
-          <p className="text-2xl font-extrabold tracking-tight">{value}</p>
-          {subtext && <p className="text-xs opacity-60 mt-0.5">{subtext}</p>}
-        </div>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-          <Icon className="h-5 w-5 opacity-90" />
-        </div>
+  icon?: any;
+  badgeText?: string;
+}) => {
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</p>
+        {Icon && (
+          <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+            <Icon className="h-4 w-4" />
+          </div>
+        )}
       </div>
-    </CardContent>
-  </Card>
-);
+      <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-mono tabular-nums">{value}</p>
+      {badgeText && (
+        <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span>{badgeText}</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SkeletonCard = () => (
-  <div className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 space-y-3 shadow-sm">
-    <div className="flex justify-between items-center">
-      <div className="h-3 w-28 shimmer rounded-full" />
-      <div className="h-8 w-8 shimmer rounded-xl" />
-    </div>
-    <div className="h-7 w-36 shimmer rounded-full" />
+  <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 space-y-3 shadow-sm">
+    <div className="h-3 w-24 shimmer rounded-full" />
+    <div className="h-7 w-32 shimmer rounded-lg" />
   </div>
 );
 
@@ -120,24 +117,24 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header & Filter Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Dashboard</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Business overview & analytics</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Business Dashboard</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Overview & key operational performance indicators</p>
         </div>
 
-        {/* Pill Date Filter */}
+        {/* Date Filter Tabs */}
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm flex-wrap">
+          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-1 shadow-sm flex-wrap">
             {DATE_FILTERS.map((f) => (
               <button
                 key={f.value}
                 onClick={() => setDateRangeType(f.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-95 ${
                   dateRangeType === f.value
                     ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 {f.label}
@@ -146,111 +143,108 @@ const Dashboard = () => {
           </div>
 
           {dateRangeType === 'custom' && (
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 shadow-sm">
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
               <Calendar className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
               <input 
                 type="date" 
                 value={customStartDate} 
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="border-0 outline-none text-xs bg-transparent text-slate-700 dark:text-slate-300"
+                className="border-0 outline-none text-xs bg-transparent text-slate-700 dark:text-slate-300 font-mono"
               />
               <span className="text-slate-400 text-xs">→</span>
               <input 
                 type="date" 
                 value={customEndDate} 
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="border-0 outline-none text-xs bg-transparent text-slate-700 dark:text-slate-300"
+                className="border-0 outline-none text-xs bg-transparent text-slate-700 dark:text-slate-300 font-mono"
               />
             </div>
           )}
         </div>
       </div>
       
-      {/* Filtered Stats Banner */}
+      {/* Filtered Active Banner */}
       {stats?.isFiltered && (
         <div className="grid gap-4 sm:grid-cols-2">
           <StatCard
             title="Filtered Sales Revenue"
-            value={`₹${stats.filteredRevenue.toFixed(2)}`}
-            icon={IndianRupee}
-            colorClass="bg-gradient-to-br from-blue-500 to-blue-600 text-white"
-            iconBg="bg-white/20"
+            value={`₹${stats.filteredRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={TrendingUp}
+            badgeText="Period revenue"
           />
           <StatCard
             title="Filtered Gross Profit"
-            value={`₹${stats.filteredProfit.toFixed(2)}`}
+            value={`₹${stats.filteredProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={TrendingUp}
-            colorClass="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white"
-            iconBg="bg-white/20"
+            badgeText="Period estimated profit"
           />
         </div>
       )}
 
-      {/* Global Stats */}
+      {/* Bento Grid Metrics */}
       {!stats ? (
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
-            title="All Time Revenue"
-            value={`₹${stats.totalSales.toFixed(2)}`}
-            icon={IndianRupee}
-            colorClass="bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900/30"
-            iconBg="bg-white/20"
+            title="Total Revenue"
+            value={`₹${stats.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={TrendingUp}
+            badgeText="All-time gross sales"
           />
           <StatCard
-            title="Taxable Revenue"
-            value={`₹${(stats.totalTaxableSales || 0).toFixed(2)}`}
-            icon={IndianRupee}
-            colorClass="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
-            iconBg="bg-slate-100 dark:bg-slate-700 text-slate-500"
+            title="Taxable Sales"
+            value={`₹${(stats.totalTaxableSales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={ShieldCheck}
+            badgeText="GST eligible volume"
           />
           <StatCard
             title="Today's Sales"
-            value={`₹${stats.todaysSales.toFixed(2)}`}
+            value={`₹${stats.todaysSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={ShoppingCart}
-            colorClass="bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md shadow-sky-200 dark:shadow-sky-900/30"
-            iconBg="bg-white/20"
+            badgeText="Real-time daily tracker"
           />
           <StatCard
-            title="Total Products"
+            title="Inventory SKUs"
             value={`${stats.totalProducts}`}
             icon={Package}
-            colorClass="bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200 dark:shadow-violet-900/30"
-            iconBg="bg-white/20"
+            badgeText="Catalog active items"
           />
           <StatCard
-            title="Outstanding"
-            value={`₹${(stats.totalCustomerOutstanding || 0).toFixed(2)}`}
+            title="Khata Balance Due"
+            value={`₹${(stats.totalCustomerOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={Users}
-            colorClass="bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-200 dark:shadow-amber-900/30"
-            iconBg="bg-white/20"
-            subtext="Customer balance due"
+            badgeText="Customer receivables"
           />
         </div>
       )}
 
-      {/* Chart */}
-      <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+      {/* Chart Section */}
+      <Card className="border border-slate-200/80 dark:border-slate-800 shadow-soft">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-indigo-500" />
-            Sales & Profit Trend {dateRangeType !== 'all' ? <span className="text-xs font-normal text-slate-400 ml-1">(filtered)</span> : ''}
+            <span>Revenue & Profit Performance</span>
+            {dateRangeType !== 'all' && (
+              <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md">
+                Filtered
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[320px] w-full">
+          <div className="h-[300px] w-full">
             {!stats ? (
               <div className="h-full shimmer rounded-xl" />
             ) : stats.chartData && stats.chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={stats.chartData}
-                  margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.6} />
                   <XAxis 
                     dataKey="date" 
                     tickFormatter={(val) => {
@@ -259,68 +253,72 @@ const Dashboard = () => {
                     }}
                     tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(val) => `₹${val}`} />
+                  <YAxis 
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
+                    tickFormatter={(val) => `₹${val}`}
+                  />
                   <RechartsTooltip 
                     formatter={(value: any) => [`₹${Number(value).toFixed(2)}`, undefined]}
                     labelFormatter={(label) => `Date: ${label}`}
                     contentStyle={{
                       background: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
-                      borderRadius: '10px',
+                      borderRadius: '12px',
                       fontSize: '12px',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
                     }}
                   />
-                  <Legend wrapperStyle={{ fontSize: '12px' }} />
-                  <Line type="monotone" dataKey="sales" name="Sales" stroke="#6366f1" activeDot={{ r: 6 }} strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="profit" name="Gross Profit" stroke="#10b981" strokeWidth={2.5} dot={false} />
+                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                  <Line type="monotone" dataKey="sales" name="Sales" stroke="#6366f1" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="profit" name="Gross Profit" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full items-center justify-center text-slate-400 dark:text-slate-600 flex-col gap-2">
-                <TrendingUp className="h-10 w-10 opacity-30" />
-                <p className="text-sm">No data for selected period</p>
+                <TrendingUp className="h-8 w-8 opacity-30" />
+                <p className="text-xs font-medium">No sales recorded for the selected timeframe</p>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Bottom Grid */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Low Stock */}
-        <Card className="border border-red-200 dark:border-red-900/40 shadow-sm">
-          <CardHeader className="bg-red-50 dark:bg-red-900/20 rounded-t-xl pb-3">
-            <CardTitle className="flex items-center text-sm font-semibold text-red-700 dark:text-red-400">
-              <AlertTriangle className="mr-2 h-4 w-4" />
+      {/* Bottom Grid: Low Stock & Recent Transactions */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Low Stock Card */}
+        <Card className="border border-slate-200/80 dark:border-slate-800 shadow-soft">
+          <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80 flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <AlertTriangle className="mr-2 h-4 w-4 text-amber-500" />
               Low Stock Alerts
-              {stats && stats.lowStockProducts.length > 0 && (
-                <span className="ml-auto text-xs bg-red-600 text-white rounded-full px-2 py-0.5 font-bold">
-                  {stats.lowStockProducts.length}
-                </span>
-              )}
             </CardTitle>
+            {stats && stats.lowStockProducts.length > 0 && (
+              <span className="text-[10px] bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 rounded-full px-2 py-0.5 font-bold border border-red-200/80 dark:border-red-900/40">
+                {stats.lowStockProducts.length} items
+              </span>
+            )}
           </CardHeader>
           <CardContent className="pt-4">
             {!stats ? (
               <div className="space-y-3">
-                {[1,2,3].map(i => <div key={i} className="h-10 shimmer rounded-lg" />)}
+                {[1,2,3].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
               </div>
             ) : stats.lowStockProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center text-emerald-600 dark:text-emerald-400">
-                <Package className="h-8 w-8 mb-2 opacity-60" />
-                <p className="text-sm font-medium">All products adequately stocked</p>
+              <div className="flex flex-col items-center justify-center py-8 text-center text-emerald-600 dark:text-emerald-400">
+                <Package className="h-8 w-8 mb-2 opacity-50" />
+                <p className="text-xs font-semibold">Inventory levels are healthy</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {stats.lowStockProducts.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between rounded-lg bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 px-3 py-2">
+                  <div key={index} className="flex items-center justify-between rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 px-3.5 py-2.5 transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-900">
                     <div>
-                      <p className="font-semibold text-sm text-slate-800 dark:text-white">{item.product?.name}</p>
-                      <p className="text-xs text-slate-400">SKU: {item.product?.sku}</p>
+                      <p className="font-semibold text-xs text-slate-800 dark:text-white">{item.product?.name}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">SKU: {item.product?.sku}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-red-600 dark:text-red-400">{item.currentStock} left</p>
-                      <p className="text-xs text-slate-400">Min: {item.product?.lowStockThreshold}</p>
+                      <p className="text-xs font-bold text-red-600 dark:text-red-400 font-mono">{item.currentStock} left</p>
+                      <p className="text-[10px] text-slate-400 font-mono">Threshold: {item.product?.lowStockThreshold}</p>
                     </div>
                   </div>
                 ))}
@@ -329,42 +327,42 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Sales */}
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+        {/* Recent Sales Table */}
+        <Card className="border border-slate-200/80 dark:border-slate-800 shadow-soft">
+          <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <ShoppingCart className="h-4 w-4 text-indigo-500" />
-              Recent Sales
+              Recent Invoices
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-2">
             {!stats ? (
-              <div className="space-y-3">
-                {[1,2,3].map(i => <div key={i} className="h-10 shimmer rounded-lg" />)}
+              <div className="space-y-3 pt-2">
+                {[1,2,3].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
               </div>
             ) : stats.recentSales.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400">
+              <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400">
                 <ShoppingCart className="h-8 w-8 mb-2 opacity-40" />
-                <p className="text-sm">No recent sales</p>
+                <p className="text-xs font-medium">No recent transactions recorded</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-slate-100 dark:border-slate-800">
-                      <TableHead className="text-xs font-semibold">Invoice</TableHead>
-                      <TableHead className="text-xs font-semibold">Customer</TableHead>
-                      <TableHead className="text-right text-xs font-semibold">Amount</TableHead>
-                      <TableHead className="text-right text-xs font-semibold">Profit</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase text-slate-400">Invoice</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase text-slate-400">Customer</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold uppercase text-slate-400">Amount</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold uppercase text-slate-400">Profit</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {stats.recentSales.map((sale) => (
-                      <TableRow key={sale._id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <TableCell className="font-semibold text-indigo-600 dark:text-indigo-400 text-sm py-2.5">{sale.invoiceNumber}</TableCell>
-                        <TableCell className="text-sm py-2.5 text-slate-600 dark:text-slate-300">{sale.customerId?.name || 'Unknown'}</TableCell>
-                        <TableCell className="text-right text-sm py-2.5 font-medium">₹{sale.grandTotal.toFixed(2)}</TableCell>
-                        <TableCell className={`text-right font-bold text-sm py-2.5 ${(sale.profit || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : (sale.profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
+                      <TableRow key={sale._id} className="border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <TableCell className="font-semibold text-indigo-600 dark:text-indigo-400 text-xs py-2.5 font-mono">{sale.invoiceNumber}</TableCell>
+                        <TableCell className="text-xs py-2.5 text-slate-700 dark:text-slate-300 font-medium truncate max-w-[120px]">{sale.customerId?.name || 'Walk-in'}</TableCell>
+                        <TableCell className="text-right text-xs py-2.5 font-semibold font-mono tabular-nums">₹{sale.grandTotal.toFixed(2)}</TableCell>
+                        <TableCell className={`text-right font-bold text-xs py-2.5 font-mono tabular-nums ${(sale.profit || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : (sale.profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
                           {(sale.profit || 0) >= 0 ? '+' : ''}₹{(sale.profit || 0).toFixed(2)}
                         </TableCell>
                       </TableRow>

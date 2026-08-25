@@ -398,14 +398,17 @@ export default function EditSale() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight">POS / Edit Sale</h2>
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">POS / Edit Sale</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Modify sale invoice</p>
+        </div>
         
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg border">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
             <Button 
               size="sm" 
               variant={invoiceType === 'GST' ? 'default' : 'ghost'} 
-              className={invoiceType === 'GST' ? 'shadow-sm' : ''}
+              className={`rounded-lg text-xs font-semibold ${invoiceType === 'GST' ? 'shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
               onClick={() => setInvoiceType('GST')}
             >
               GST Invoice
@@ -413,25 +416,25 @@ export default function EditSale() {
             <Button 
               size="sm" 
               variant={invoiceType === 'NON_GST' ? 'default' : 'ghost'}
-              className={invoiceType === 'NON_GST' ? 'shadow-sm' : ''}
+              className={`rounded-lg text-xs font-semibold ${invoiceType === 'NON_GST' ? 'shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
               onClick={() => setInvoiceType('NON_GST')}
             >
               Non-GST Invoice
             </Button>
           </div>
           
-          <div className="text-sm text-slate-500 hidden md:block">
-            <kbd className="px-2 py-1 bg-slate-100 border rounded mr-2">F8</kbd> Jump to Payment
-            <kbd className="px-2 py-1 bg-slate-100 border rounded ml-4 mr-2">F9</kbd> Submit
+          <div className="text-xs text-slate-500 dark:text-slate-400 hidden lg:flex items-center gap-2">
+            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F8</kbd> Payment</div>
+            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F9</kbd> Submit</div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-t-4 border-t-primary shadow-sm">
+          <Card className="border-t-4 border-t-primary shadow-soft">
             <CardHeader className="py-4">
-              <CardTitle className="text-lg">Customer Selection</CardTitle>
+              <CardTitle className="text-base font-bold text-slate-900 dark:text-white">Customer Selection</CardTitle>
             </CardHeader>
             <CardContent>
               <Input 
@@ -439,19 +442,19 @@ export default function EditSale() {
                 placeholder="Search Customer by Name or Phone... (Press Tab to move)"
                 value={customerSearch}
                 onChange={e => setCustomerSearch(e.target.value)}
-                className="text-lg py-6 shadow-inner"
+                className="text-base py-5 shadow-inner bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
                 autoFocus
               />
               <datalist id="customers-list">
                 {customers.map(c => <option key={c._id} value={`${c.name} (${c.phone})`} />)}
               </datalist>
               {selectedCustomer && (
-                <div className="mt-3 p-3 bg-green-50 text-green-800 rounded-md flex justify-between items-center text-sm">
+                <div className="mt-3 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 rounded-xl flex justify-between items-center text-xs font-medium">
                   <div>
-                    <span className="font-semibold">{selectedCustomer.name}</span> • {selectedCustomer.phone}
+                    <span className="font-bold text-sm">{selectedCustomer.name}</span> • {selectedCustomer.phone}
                     {selectedCustomer.gstNumber && ` • GST: ${selectedCustomer.gstNumber}`}
                   </div>
-                  <div className="font-medium">
+                  <div className="font-medium font-mono">
                     State Code: {selectedCustomer.stateCode || '-'} {isInterState ? '(IGST)' : '(CGST/SGST)'}
                   </div>
                 </div>
@@ -488,51 +491,51 @@ export default function EditSale() {
                 </Button>
               </div>
 
-              <div className="rounded-md border overflow-x-auto">
+              <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-x-auto">
                 <Table className="min-w-[600px]">
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right w-16">Qty</TableHead>
-                      <TableHead className="text-right w-32">Rate / Price (Inc. Tax)</TableHead>
-                      <TableHead className="text-right w-32">Total</TableHead>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-900/60">
+                    <TableRow className="border-slate-200 dark:border-slate-800">
+                      <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Product</TableHead>
+                      <TableHead className="text-right w-16 text-xs font-bold text-slate-700 dark:text-slate-300">Qty</TableHead>
+                      <TableHead className="text-right w-36 text-xs font-bold text-slate-700 dark:text-slate-300">Rate (Inc. Tax)</TableHead>
+                      <TableHead className="text-right w-32 text-xs font-bold text-slate-700 dark:text-slate-300">Total</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cart.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Cart is empty. Scan a product to begin.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400 dark:text-slate-600 text-xs font-medium">Cart is empty. Scan a product to begin.</TableCell></TableRow>
                     ) : (
                       cart.map((item) => (
-                        <TableRow key={item.productId} className="hover:bg-slate-50">
+                        <TableRow key={item.productId} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800/80">
                           <TableCell className="font-medium">
-                            <div>{item.name}</div>
-                            <div className="text-xs font-mono text-slate-500 mt-1 truncate max-w-[250px]">
+                            <div className="text-slate-900 dark:text-white font-semibold text-xs">{item.name}</div>
+                            <div className="text-[11px] font-mono text-slate-400 mt-0.5 truncate max-w-[250px]">
                               {item.serialNumbers.join(', ')}
                             </div>
                             {item.wattage > 0 && (
-                              <div className="text-xs text-blue-600 font-semibold mt-1">
+                              <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 font-mono">
                                 Panel Wattage: {item.wattage}W | Total: {item.wattage * item.quantity}W
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-right font-bold text-lg">{item.quantity}</TableCell>
+                          <TableCell className="text-right font-bold text-base font-mono">{item.quantity}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex flex-col items-end">
                               <Input 
                                 type="number" 
                                 min="0" 
-                                className="w-full h-8 text-right font-medium" 
+                                className="w-full h-8 text-right font-medium font-mono text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
                                 value={item.unitPrice || ''} 
                                 onChange={e => updateItemPrice(item.productId, Number(e.target.value))}
                                 placeholder="0.00"
                               />
-                              {item.wattage > 0 && <span className="text-xs text-muted-foreground mt-1">Per Watt</span>}
+                              {item.wattage > 0 && <span className="text-[10px] text-slate-400 mt-0.5">Per Watt</span>}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-bold text-lg text-primary">₹{item.totalPrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-bold text-sm text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">₹{item.totalPrice.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeFromCart(item.productId)}>
+                            <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg h-8 w-8" onClick={() => removeFromCart(item.productId)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -547,47 +550,47 @@ export default function EditSale() {
         </div>
 
         <div className="space-y-6">
-          <Card className="shadow-lg border-primary/20 sticky top-6">
-            <CardHeader className="bg-slate-50 border-b pb-4">
-              <CardTitle>Billing Summary</CardTitle>
+          <Card className="shadow-soft border-slate-200/80 dark:border-slate-800 sticky top-6">
+            <CardHeader className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+              <CardTitle className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Billing Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-5 pt-6">
-              <div className="flex justify-between items-center text-slate-600">
+            <CardContent className="space-y-4 pt-5">
+              <div className="flex justify-between items-center text-slate-700 dark:text-slate-300 text-xs font-semibold">
                 <span>Subtotal (Inc. Tax)</span>
-                <span className="font-semibold text-lg">₹{subtotal.toFixed(2)}</span>
+                <span className="font-bold text-base font-mono tabular-nums text-slate-900 dark:text-white">₹{subtotal.toFixed(2)}</span>
               </div>
               
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">Discount</span>
+              <div className="flex justify-between items-center text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span>Discount</span>
                 <div className="relative w-32">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">₹</span>
                   <Input 
                     type="number" 
                     min="0" 
-                    className="pl-7 text-right font-medium" 
+                    className="pl-7 text-right font-bold font-mono text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
                     value={discount} 
                     onChange={e => setDiscount(e.target.value)} 
                   />
                 </div>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
               {selectedServices.map((service, index) => (
-                <div key={index} className="flex flex-col sm:flex-row gap-2 p-3 bg-slate-50 rounded border">
+                <div key={index} className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800">
                   <div className="flex-1 space-y-2">
                     <Input
-                      placeholder="Cost Name (e.g., Installation)"
+                      placeholder="Charge Name (e.g. Installation)"
                       value={service.name}
                       onChange={(e) => {
                         const newServices = [...selectedServices];
                         newServices[index].name = e.target.value;
                         setSelectedServices(newServices);
                       }}
-                      className="font-medium text-sm"
+                      className="font-medium text-xs bg-white dark:bg-slate-950"
                     />
                     <div className="flex gap-2">
                       <select 
-                        className="w-1/2 rounded-md border border-input bg-background px-3 text-sm"
+                        className="w-1/2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs text-slate-900 dark:text-white"
                         value={service.gstRate || "0"}
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -602,7 +605,7 @@ export default function EditSale() {
                         <option value="28">28% GST</option>
                       </select>
                       <select 
-                        className="w-1/2 rounded-md border border-input bg-background px-3 text-sm"
+                        className="w-1/2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs text-slate-900 dark:text-white"
                         value={service.isGstInclusive ? "true" : "false"}
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -616,11 +619,11 @@ export default function EditSale() {
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2">
-                    <div className="relative w-32">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₹</span>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">₹</span>
                       <Input 
-                        type="number" min="0" className="pl-7 text-right font-medium" 
+                        type="number" min="0" className="pl-7 text-right font-bold font-mono text-xs bg-white dark:bg-slate-950" 
                         value={service.amount} 
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -632,7 +635,7 @@ export default function EditSale() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="text-red-400 hover:text-red-600 h-10 w-10 shrink-0" 
+                      className="text-red-400 hover:text-red-600 rounded-lg h-8 w-8 shrink-0" 
                       onClick={() => {
                         const newServices = selectedServices.filter((_, i) => i !== index);
                         setSelectedServices(newServices);
@@ -648,11 +651,11 @@ export default function EditSale() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="w-full border-dashed mt-2"
+                className="w-full border-dashed text-xs rounded-xl"
                 onClick={() => {
                   setSelectedServices([...selectedServices, { 
                     name: '', 
-                    amount: '0',
+                    amount: '0', 
                     gstRate: '18',
                     isGstInclusive: true
                   }]);
@@ -662,53 +665,53 @@ export default function EditSale() {
               </Button>
               
               {invoiceType === 'GST' && (
-              <div className="bg-slate-50 p-3 rounded-lg space-y-2 text-sm border">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Taxable Value</span>
-                  <span className="font-medium">₹{taxableAmount.toFixed(2)}</span>
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl space-y-2 text-xs border border-slate-200/80 dark:border-slate-800">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Taxable Value</span>
+                  <span className="font-bold font-mono tabular-nums text-slate-900 dark:text-white">₹{taxableAmount.toFixed(2)}</span>
                 </div>
                 {isInterState ? (
-                  <div className="flex justify-between text-indigo-600">
+                  <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
                     <span>IGST</span>
-                    <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
+                    <span>₹{taxAmount.toFixed(2)}</span>
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between text-indigo-600">
+                    <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
                       <span>CGST</span>
-                      <span className="font-medium">₹{cgstAmount.toFixed(2)}</span>
+                      <span>₹{cgstAmount.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-indigo-600">
+                    <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
                       <span>SGST</span>
-                      <span className="font-medium">₹{sgstAmount.toFixed(2)}</span>
+                      <span>₹{sgstAmount.toFixed(2)}</span>
                     </div>
                   </>
                 )}
               </div>
               )}
 
-              <div className="pt-2 flex justify-between items-center">
-                <span className="text-xl font-bold">Grand Total</span>
-                <span className="text-3xl font-black text-primary">₹{grandTotal.toFixed(2)}</span>
+              <div className="pt-2 flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
+                <span className="text-sm font-bold uppercase text-slate-900 dark:text-white">Grand Total</span>
+                <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">₹{grandTotal.toFixed(2)}</span>
               </div>
 
-              <div className="border-t-2 border-dashed pt-5 mt-5">
-                <label className="text-sm font-bold text-slate-700 mb-2 block">Payment Received</label>
+              <div className="border-t border-slate-200/80 dark:border-slate-800 pt-4">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 block">Payment Received</label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-xs">₹</span>
                     <Input 
                       type="number" 
                       min="0" 
                       ref={amountPaidRef}
-                      className="pl-7 h-12 text-xl font-bold text-green-700" 
+                      className="pl-7 h-10 text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
                       placeholder="0.00"
                       value={amountPaid} 
                       onChange={e => setAmountPaid(e.target.value)} 
                     />
                   </div>
                   <select 
-                    className="w-28 h-12 rounded-md border border-input bg-background px-3 font-medium"
+                    className="w-28 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-2 font-medium text-xs"
                     value={paymentMode}
                     onChange={e => setPaymentMode(e.target.value)}
                   >
@@ -718,11 +721,11 @@ export default function EditSale() {
                   </select>
                 </div>
                 {Number(amountPaid) > 0 && (
-                  <div className="mt-2 text-right text-sm">
+                  <div className="mt-1 text-right text-xs font-mono font-bold">
                     {Number(amountPaid) > grandTotal ? (
-                      <span className="text-orange-600 font-medium">Return Change: ₹{(Number(amountPaid) - grandTotal).toFixed(2)}</span>
+                      <span className="text-amber-600 dark:text-amber-400">Return Change: ₹{(Number(amountPaid) - grandTotal).toFixed(2)}</span>
                     ) : (
-                      <span className="text-red-600 font-medium">Due Balance: ₹{(grandTotal - Number(amountPaid)).toFixed(2)}</span>
+                      <span className="text-red-600 dark:text-red-400">Due Balance: ₹{(grandTotal - Number(amountPaid)).toFixed(2)}</span>
                     )}
                   </div>
                 )}
@@ -730,11 +733,11 @@ export default function EditSale() {
 
               <Button 
                 ref={submitBtnRef}
-                className="w-full h-14 text-lg font-bold mt-4 shadow-md" 
+                className="w-full h-12 text-base font-bold mt-3 shadow-md rounded-xl" 
                 onClick={handleUpdateSale}
                 disabled={isSubmitting || cart.length === 0 || !selectedCustomerId}
               >
-                <Receipt className="mr-2 h-6 w-6" />
+                <Receipt className="mr-2 h-5 w-5" />
                 Update Sale (F9)
               </Button>
             </CardContent>

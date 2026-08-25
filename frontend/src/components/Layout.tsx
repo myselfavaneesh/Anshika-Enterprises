@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallAppModal } from './InstallAppModal';
 import { InstallAppBanner } from './InstallAppBanner';
@@ -22,10 +23,13 @@ import {
   Download,
   Shield,
   Receipt,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const Layout = () => {
   const { user, logout, loading, hasPermission, isAdmin } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -77,34 +81,34 @@ const Layout = () => {
     : 'U';
 
   return (
-    <div className="flex h-screen bg-slate-100 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen h-[100dvh] bg-slate-100/70 dark:bg-slate-950 overflow-hidden w-full">
       
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden" 
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm md:hidden animate-fade-in" 
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0 shadow-2xl md:shadow-none
+        fixed inset-y-0 left-0 z-50 w-64 h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-auto shadow-2xl md:shadow-none flex-shrink-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-indigo-600 to-violet-600 flex-shrink-0">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/80 dark:border-slate-800/80 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-0.5 shadow-sm flex-shrink-0">
+            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center p-0.5 shadow-md flex-shrink-0">
               <img src={AnshikaLogo} alt="Anshika Enterprises" className="w-full h-full object-contain" />
             </div>
             <div className="leading-tight">
               <h1 className="text-sm font-bold text-white tracking-tight">Anshika Enterprises</h1>
-              <p className="text-[10px] text-indigo-200">Power • Solar • Appliances</p>
+              <p className="text-[10px] text-indigo-200/80 font-medium">Power • Solar • Appliances</p>
             </div>
           </div>
           <button 
-            className="md:hidden text-white/80 hover:text-white hover:bg-white/15 p-1 rounded-lg transition-colors"
+            className="md:hidden text-white/70 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-all active:scale-95"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-5 w-5" />
@@ -112,9 +116,9 @@ const Layout = () => {
         </div>
         
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3">
-          <p className="px-4 mb-1 text-[10px] font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-widest">Menu</p>
-          <ul className="space-y-0.5 px-2">
+        <nav className="flex-1 overflow-y-auto py-3 px-2">
+          <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Navigation</p>
+          <ul className="space-y-1">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href || 
                               (item.href !== '/' && location.pathname.startsWith(item.href));
@@ -123,18 +127,14 @@ const Layout = () => {
                   <Link
                     to={item.href}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative ${
+                    className={`flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group relative active:scale-[0.98] ${
                       isActive 
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 shadow-sm' 
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
+                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200 dark:shadow-indigo-950' 
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
                     }`}
                   >
-                    {/* Active left indicator */}
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-indigo-600 rounded-r-full" />
-                    )}
-                    <item.icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-colors ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} />
-                    {item.name}
+                    <item.icon className={`mr-2.5 h-4 w-4 flex-shrink-0 transition-colors ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'}`} />
+                    <span className="truncate">{item.name}</span>
                   </Link>
                 </li>
               );
@@ -143,33 +143,49 @@ const Layout = () => {
         </nav>
         
         {/* Bottom Section */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2 flex-shrink-0">
+        <div className="p-3 border-t border-slate-200/80 dark:border-slate-800/80 space-y-2 flex-shrink-0 bg-slate-50/50 dark:bg-slate-950/30">
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all border border-slate-200/60 dark:border-slate-800/60 active:scale-[0.98]"
+          >
+            <div className="flex items-center">
+              {isDark ? (
+                <Sun className="mr-2 h-4 w-4 flex-shrink-0 text-amber-400" />
+              ) : (
+                <Moon className="mr-2 h-4 w-4 flex-shrink-0 text-slate-500" />
+              )}
+              <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+            </div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">{isDark ? 'ON' : 'OFF'}</span>
+          </button>
+
           {!isInstalled && (
             <button
               onClick={() => {
                 setSidebarOpen(false);
                 triggerInstall();
               }}
-              className="flex w-full items-center px-3 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 transition-colors"
+              className="flex w-full items-center px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200/80 dark:border-emerald-800/60 transition-all active:scale-[0.98]"
             >
-              <Smartphone className="mr-2.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span>Install App</span>
+              <Smartphone className="mr-2 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>Install Mobile App</span>
             </button>
           )}
 
           {/* User card */}
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm">
+          <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user.name}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 truncate capitalize">{user.role}</p>
+              <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{user.name}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate capitalize">{user.role}</p>
             </div>
             <button
               onClick={logout}
               title="Logout"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors flex-shrink-0 active:scale-95"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -180,98 +196,109 @@ const Layout = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden w-full min-w-0">
         {/* Mobile Header */}
-        <div className="md:hidden h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-4 justify-between flex-shrink-0 shadow-sm">
+        <div className="md:hidden h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 flex items-center px-4 justify-between flex-shrink-0 shadow-sm z-30 sticky top-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200 shadow-sm p-0.5">
+            <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center border border-slate-200 shadow-sm p-0.5">
               <img src={AnshikaLogo} alt="Anshika Enterprises" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-base font-bold text-slate-800 dark:text-white">Anshika Enterprises</h1>
+            <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Anshika Enterprises</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95"
+              title={isDark ? 'Light Mode' : 'Dark Mode'}
+            >
+              {isDark ? (
+                <Sun className="h-4 w-4 text-amber-400" />
+              ) : (
+                <Moon className="h-4 w-4 text-slate-500" />
+              )}
+            </button>
             {!isInstalled && (
               <button
                 onClick={triggerInstall}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/80 rounded-lg hover:bg-emerald-100 transition-all active:scale-95"
               >
-                <Download className="h-3.5 w-3.5" />
-                <span>Install</span>
+                <Download className="h-3 w-3" />
+                <span>App</span>
               </button>
             )}
             <button 
-              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95"
               onClick={() => setSidebarOpen(true)}
             >
-              <Menu className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+              <Menu className="h-5 w-5" />
             </button>
           </div>
         </div>
 
         <InstallAppBanner onInstall={triggerInstall} isInstalled={isInstalled} />
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-7 pb-20 md:pb-7">
-          <div className="mx-auto max-w-6xl animate-fade-in-up">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 pb-24 md:pb-6">
+          <div className="mx-auto max-w-7xl animate-fade-in-up">
             <Outlet />
           </div>
         </main>
 
-        {/* Mobile Bottom Navigation Bar */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-around z-40 px-1 shadow-lg">
+        {/* Mobile Floating Bottom Navigation Bar */}
+        <div className="md:hidden fixed bottom-3 left-3 right-3 h-15 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl flex items-center justify-around z-40 px-2 shadow-diffusion">
           {hasPermission('dashboard:view') && (
             <Link 
               to="/" 
-              className={`flex flex-col items-center justify-center w-full h-full py-1 text-[10px] font-semibold transition-colors ${
+              className={`flex flex-col items-center justify-center py-1 text-[10px] font-semibold transition-all active:scale-95 ${
                 location.pathname === '/' 
                   ? 'text-indigo-600 dark:text-indigo-400' 
                   : 'text-slate-400 dark:text-slate-500'
               }`}
             >
-              <LayoutDashboard className={`h-5 w-5 mb-0.5 transition-all ${location.pathname === '/' ? 'scale-110' : ''}`} />
-              Home
+              <LayoutDashboard className={`h-4.5 w-4.5 mb-0.5 transition-transform ${location.pathname === '/' ? 'scale-110' : ''}`} />
+              <span>Home</span>
             </Link>
           )}
           {hasPermission('sales:view') && (
             <Link 
               to="/sales" 
-              className={`flex flex-col items-center justify-center w-full h-full py-1 text-[10px] font-semibold transition-colors ${
+              className={`flex flex-col items-center justify-center py-1 text-[10px] font-semibold transition-all active:scale-95 ${
                 location.pathname.startsWith('/sales') && location.pathname !== '/sales/new' 
                   ? 'text-indigo-600 dark:text-indigo-400' 
                   : 'text-slate-400 dark:text-slate-500'
               }`}
             >
-              <ShoppingCart className={`h-5 w-5 mb-0.5 transition-all ${location.pathname.startsWith('/sales') && location.pathname !== '/sales/new' ? 'scale-110' : ''}`} />
-              Sales
+              <ShoppingCart className={`h-4.5 w-4.5 mb-0.5 transition-transform ${location.pathname.startsWith('/sales') && location.pathname !== '/sales/new' ? 'scale-110' : ''}`} />
+              <span>Sales</span>
             </Link>
           )}
           {hasPermission('sales:create') && (
             <Link 
               to="/sales/new" 
-              className="flex flex-col items-center justify-center w-full h-full py-1"
+              className="flex flex-col items-center justify-center -mt-6 active:scale-95 transition-transform"
             >
-              <div className={`bg-indigo-600 text-white p-2.5 rounded-full shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50 -mt-5 border-2 border-white dark:border-slate-900 transition-all active:scale-95 ${location.pathname === '/sales/new' ? 'scale-110 bg-violet-600' : ''}`}>
+              <div className="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-500/30 border-2 border-white dark:border-slate-900 transition-all">
                 <Plus className="h-5 w-5" />
               </div>
-              <span className={`text-[10px] font-bold mt-0.5 ${location.pathname === '/sales/new' ? 'text-violet-600' : 'text-indigo-600 dark:text-indigo-400'}`}>New Sale</span>
+              <span className="text-[10px] font-bold mt-0.5 text-indigo-600 dark:text-indigo-400">Add Sale</span>
             </Link>
           )}
           {hasPermission('parties:view') && (
             <Link 
               to="/parties" 
-              className={`flex flex-col items-center justify-center w-full h-full py-1 text-[10px] font-semibold transition-colors ${
+              className={`flex flex-col items-center justify-center py-1 text-[10px] font-semibold transition-all active:scale-95 ${
                 location.pathname.startsWith('/parties') 
                   ? 'text-indigo-600 dark:text-indigo-400' 
                   : 'text-slate-400 dark:text-slate-500'
               }`}
             >
-              <Users className={`h-5 w-5 mb-0.5 transition-all ${location.pathname.startsWith('/parties') ? 'scale-110' : ''}`} />
-              Khata
+              <Users className={`h-4.5 w-4.5 mb-0.5 transition-transform ${location.pathname.startsWith('/parties') ? 'scale-110' : ''}`} />
+              <span>Khata</span>
             </Link>
           )}
           <button 
             onClick={() => setSidebarOpen(true)}
-            className="flex flex-col items-center justify-center w-full h-full py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
+            className="flex flex-col items-center justify-center py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 transition-all hover:text-slate-600 dark:hover:text-slate-300 active:scale-95"
           >
-            <Menu className="h-5 w-5 mb-0.5" />
-            More
+            <Menu className="h-4.5 w-4.5 mb-0.5" />
+            <span>More</span>
           </button>
         </div>
       </div>

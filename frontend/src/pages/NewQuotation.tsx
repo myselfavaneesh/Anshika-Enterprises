@@ -558,23 +558,23 @@ const NewQuotation = () => {
                 />
               </div>
 
-              <div className="space-y-4">
+                        <div className="space-y-3">
               {selectedServices.map((service, index) => (
-                <div key={index} className="flex flex-col sm:flex-row gap-2 p-3 bg-slate-50 rounded border">
+                <div key={index} className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-800">
                   <div className="flex-1 space-y-2">
                     <Input
-                      placeholder="Cost Name (e.g., Installation)"
+                      placeholder="Charge Name (e.g. Installation)"
                       value={service.name}
                       onChange={(e) => {
                         const newServices = [...selectedServices];
                         newServices[index].name = e.target.value;
                         setSelectedServices(newServices);
                       }}
-                      className="font-medium text-sm"
+                      className="font-medium text-xs bg-white dark:bg-slate-950"
                     />
                     <div className="flex gap-2">
                       <select 
-                        className="w-1/2 rounded-md border border-input bg-background px-3 text-sm"
+                        className="w-1/2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs text-slate-900 dark:text-white"
                         value={service.gstRate || "0"}
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -589,7 +589,7 @@ const NewQuotation = () => {
                         <option value="28">28% GST</option>
                       </select>
                       <select 
-                        className="w-1/2 rounded-md border border-input bg-background px-3 text-sm"
+                        className="w-1/2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs text-slate-900 dark:text-white"
                         value={service.isGstInclusive ? "true" : "false"}
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -603,11 +603,11 @@ const NewQuotation = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2">
-                    <div className="relative w-32">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₹</span>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">₹</span>
                       <Input 
-                        type="number" min="0" className="pl-7 text-right font-medium" 
+                        type="number" min="0" className="pl-7 text-right font-bold font-mono text-xs bg-white dark:bg-slate-950" 
                         value={service.amount} 
                         onChange={e => {
                           const newServices = [...selectedServices];
@@ -619,7 +619,7 @@ const NewQuotation = () => {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="text-red-400 hover:text-red-600 h-10 w-10 shrink-0" 
+                      className="text-red-400 hover:text-red-600 rounded-lg h-8 w-8 shrink-0" 
                       onClick={() => {
                         const newServices = selectedServices.filter((_, i) => i !== index);
                         setSelectedServices(newServices);
@@ -635,11 +635,11 @@ const NewQuotation = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="w-full border-dashed mt-2"
+                className="w-full border-dashed text-xs rounded-xl"
                 onClick={() => {
                   setSelectedServices([...selectedServices, { 
                     name: '', 
-                    amount: '0',
+                    amount: '0', 
                     gstRate: '18',
                     isGstInclusive: true
                   }]);
@@ -649,30 +649,29 @@ const NewQuotation = () => {
               </Button>
               
               {invoiceType === 'GST' && (
-                <>
-                  <div className="border-t pt-4 flex justify-between text-sm">
-                    <span className="text-slate-500">Taxable Value</span>
-                    <span className="font-medium">₹{taxableAmount.toFixed(2)}</span>
+                <div className="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl space-y-2 text-xs border border-slate-200/80 dark:border-slate-800">
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>Taxable Value</span>
+                    <span className="font-bold font-mono tabular-nums text-slate-900 dark:text-white">₹{taxableAmount.toFixed(2)}</span>
                   </div>
                   {isInterState ? (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">IGST</span>
-                      <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
+                    <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
+                      <span>IGST</span>
+                      <span>₹{taxAmount.toFixed(2)}</span>
                     </div>
                   ) : (
                     <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">CGST</span>
-                        <span className="font-medium">₹{cgstAmount.toFixed(2)}</span>
+                      <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
+                        <span>CGST</span>
+                        <span>₹{cgstAmount.toFixed(2)}</span>
                       </div>
-                      
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">SGST</span>
-                        <span className="font-medium">₹{sgstAmount.toFixed(2)}</span>
+                      <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
+                        <span>SGST</span>
+                        <span>₹{sgstAmount.toFixed(2)}</span>
                       </div>
                     </>
                   )}
-                </>
+                </div>
               )}
 
               <div className="flex justify-between items-center border-t pt-4">
