@@ -25,7 +25,7 @@ const Login = () => {
       login(response.data.token, response.data.user);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      setError(err.response?.data?.error || err.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }

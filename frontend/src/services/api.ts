@@ -1,7 +1,8 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: 'https://anshika-enterprises.onrender.com/api',
 });
 
 api.interceptors.request.use((config) => {
@@ -23,6 +24,11 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+
+    // Global Error Catcher
+    const errorMessage = error.response?.data?.error || error.message || 'An unexpected error occurred';
+    toast.error(`API Error: ${errorMessage}`);
+
     return Promise.reject(error);
   }
 );
