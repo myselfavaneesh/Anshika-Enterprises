@@ -217,52 +217,79 @@ export default function Parties() {
                 }
 
                 return (
-                  <TableRow key={party._id} className="cursor-pointer hover:bg-slate-50" onClick={() => navigate(`/parties/${type}/${party._id}/ledger`)}>
-                    <TableCell className="font-medium">
+                  <TableRow 
+                    key={party._id} 
+                    className="cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-900/60 border-slate-200/80 dark:border-slate-800/80 transition-colors" 
+                    onClick={() => navigate(`/parties/${type}/${party._id}/ledger`)}
+                  >
+                    <TableCell className="font-medium text-slate-900 dark:text-white">
                       {party.name}
-                      {party.group && <span className="ml-2 inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800">{party.group}</span>}
+                      {party.group && <span className="ml-2 inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-800 dark:text-slate-200">{party.group}</span>}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {party.phone ? (
                         <a
                           href={`tel:${party.phone.replace(/[^0-9+]/g, '')}`}
-                          className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 font-medium"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline inline-flex items-center gap-1 font-medium text-xs font-mono"
                           title="Click to direct call"
                         >
-                          <Phone className="h-3.5 w-3.5 text-blue-500" />
+                          <Phone className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
                           {party.phone}
                         </a>
                       ) : (
-                        '-'
+                        <span className="text-slate-400 dark:text-slate-600">-</span>
                       )}
                     </TableCell>
-                    <TableCell>{party.group || '-'}</TableCell>
-                    <TableCell>{party.gstNumber || '-'}</TableCell>
-                    <TableCell className={`text-right ${balColor}`}>
+                    <TableCell className="text-slate-600 dark:text-slate-400">{party.group || '-'}</TableCell>
+                    <TableCell className="text-slate-600 dark:text-slate-400 font-mono text-xs">{party.gstNumber || '-'}</TableCell>
+                    <TableCell className={`text-right font-mono tabular-nums ${balColor}`}>
                       {formatCurrency(Math.abs(bal))} <span className="text-xs opacity-80">{bal !== 0 && balLabel}</span>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1 items-center">
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/parties/${type}/${party._id}/ledger`); }}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-xs rounded-lg"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/parties/${type}/${party._id}/ledger`); }}
+                        >
                           Statement
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg h-8 w-8" 
                           onClick={(e) => handleCall(party, e)} 
                           title={party.phone ? `Direct Call (${party.phone})` : "No phone number available"}
                           disabled={!party.phone}
                         >
                           <Phone className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={(e) => handleSendCommunityInvite(party, e)} title="Send Community Invite">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/40 rounded-lg h-8 w-8" 
+                          onClick={(e) => handleSendCommunityInvite(party, e)} 
+                          title="Send Community Invite"
+                        >
                           <MessageCircle className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={(e) => handleEdit(party, e)} title="Edit">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg h-8 w-8 text-slate-600 dark:text-slate-300"
+                          onClick={(e) => handleEdit(party, e)} 
+                          title="Edit"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => handleDelete(party._id, type, e)} title="Delete">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg h-8 w-8" 
+                          onClick={(e) => handleDelete(party._id, type, e)} 
+                          title="Delete"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

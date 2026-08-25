@@ -131,7 +131,7 @@ export default function ProfileSettings() {
                 <CardTitle>Active Sessions</CardTitle>
                 <CardDescription>Devices currently logged into your account.</CardDescription>
               </div>
-              <Button onClick={handleLogoutAllOther} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
+              <Button onClick={handleLogoutAllOther} variant="outline" className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/60 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs">
                 <LogOut className="w-4 h-4 mr-2" />
                 Log out all other devices
               </Button>
@@ -141,19 +141,19 @@ export default function ProfileSettings() {
                 {sessions.map(session => {
                   const device = parseDevice(session.userAgent);
                   return (
-                    <div key={session.id} className="flex items-center justify-between p-4 rounded-lg border bg-slate-50">
+                    <div key={session.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
                       <div className="flex items-center gap-4">
-                        <div className="p-2 bg-white rounded-full shadow-sm border">
+                        <div className="p-2 bg-white dark:bg-slate-950 rounded-full shadow-sm border border-slate-200 dark:border-slate-800">
                           {device.icon}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-slate-900">{device.type}</p>
+                            <p className="font-medium text-slate-900 dark:text-white">{device.type}</p>
                             {session.isCurrent && (
                               <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Current Device</Badge>
                             )}
                           </div>
-                          <p className="text-sm text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                             IP: {session.ipAddress || 'Unknown'} • Signed in: {format(new Date(session.createdAt), 'MMM d, yyyy h:mm a')}
                           </p>
                         </div>
@@ -161,51 +161,48 @@ export default function ProfileSettings() {
                     </div>
                   );
                 })}
-                {sessions.length === 0 && (
-                  <p className="text-center text-slate-500 py-4">No active sessions found.</p>
-                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="history">
+        <TabsContent value="history" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Login History</CardTitle>
               <CardDescription>Recent login attempts to your account.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border overflow-x-auto">
+              <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-x-auto bg-white dark:bg-slate-950 shadow-sm">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>IP Address</TableHead>
-                      <TableHead>Device / Browser</TableHead>
+                  <TableHeader className="bg-slate-50 dark:bg-slate-900/60">
+                    <TableRow className="border-slate-200 dark:border-slate-800">
+                      <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Date & Time</TableHead>
+                      <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Status</TableHead>
+                      <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">IP Address</TableHead>
+                      <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Device / Browser</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {history.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="whitespace-nowrap">
+                      <TableRow key={log.id} className="border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-900/40">
+                        <TableCell className="whitespace-nowrap font-mono text-xs">
                           {format(new Date(log.createdAt), 'MMM d, yyyy h:mm a')}
                         </TableCell>
                         <TableCell>
                           {log.status === 'SUCCESS' ? (
-                            <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 gap-1">
+                            <Badge variant="outline" className="border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 gap-1 text-xs">
                               <CheckCircle2 className="w-3 h-3" /> Success
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50 gap-1">
+                            <Badge variant="outline" className="border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 gap-1 text-xs">
                               <XCircle className="w-3 h-3" /> Failed
                             </Badge>
                           )}
-                          {log.reason && <p className="text-xs text-slate-500 mt-1">{log.reason}</p>}
+                          {log.reason && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{log.reason}</p>}
                         </TableCell>
-                        <TableCell>{log.ipAddress || 'Unknown'}</TableCell>
-                        <TableCell className="max-w-[200px] truncate" title={log.userAgent || ''}>
+                        <TableCell className="font-mono text-xs">{log.ipAddress || 'Unknown'}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-xs text-slate-600 dark:text-slate-400" title={log.userAgent || ''}>
                           {log.userAgent || 'Unknown'}
                         </TableCell>
                       </TableRow>

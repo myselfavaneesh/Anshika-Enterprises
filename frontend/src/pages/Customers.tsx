@@ -228,7 +228,7 @@ const Customers = () => {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg h-8 w-8"
                           onClick={() => {
                             const cleanPhone = customer.phone.replace(/[^0-9+]/g, '');
                             window.location.href = `tel:${cleanPhone}`;
@@ -238,10 +238,22 @@ const Customers = () => {
                           <Phone className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)} title="Edit">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg h-8 w-8"
+                        onClick={() => handleEdit(customer)} 
+                        title="Edit"
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(customer._id)} title="Delete">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg h-8 w-8" 
+                        onClick={() => handleDelete(customer._id)} 
+                        title="Delete"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

@@ -213,10 +213,10 @@ export default function PartyLedger() {
               <Button 
                 variant="outline" 
                 onClick={handleCall}
-                className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-700 dark:hover:text-blue-300"
                 title={`Call ${party.phone}`}
               >
-                <Phone className="w-4 h-4 mr-2 text-blue-600" />
+                <Phone className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
                 Call
               </Button>
             )}
