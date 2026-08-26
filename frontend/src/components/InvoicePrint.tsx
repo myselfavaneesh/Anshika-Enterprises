@@ -96,7 +96,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
   };
 
   const hsnSummary = isGST ? buildHsnSummary() : [];
-  const totalColSpan = isGST ? (isInterState ? 8 : 9) : 6;
+  const totalColSpan = isGST ? (isInterState ? 9 : 11) : 7;
 
   React.useEffect(() => {
     const originalTitle = document.title;
@@ -139,7 +139,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
             <p className="font-bold text-sm">ANSHIKA ENTERPRISES</p>
             <p>Phoolpur, Azamgarh, Uttar Pradesh - 276304</p>
             <p>State Name: Uttar Pradesh, Code: 09</p>
-            <p>Contact: 9598522526</p>
+            <p>Contact: 8840527476</p>
           </div>
           <div className="p-2 flex-1">
             <h3 className="font-semibold mb-1 text-gray-600">Buyer (Bill to)</h3>

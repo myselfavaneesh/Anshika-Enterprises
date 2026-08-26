@@ -116,7 +116,7 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
     `;
   }).join('');
 
-  const colSpanCount = isNonGst ? 6 : (isInterState ? 8 : 10);
+  const colSpanCount = isNonGst ? 7 : (isInterState ? 9 : 11);
 
   const servicesRowsHtml = (data?.services || []).map((service: any) => `
     <tr>
@@ -184,7 +184,7 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
             <div style="font-weight: bold; font-size: 13px;">ANSHIKA ENTERPRISES</div>
             <div>Phoolpur, Azamgarh, Uttar Pradesh - 276304</div>
             <div>State Name: Uttar Pradesh, Code: 09</div>
-            <div>Contact: 9598522526</div>
+            <div>Contact: 8840527476</div>
           </div>
           <div style="padding: 6px;">
             <div style="font-weight: 600; color: #555; font-size: 10px; margin-bottom: 1px;">Buyer (Bill to)</div>
