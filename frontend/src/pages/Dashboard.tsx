@@ -24,7 +24,7 @@ interface DashboardStats {
 const DATE_FILTERS = [
   { value: 'today', label: 'Today' },
   { value: 'week', label: '7D' },
-  { value: 'month', label: 'Month' },
+  { value: 'month', label: 'This Month' },
   { value: '30days', label: '30D' },
   { value: 'all', label: 'All Time' },
   { value: 'custom', label: 'Custom' },
@@ -91,7 +91,8 @@ const Dashboard = () => {
           } else if (dateRangeType === 'week') {
             start.setDate(today.getDate() - 7);
           } else if (dateRangeType === 'month') {
-            start.setMonth(today.getMonth() - 1);
+            start.setDate(1);
+            start.setHours(0, 0, 0, 0);
           } else if (dateRangeType === '30days') {
             start.setDate(today.getDate() - 30);
           }
