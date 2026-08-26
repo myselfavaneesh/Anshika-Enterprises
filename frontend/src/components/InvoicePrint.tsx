@@ -6,6 +6,8 @@ interface InvoicePrintProps {
   companyInfo?: any;
 }
 
+const SHOP_STATE_CODE = '09';
+
 const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
   const numberToWords = (num: number): string => {
     if (num === 0) return 'Rupees Zero Only';
@@ -52,6 +54,49 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
     return `${result}Only`.replace(/\s+/g, ' ');
   };
 
+  // Determine if this is inter-state based on customer state code vs shop state code
+  const customerStateCode = data?.customerId?.stateCode || data?.placeOfSupplyCode || SHOP_STATE_CODE;
+  const isInterState = customerStateCode !== SHOP_STATE_CODE;
+  const isGST = data?.invoiceType !== 'NON_GST';
+
+  // Determine document heading
+  const getDocumentHeading = (): string => {
+    if (type === 'QUOTATION') return 'QUOTATION';
+    if (data?.invoiceType === 'NON_GST') return 'ESTIMATE';
+    switch (data?.documentType) {
+      case 'PROFORMA': return 'PROFORMA INVOICE';
+      case 'CHALLAN': return 'DELIVERY CHALLAN';
+      default: return 'TAX INVOICE';
+    }
+  };
+
+  // Build HSN-wise summary
+  const buildHsnSummary = () => {
+    const hsnMap: Record<string, { hsnCode: string; taxableValue: number; gstRate: number; cgst: number; sgst: number; igst: number; totalTax: number }> = {};
+    
+    data?.items?.forEach((item: any) => {
+      const hsn = item.hsnCode || item.productId?.hsnCode || '-';
+      const rate = item.gstRate || 0;
+      const key = `${hsn}_${rate}`;
+      
+      if (!hsnMap[key]) {
+        hsnMap[key] = { hsnCode: hsn, taxableValue: 0, gstRate: rate, cgst: 0, sgst: 0, igst: 0, totalTax: 0 };
+      }
+      hsnMap[key].taxableValue += item.taxableTotalPrice || 0;
+      if (isInterState) {
+        hsnMap[key].igst += item.igstAmount || (item.cgstAmount || 0) + (item.sgstAmount || 0);
+      } else {
+        hsnMap[key].cgst += item.cgstAmount || 0;
+        hsnMap[key].sgst += item.sgstAmount || 0;
+      }
+      hsnMap[key].totalTax = hsnMap[key].cgst + hsnMap[key].sgst + hsnMap[key].igst;
+    });
+    
+    return Object.values(hsnMap);
+  };
+
+  const hsnSummary = isGST ? buildHsnSummary() : [];
+  const totalColSpan = isGST ? (isInterState ? 8 : 9) : 6;
 
   React.useEffect(() => {
     const originalTitle = document.title;
@@ -82,11 +127,11 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
 
       {/* Header */}
       <h1 className="text-center font-bold text-xl uppercase mb-2">
-        {type === 'TAX INVOICE' ? (data?.invoiceType === 'NON_GST' ? 'ESTIMATE' : 'TAX INVOICE') : 'QUOTATION'}
+        {getDocumentHeading()}
       </h1>
 
       {/* Two Column Layout for Header Details */}
-      <div className="grid grid-cols-2 border border-black mb-4">
+      <div className="grid grid-cols-2 border border-black mb-0">
         {/* Left Column */}
         <div className="border-r border-black flex flex-col">
           <div className="p-2 border-b border-black flex-1">
@@ -119,9 +164,26 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
               <p className="font-semibold text-gray-600">Dated</p>
               <p className="font-bold">{new Date(data?.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</p>
             </div>
-            <div className="p-2 col-span-2">
-              {/* Optional space for future fields */}
+            <div className="p-2 col-span-2 border-b border-black">
+              <p className="font-semibold text-gray-600">Place of Supply</p>
+              <p className="font-bold">{data?.placeOfSupply || data?.customerId?.state || 'Uttar Pradesh'} ({data?.placeOfSupplyCode || data?.customerId?.stateCode || '09'})</p>
             </div>
+            {(data?.eInvoiceAckNo || data?.eWayBillNo) && (
+              <>
+                {data?.eInvoiceAckNo && (
+                  <div className="p-2 border-r border-black">
+                    <p className="font-semibold text-gray-600">E-Invoice Ack No.</p>
+                    <p className="font-bold text-[10px]">{data.eInvoiceAckNo}</p>
+                  </div>
+                )}
+                {data?.eWayBillNo && (
+                  <div className={`p-2 ${!data?.eInvoiceAckNo ? 'col-span-2' : ''}`}>
+                    <p className="font-semibold text-gray-600">E-Way Bill No.</p>
+                    <p className="font-bold text-[10px]">{data.eWayBillNo}</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2">
@@ -144,20 +206,38 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
       </div>
 
       {/* Main Table */}
-      <table className="w-full mb-0 border-b-0">
+      <table className="w-full mb-0 border-b-0 border-t-0">
         <thead>
           <tr>
-            <th className="w-10">SN</th>
+            <th className="w-8">SN</th>
             <th className="text-left">Description of Goods</th>
             <th>HSN/SAC</th>
-            <th>Quantity</th>
-            <th>{data?.invoiceType === 'NON_GST' ? 'Rate' : 'Taxable Rate'}</th>
-            {data?.invoiceType !== 'NON_GST' && <th>GST %</th>}
+            <th>Qty</th>
+            <th>Unit</th>
+            <th>{isGST ? 'Taxable Rate' : 'Rate'}</th>
+            {isGST && (
+              isInterState ? (
+                <>
+                  <th>IGST %</th>
+                  <th className="text-right">IGST Amt</th>
+                </>
+              ) : (
+                <>
+                  <th>CGST %</th>
+                  <th className="text-right">CGST Amt</th>
+                  <th>SGST %</th>
+                  <th className="text-right">SGST Amt</th>
+                </>
+              )
+            )}
             <th className="text-right">Amount</th>
           </tr>
         </thead>
         <tbody>
-          {data?.items?.map((item: any, index: number) => (
+          {data?.items?.map((item: any, index: number) => {
+            const gstRate = item.gstRate || data?.taxRate || 0;
+            const halfRate = gstRate / 2;
+            return (
             <tr key={index}>
               <td className="text-center align-top border-b-0">{index + 1}</td>
               <td className="border-b-0">
@@ -169,25 +249,41 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
                   <p className="text-[10px] text-gray-500 mt-1">SN: {item.serialNumbers.join(', ')}</p>
                 )}
               </td>
-              <td className="text-center align-top border-b-0">{item.productId?.hsnCode || '-'}</td>
-              <td className="text-center align-top border-b-0 font-bold">{item.quantity} PC</td>
+              <td className="text-center align-top border-b-0">{item.hsnCode || item.productId?.hsnCode || '-'}</td>
+              <td className="text-center align-top border-b-0 font-bold">{item.quantity}</td>
+              <td className="text-center align-top border-b-0">{item.unit || item.productId?.unit || 'PC'}</td>
               <td className="text-right align-top border-b-0">{item.taxableUnitPrice?.toFixed(2)}</td>
-              {data?.invoiceType !== 'NON_GST' && (
-                <td className="text-center align-top border-b-0">{item.gstRate || data?.taxRate || 0}%</td>
+              {isGST && (
+                isInterState ? (
+                  <>
+                    <td className="text-center align-top border-b-0">{gstRate}%</td>
+                    <td className="text-right align-top border-b-0">{(item.igstAmount || ((item.cgstAmount || 0) + (item.sgstAmount || 0)))?.toFixed(2)}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="text-center align-top border-b-0">{halfRate}%</td>
+                    <td className="text-right align-top border-b-0">{item.cgstAmount?.toFixed(2)}</td>
+                    <td className="text-center align-top border-b-0">{halfRate}%</td>
+                    <td className="text-right align-top border-b-0">{item.sgstAmount?.toFixed(2)}</td>
+                  </>
+                )
               )}
               <td className="text-right align-top border-b-0 font-bold">{item.taxableTotalPrice?.toFixed(2)}</td>
             </tr>
-          ))}
+            );
+          })}
           {/* Fill empty space if few items */}
-          <tr className="h-40">
-            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>{data?.invoiceType !== 'NON_GST' && <td className="border-y-0"></td>}<td className="border-y-0"></td>
+          <tr className="h-24">
+            <td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td>
+            {isGST && (isInterState ? <><td className="border-y-0"></td><td className="border-y-0"></td></> : <><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td><td className="border-y-0"></td></>)}
+            <td className="border-y-0"></td>
           </tr>
 
           {/* Custom Extra Costs (Services) */}
           {data?.services?.map((service: any, index: number) => (
             <tr key={`service-${index}`}>
-              <td colSpan={data?.invoiceType === 'NON_GST' ? 5 : 6} className="text-right italic border-y-0 font-semibold pt-2">
-                {service.name} {data?.invoiceType !== 'NON_GST' && service.gstRate ? `(${service.gstRate}%)` : ''}
+              <td colSpan={totalColSpan - 1} className="text-right italic border-y-0 font-semibold pt-2">
+                {service.name} {isGST && service.gstRate ? `(${service.gstRate}%)` : ''}
               </td>
               <td className="text-right border-y-0 font-bold pt-2">
                 {service.taxableAmount ? service.taxableAmount.toFixed(2) : service.amount?.toFixed(2)}
@@ -195,48 +291,155 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
             </tr>
           ))}
 
+          {/* Discount */}
+          {(data?.discount || 0) > 0 && (
+            <tr>
+              <td colSpan={totalColSpan - 1} className="text-right italic border-y-0 font-semibold pt-2">
+                Discount
+              </td>
+              <td className="text-right border-y-0 font-bold pt-2 text-red-600">
+                - {data.discount.toFixed(2)}
+              </td>
+            </tr>
+          )}
+
           {/* Tax Totals */}
-          {data?.invoiceType !== 'NON_GST' && (
+          {isGST && (
             <>
               <tr>
-                <td colSpan={6} className="text-right italic border-y-0 font-semibold pt-4">
+                <td colSpan={totalColSpan - 1} className="text-right italic border-y-0 font-semibold pt-4">
                   Taxable Value
                 </td>
                 <td className="text-right border-y-0 font-bold pt-4">{data?.taxableAmount?.toFixed(2) || '0.00'}</td>
               </tr>
-              <tr>
-                <td colSpan={6} className="text-right italic border-y-0 font-semibold pt-1">
-                  CGST
-                </td>
-                <td className="text-right border-y-0 font-bold pt-1">{data?.cgstAmount?.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td colSpan={6} className="text-right italic border-y-0 font-semibold pb-4">
-                  SGST
-                </td>
-                <td className="text-right border-y-0 font-bold pb-4">{data?.sgstAmount?.toFixed(2)}</td>
-              </tr>
+              {isInterState ? (
+                <tr>
+                  <td colSpan={totalColSpan - 1} className="text-right italic border-y-0 font-semibold pt-1">
+                    IGST
+                  </td>
+                  <td className="text-right border-y-0 font-bold pt-1">{(data?.igstAmount || data?.taxAmount || 0).toFixed(2)}</td>
+                </tr>
+              ) : (
+                <>
+                  <tr>
+                    <td colSpan={totalColSpan - 1} className="text-right italic border-y-0 font-semibold pt-1">
+                      CGST
+                    </td>
+                    <td className="text-right border-y-0 font-bold pt-1">{data?.cgstAmount?.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={totalColSpan - 1} className="text-right italic border-y-0 font-semibold">
+                      SGST
+                    </td>
+                    <td className="text-right border-y-0 font-bold">{data?.sgstAmount?.toFixed(2)}</td>
+                  </tr>
+                </>
+              )}
+              {/* Round Off */}
+              {(data?.roundOff !== undefined && data?.roundOff !== 0) && (
+                <tr>
+                  <td colSpan={totalColSpan - 1} className="text-right italic border-y-0 font-semibold pb-2">
+                    Round Off
+                  </td>
+                  <td className="text-right border-y-0 font-bold pb-2">{data.roundOff > 0 ? '+' : ''}{data.roundOff.toFixed(2)}</td>
+                </tr>
+              )}
             </>
           )}
           <tr className="bg-slate-100/50">
-            <td colSpan={data?.invoiceType === 'NON_GST' ? 5 : 6} className="text-right font-bold py-2">Grand Total</td>
+            <td colSpan={totalColSpan - 1} className="text-right font-bold py-2">Grand Total</td>
             <td className="text-right font-bold text-base py-2">₹ {data?.grandTotal?.toFixed(2) || '0.00'}</td>
           </tr>
         </tbody>
       </table>
 
+      {/* HSN-wise Tax Summary Table (GST Compliance) */}
+      {isGST && hsnSummary.length > 0 && (
+        <table className="w-full border-t-0">
+          <thead>
+            <tr>
+              <th colSpan={isInterState ? 5 : 7} className="text-center text-[10px] py-1 bg-slate-50/50">HSN/SAC Wise Tax Summary</th>
+            </tr>
+            <tr className="text-[10px]">
+              <th>HSN/SAC</th>
+              <th className="text-right">Taxable Value</th>
+              {isInterState ? (
+                <>
+                  <th className="text-center">IGST Rate</th>
+                  <th className="text-right">IGST Amt</th>
+                </>
+              ) : (
+                <>
+                  <th className="text-center">CGST Rate</th>
+                  <th className="text-right">CGST Amt</th>
+                  <th className="text-center">SGST Rate</th>
+                  <th className="text-right">SGST Amt</th>
+                </>
+              )}
+              <th className="text-right">Total Tax</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hsnSummary.map((row, idx) => (
+              <tr key={idx} className="text-[10px]">
+                <td className="text-center">{row.hsnCode}</td>
+                <td className="text-right">{row.taxableValue.toFixed(2)}</td>
+                {isInterState ? (
+                  <>
+                    <td className="text-center">{row.gstRate}%</td>
+                    <td className="text-right">{row.igst.toFixed(2)}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="text-center">{(row.gstRate / 2)}%</td>
+                    <td className="text-right">{row.cgst.toFixed(2)}</td>
+                    <td className="text-center">{(row.gstRate / 2)}%</td>
+                    <td className="text-right">{row.sgst.toFixed(2)}</td>
+                  </>
+                )}
+                <td className="text-right font-semibold">{row.totalTax.toFixed(2)}</td>
+              </tr>
+            ))}
+            <tr className="text-[10px] font-bold">
+              <td className="text-center">Total</td>
+              <td className="text-right">{hsnSummary.reduce((s, r) => s + r.taxableValue, 0).toFixed(2)}</td>
+              {isInterState ? (
+                <>
+                  <td></td>
+                  <td className="text-right">{hsnSummary.reduce((s, r) => s + r.igst, 0).toFixed(2)}</td>
+                </>
+              ) : (
+                <>
+                  <td></td>
+                  <td className="text-right">{hsnSummary.reduce((s, r) => s + r.cgst, 0).toFixed(2)}</td>
+                  <td></td>
+                  <td className="text-right">{hsnSummary.reduce((s, r) => s + r.sgst, 0).toFixed(2)}</td>
+                </>
+              )}
+              <td className="text-right">{hsnSummary.reduce((s, r) => s + r.totalTax, 0).toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+
       {/* Summary Box */}
       <div className="border border-t-0 border-black p-4 flex justify-between bg-slate-50/50">
         <div className="space-y-1 text-[11px]">
           <p><span className="font-semibold inline-block w-24">Total Items:</span> {data?.items?.length || 0}</p>
-          <p><span className="font-semibold inline-block w-24">Total Qty:</span> {data?.items?.reduce((sum: number, i: any) => sum + i.quantity, 0) || 0} PC</p>
+          <p><span className="font-semibold inline-block w-24">Total Qty:</span> {data?.items?.reduce((sum: number, i: any) => sum + i.quantity, 0) || 0}</p>
         </div>
         <div className="space-y-1 text-[11px] text-right">
-          {data?.invoiceType !== 'NON_GST' && (
+          {isGST && (
             <>
               <p><span className="font-semibold inline-block w-32">Taxable Amount:</span> ₹ {data?.taxableAmount?.toFixed(2) || '0.00'}</p>
-              <p><span className="font-semibold inline-block w-32">CGST:</span> ₹ {data?.cgstAmount?.toFixed(2) || '0.00'}</p>
-              <p><span className="font-semibold inline-block w-32">SGST:</span> ₹ {data?.sgstAmount?.toFixed(2) || '0.00'}</p>
+              {isInterState ? (
+                <p><span className="font-semibold inline-block w-32">IGST:</span> ₹ {(data?.igstAmount || data?.taxAmount || 0).toFixed(2)}</p>
+              ) : (
+                <>
+                  <p><span className="font-semibold inline-block w-32">CGST:</span> ₹ {data?.cgstAmount?.toFixed(2) || '0.00'}</p>
+                  <p><span className="font-semibold inline-block w-32">SGST:</span> ₹ {data?.sgstAmount?.toFixed(2) || '0.00'}</p>
+                </>
+              )}
             </>
           )}
           <p className="text-sm mt-1"><span className="font-bold inline-block w-32">Grand Total:</span> <span className="font-bold">₹ {data?.grandTotal?.toFixed(2) || '0.00'}</span></p>

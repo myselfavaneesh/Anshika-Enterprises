@@ -14,7 +14,7 @@ const Products = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0',
+    name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', unit: 'PC', gstRate: '0',
     purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0', trackSerials: true
   });
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,7 +89,8 @@ const Products = () => {
         sellingPrice: Number(formData.sellingPrice),
         isGstInclusive: formData.isGstInclusive,
         wattage: Number(formData.wattage),
-        trackSerials: formData.trackSerials
+        trackSerials: formData.trackSerials,
+        unit: formData.unit || 'PC'
       };
 
       if (editingId) {
@@ -123,7 +124,7 @@ const Products = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', gstRate: '0', purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0', trackSerials: true });
+    setFormData({ name: '', sku: '', categoryId: '', lowStockThreshold: '5', hsnCode: '', unit: 'PC', gstRate: '0', purchasePrice: '0', sellingPrice: '0', isGstInclusive: true, wattage: '0', trackSerials: true });
   };
 
   const handleEdit = (product: any) => {
@@ -134,6 +135,7 @@ const Products = () => {
       categoryId: product.categoryId?.id || product.categoryId?._id || product.categoryId || product.category?.id || product.category?._id || '',
       lowStockThreshold: product.lowStockThreshold.toString(),
       hsnCode: product.hsnCode || '',
+      unit: product.unit || 'PC',
       gstRate: product.gstRate ? product.gstRate.toString() : '0',
       purchasePrice: product.purchasePrice ? product.purchasePrice.toString() : '0',
       sellingPrice: product.sellingPrice ? product.sellingPrice.toString() : '0',
@@ -180,7 +182,24 @@ const Products = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">HSN Code</label>
-                  <Input value={formData.hsnCode} onChange={e => setFormData({...formData, hsnCode: e.target.value})} />
+                  <Input value={formData.hsnCode} onChange={e => setFormData({...formData, hsnCode: e.target.value})} placeholder="e.g. 8507 (Battery)" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Unit (UoM)</label>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={formData.unit}
+                    onChange={e => setFormData({...formData, unit: e.target.value})}
+                  >
+                    <option value="PC">PC (Piece)</option>
+                    <option value="NOS">NOS (Numbers)</option>
+                    <option value="SET">SET</option>
+                    <option value="KG">KG (Kilogram)</option>
+                    <option value="MTR">MTR (Meter)</option>
+                    <option value="LTR">LTR (Litre)</option>
+                    <option value="W">W (Watt)</option>
+                    <option value="BOX">BOX</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">GST Rate (%)</label>
@@ -275,6 +294,7 @@ const Products = () => {
               <TableHead>Purch. Price</TableHead>
               <TableHead>Sell Price</TableHead>
               <TableHead>HSN Code</TableHead>
+              <TableHead>Unit</TableHead>
               <TableHead>GST</TableHead>
               <TableHead>Price Type</TableHead>
               <TableHead>Tracking</TableHead>
@@ -309,6 +329,7 @@ const Products = () => {
                   <TableCell>₹{product.purchasePrice || 0}</TableCell>
                   <TableCell>₹{product.sellingPrice || 0}</TableCell>
                   <TableCell>{product.hsnCode || '-'}</TableCell>
+                  <TableCell>{product.unit || 'PC'}</TableCell>
                   <TableCell>{product.gstRate ? `${product.gstRate}%` : '0%'}</TableCell>
                   <TableCell>{product.isGstInclusive ? 'Inclusive' : 'Exclusive'}</TableCell>
                   <TableCell>{product.trackSerials ? 'Serialized' : 'Quantity'}</TableCell>

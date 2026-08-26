@@ -92,7 +92,9 @@ export default function EditSale() {
           serialNumbers: item.serialNumbers,
           gstRate: item.gstRate || item.productId.gstRate || 0,
           isGstInclusive: item.productId.isGstInclusive !== undefined ? item.productId.isGstInclusive : true,
-          wattage: item.wattage || item.productId.wattage || 0
+          wattage: item.wattage || item.productId.wattage || 0,
+          hsnCode: item.hsnCode || item.productId?.hsnCode || '',
+          unit: item.unit || item.productId?.unit || 'PC'
         })));
 
         if (s.documentType) {
@@ -223,7 +225,9 @@ export default function EditSale() {
         serialNumbers: product.trackSerials === false ? [] : selectedSerials,
         gstRate: product.gstRate || 0,
         isGstInclusive: product.isGstInclusive !== undefined ? product.isGstInclusive : true,
-        wattage: wattage
+        wattage: wattage,
+        hsnCode: product.hsnCode || '',
+        unit: product.unit || 'PC'
       }]);
     }
     
@@ -292,8 +296,10 @@ export default function EditSale() {
     taxableAmount += lineTaxable;
     taxAmount += lineTax;
 
-    let lineCgst = 0, lineSgst = 0;
-    if (!isInterState) {
+    let lineCgst = 0, lineSgst = 0, lineIgst = 0;
+    if (isInterState) {
+      lineIgst = lineTax;
+    } else {
       lineCgst = lineTax / 2;
       lineSgst = lineTax / 2;
     }
@@ -305,7 +311,8 @@ export default function EditSale() {
       taxableUnitPrice: lineTaxable / item.quantity,
       taxableTotalPrice: lineTaxable,
       cgstAmount: lineCgst,
-      sgstAmount: lineSgst
+      sgstAmount: lineSgst,
+      igstAmount: lineIgst
     };
   });
 
@@ -335,8 +342,10 @@ export default function EditSale() {
     taxableAmount += sTaxable;
     taxAmount += sTax;
 
-    let sCgst = 0, sSgst = 0;
-    if (!isInterState) {
+    let sCgst = 0, sSgst = 0, sIgst = 0;
+    if (isInterState) {
+      sIgst = sTax;
+    } else {
       sCgst = sTax / 2;
       sSgst = sTax / 2;
     }
@@ -347,11 +356,15 @@ export default function EditSale() {
       ...s,
       taxableAmount: sTaxable,
       cgstAmount: sCgst,
-      sgstAmount: sSgst
+      sgstAmount: sSgst,
+      igstAmount: sIgst
     };
   });
+
+  const igstAmount = isInterState ? taxAmount : 0;
   
-  const grandTotal = subtotal - discountAmount + servicesTotal;
+  const grandTotal = Math.round(subtotal - discountAmount + servicesTotal);
+  const roundOff = grandTotal - (subtotal - discountAmount + servicesTotal);
 
   const handleUpdateSale = async () => {
     if (!selectedCustomerId) {
@@ -381,6 +394,9 @@ export default function EditSale() {
           gstRate: item.gstRate,
           cgstAmount: item.cgstAmount,
           sgstAmount: item.sgstAmount,
+          igstAmount: item.igstAmount || 0,
+          hsnCode: item.hsnCode || '',
+          unit: item.unit || 'PC',
           serialNumbers: item.serialNumbers,
           wattage: item.wattage || 0
         })),
@@ -391,6 +407,8 @@ export default function EditSale() {
         taxAmount,
         cgstAmount,
         sgstAmount,
+        igstAmount,
+        roundOff,
         services: processedServices.map(s => ({
           name: s.name,
           amount: Number(s.amount) || 0,
@@ -401,6 +419,8 @@ export default function EditSale() {
           isGstInclusive: Boolean(s.isGstInclusive)
         })),
         grandTotal,
+        placeOfSupply: selectedCustomer?.state || 'Uttar Pradesh',
+        placeOfSupplyCode: selectedCustomer?.stateCode || SHOP_STATE_CODE,
         payments: payments.map(p => ({
           paymentMode: p.paymentMode,
           amount: Number(p.amount) || 0,

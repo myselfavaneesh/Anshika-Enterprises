@@ -43,6 +43,7 @@ model Product {
   name              String
   sku               String   @unique
   hsnCode           String?
+  unit              String   @default("PC") // PC, NOS, SET, KG, MTR, LTR, W
   gstRate           Float    @default(0)
   trackSerials      Boolean  @default(true) // true=serial tracked, false=quantity only
   lowStockThreshold Int      @default(5)
@@ -270,9 +271,13 @@ model Sale {
   taxAmount     Float    @default(0)
   cgstAmount    Float    @default(0)
   sgstAmount    Float    @default(0)
+  igstAmount    Float    @default(0)
+  roundOff      Float    @default(0)
   grandTotal    Float
   status        String   @default("PAID") // 'PAID' | 'PENDING' | 'CANCELLED'
   documentType  String   @default("TAX_INVOICE") // 'TAX_INVOICE' | 'PROFORMA' | 'CHALLAN'
+  placeOfSupply     String?  // State name for Place of Supply
+  placeOfSupplyCode String?  // State code e.g. '09'
   
   // Compliance & Signatures
   eInvoiceAckNo         String?
@@ -331,6 +336,9 @@ model SaleItem {
   gstRate           Float    @default(0)
   cgstAmount        Float    @default(0)
   sgstAmount        Float    @default(0)
+  igstAmount        Float    @default(0)
+  hsnCode           String?  // Snapshot of HSN at time of sale
+  unit              String   @default("PC") // Snapshot of unit at time of sale
   wattage           Float    @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

@@ -204,7 +204,9 @@ export default function NewSale() {
         serialNumbers: selectedSerials,
         gstRate: product.gstRate || 0,
         isGstInclusive: product.isGstInclusive !== undefined ? product.isGstInclusive : true,
-        wattage: wattage
+        wattage: wattage,
+        hsnCode: product.hsnCode || '',
+        unit: product.unit || 'PC'
       }]);
     }
     
@@ -273,8 +275,10 @@ export default function NewSale() {
     taxableAmount += lineTaxable;
     taxAmount += lineTax;
 
-    let lineCgst = 0, lineSgst = 0;
-    if (!isInterState) {
+    let lineCgst = 0, lineSgst = 0, lineIgst = 0;
+    if (isInterState) {
+      lineIgst = lineTax;
+    } else {
       lineCgst = lineTax / 2;
       lineSgst = lineTax / 2;
     }
@@ -286,9 +290,11 @@ export default function NewSale() {
       taxableUnitPrice: lineTaxable / item.quantity,
       taxableTotalPrice: lineTaxable,
       cgstAmount: lineCgst,
-      sgstAmount: lineSgst
+      sgstAmount: lineSgst,
+      igstAmount: lineIgst
     };
   });
+  const igstAmount = isInterState ? taxAmount : 0;
 
   const discountAmount = Number(discount) || 0;
   
@@ -316,8 +322,10 @@ export default function NewSale() {
     taxableAmount += sTaxable;
     taxAmount += sTax;
 
-    let sCgst = 0, sSgst = 0;
-    if (!isInterState) {
+    let sCgst = 0, sSgst = 0, sIgst = 0;
+    if (isInterState) {
+      sIgst = sTax;
+    } else {
       sCgst = sTax / 2;
       sSgst = sTax / 2;
     }
@@ -328,11 +336,13 @@ export default function NewSale() {
       ...s,
       taxableAmount: sTaxable,
       cgstAmount: sCgst,
-      sgstAmount: sSgst
+      sgstAmount: sSgst,
+      igstAmount: sIgst
     };
   });
   
-  const grandTotal = subtotal - discountAmount + servicesTotal;
+  const grandTotal = Math.round(subtotal - discountAmount + servicesTotal);
+  const roundOff = grandTotal - (subtotal - discountAmount + servicesTotal);
 
   const handleGenerateInvoice = async () => {
     if (!selectedCustomerId) {
@@ -374,6 +384,9 @@ export default function NewSale() {
           gstRate: item.gstRate,
           cgstAmount: item.cgstAmount,
           sgstAmount: item.sgstAmount,
+          igstAmount: item.igstAmount || 0,
+          hsnCode: item.hsnCode || '',
+          unit: item.unit || 'PC',
           serialNumbers: item.serialNumbers,
           wattage: item.wattage || 0
         })),
@@ -384,6 +397,8 @@ export default function NewSale() {
         taxAmount,
         cgstAmount,
         sgstAmount,
+        igstAmount,
+        roundOff,
         services: processedServices.map(s => ({
           name: s.name,
           amount: Number(s.amount) || 0,
@@ -395,6 +410,8 @@ export default function NewSale() {
         })),
         grandTotal,
         documentType,
+        placeOfSupply: selectedCustomer?.state || 'Uttar Pradesh',
+        placeOfSupplyCode: selectedCustomer?.stateCode || SHOP_STATE_CODE,
         eInvoiceAckNo,
         eWayBillNo,
         payments: payments.map(p => ({
@@ -827,6 +844,13 @@ export default function NewSale() {
                     </div>
                   </>
                 )}
+              </div>
+              )}
+
+              {roundOff !== 0 && (
+              <div className="flex justify-between items-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>Round Off</span>
+                <span className="font-mono tabular-nums">{roundOff > 0 ? '+' : ''}₹{roundOff.toFixed(2)}</span>
               </div>
               )}
 

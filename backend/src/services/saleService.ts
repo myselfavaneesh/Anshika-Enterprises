@@ -11,6 +11,9 @@ export interface SaleItemInput {
   gstRate: number;
   cgstAmount: number;
   sgstAmount: number;
+  igstAmount: number;
+  hsnCode?: string | null;
+  unit?: string;
   wattage: number;
   serialNumbers?: string[];
 }
@@ -46,7 +49,11 @@ export interface SaleInput {
   taxAmount: number;
   cgstAmount: number;
   sgstAmount: number;
+  igstAmount: number;
+  roundOff: number;
   grandTotal: number;
+  placeOfSupply?: string;
+  placeOfSupplyCode?: string;
   
   // Replaced amountPaid and paymentMode with payments array
   payments?: SalePaymentInput[];
@@ -64,7 +71,8 @@ export class SaleService {
         const { 
           customerId, invoiceType, documentType = 'TAX_INVOICE', 
           items, services = [], discount, grandTotal, 
-          payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl 
+          payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl,
+          placeOfSupply, placeOfSupplyCode
         } = data;
         
         const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -173,8 +181,16 @@ export class SaleService {
             taxAmount: expectedTaxAmount,
             cgstAmount: data.cgstAmount,
             sgstAmount: data.sgstAmount,
+            igstAmount: data.igstAmount || 0,
+            roundOff: data.roundOff || 0,
             grandTotal: expectedGrandTotal,
             status: totalAmountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
+            documentType,
+            placeOfSupply,
+            placeOfSupplyCode,
+            eInvoiceAckNo,
+            eWayBillNo,
+            customerSignatureUrl,
           }
         });
 
@@ -215,6 +231,9 @@ export class SaleService {
               gstRate: item.gstRate,
               cgstAmount: item.cgstAmount,
               sgstAmount: item.sgstAmount,
+              igstAmount: item.igstAmount || 0,
+              hsnCode: item.hsnCode || product?.hsnCode || null,
+              unit: item.unit || product?.unit || 'PC',
               wattage: item.wattage || 0,
             }
           });
@@ -326,7 +345,8 @@ export class SaleService {
         const { 
           customerId, invoiceType, documentType = 'TAX_INVOICE', 
           items, services = [], discount, grandTotal, 
-          payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl 
+          payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl,
+          placeOfSupply, placeOfSupplyCode
         } = data;
         
         const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -469,9 +489,13 @@ export class SaleService {
             taxAmount: expectedTaxAmount,
             cgstAmount: data.cgstAmount,
             sgstAmount: data.sgstAmount,
+            igstAmount: data.igstAmount || 0,
+            roundOff: data.roundOff || 0,
             grandTotal: expectedGrandTotal,
             status: totalAmountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
             documentType,
+            placeOfSupply,
+            placeOfSupplyCode,
             eInvoiceAckNo,
             eWayBillNo,
             customerSignatureUrl,
@@ -513,6 +537,9 @@ export class SaleService {
               gstRate: item.gstRate,
               cgstAmount: item.cgstAmount,
               sgstAmount: item.sgstAmount,
+              igstAmount: item.igstAmount || 0,
+              hsnCode: item.hsnCode || product?.hsnCode || null,
+              unit: item.unit || product?.unit || 'PC',
               wattage: item.wattage || 0,
             }
           });

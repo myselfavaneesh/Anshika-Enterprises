@@ -10,6 +10,7 @@ const ProductSchema = z.object({
   sku: z.string().min(1).max(50),
   lowStockThreshold: z.number().int().min(0).default(5),
   hsnCode: z.string().max(20).optional().nullable(),
+  unit: z.string().max(10).default('PC'),
   gstRate: z.number().min(0).max(100).default(0),
   purchasePrice: z.number().min(0).default(0),
   sellingPrice: z.number().min(0).default(0),
@@ -79,7 +80,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = ProductSchema.parse(req.body);
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, unit, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = ProductSchema.parse(req.body);
     
     const existingSku = await prisma.product.findUnique({ where: { sku } });
     if (existingSku) {
@@ -94,6 +95,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         sku,
         lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : 5,
         hsnCode,
+        unit: unit || 'PC',
         gstRate: gstRate !== undefined ? Number(gstRate) : 0,
         purchasePrice: purchasePrice !== undefined ? Number(purchasePrice) : 0,
         sellingPrice: sellingPrice !== undefined ? Number(sellingPrice) : 0,
@@ -114,7 +116,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { categoryId, name, sku, lowStockThreshold, hsnCode, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = ProductSchema.parse(req.body);
+    const { categoryId, name, sku, lowStockThreshold, hsnCode, unit, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = ProductSchema.parse(req.body);
     
     try {
       const product = await prisma.product.update({
@@ -125,6 +127,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
           sku,
           ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
           hsnCode,
+          ...(unit !== undefined && { unit }),
           ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
           ...(purchasePrice !== undefined && { purchasePrice: Number(purchasePrice) }),
           ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),
