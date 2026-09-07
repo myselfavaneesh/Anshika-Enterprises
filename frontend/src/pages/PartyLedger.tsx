@@ -4,12 +4,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import api from '../services/api';
 import { format } from 'date-fns';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '../components/ui/table';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2, Phone, Download, Plus, Loader2 } from 'lucide-react';
+import { FileText, IndianRupee, ArrowLeft, MessageCircle, Pencil, Trash2, Phone, Download, Plus, Loader2, ArrowDownLeft, ArrowUpRight, ShoppingBag, Receipt } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
@@ -43,6 +43,9 @@ export default function PartyLedger() {
 
   const party = data ? (isCustomer ? data.customer : data.supplier) : null;
   const ledger = data ? data.ledger : [];
+
+  const totalBilled = ledger.reduce((sum: number, entry: any) => sum + (entry.type !== 'PAYMENT' ? (entry.grandTotal || 0) : 0), 0);
+  const totalPaid = ledger.reduce((sum: number, entry: any) => sum + (entry.type === 'PAYMENT' ? (entry.amount || 0) : 0), 0);
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,17 +82,41 @@ export default function PartyLedger() {
     }
   };
 
-  const handleExportPDF = () => {
-    const element = document.getElementById('ledger-table-container');
+  const handleExportPDF = async () => {
+    const element = document.getElementById('ledger-export-content');
     if (!element) return;
+
+    // Temporarily disable dark mode for clean PDF
+    const isDark = document.documentElement.classList.contains('dark');
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+    }
+
+    // Temporarily remove overflow-x-auto to prevent clipping
+    const tableContainer = document.getElementById('ledger-table-container');
+    if (tableContainer) {
+      tableContainer.classList.remove('overflow-x-auto');
+    }
+
     const opt = {
       margin: 0.5,
       filename: `${party?.name}_Ledger.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
+      html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
-    html2pdf().set(opt as any).from(element).save();
+
+    try {
+      await html2pdf().set(opt as any).from(element).save();
+    } finally {
+      // Restore classes
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      }
+      if (tableContainer) {
+        tableContainer.classList.add('overflow-x-auto');
+      }
+    }
   };
 
   const handleOpenEditPayment = (entry: any) => {
@@ -171,9 +198,10 @@ export default function PartyLedger() {
         <h2 className="text-3xl font-bold tracking-tight">Ledger Statement</h2>
       </div>
 
-      <div className="bg-white dark:bg-slate-950 p-6 rounded-md border shadow-sm flex flex-col sm:flex-row justify-between items-start gap-4">
-        <div>
-          <h3 className="text-2xl font-semibold">{party?.name}</h3>
+      <div id="ledger-export-content" className="space-y-6">
+        <div className="bg-white dark:bg-slate-950 p-6 rounded-md border shadow-sm flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div>
+            <h3 className="text-2xl font-semibold">{party?.name}</h3>
           <p className="text-sm text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
             {party?.phone ? (
               <a
@@ -208,7 +236,7 @@ export default function PartyLedger() {
               )}
             </span>
           </p>
-          <div className="flex flex-wrap sm:flex-row justify-start sm:justify-end gap-2 mt-4 w-full">
+          <div className="flex flex-wrap sm:flex-row justify-start sm:justify-end gap-2 mt-4 w-full" data-html2canvas-ignore="true">
             {party?.phone && (
               <Button 
                 variant="outline" 
@@ -238,102 +266,204 @@ export default function PartyLedger() {
         </div>
       </div>
 
-      <div id="ledger-table-container" className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
-        <Table className="min-w-[650px]">
-          <TableHeader className="bg-slate-50 dark:bg-slate-900/60">
-            <TableRow className="border-slate-200 dark:border-slate-800">
-              <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Date</TableHead>
-              <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Description</TableHead>
-              <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Ref No.</TableHead>
-              <TableHead className="text-right text-xs font-bold text-slate-700 dark:text-slate-300">Bill Amount</TableHead>
-              <TableHead className="text-right text-xs font-bold text-slate-700 dark:text-slate-300">Paid Amount</TableHead>
-              <TableHead className="text-right text-xs font-bold text-slate-700 dark:text-slate-300">Balance</TableHead>
-              <TableHead className="text-center w-24 text-xs font-bold text-slate-700 dark:text-slate-300">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ledger.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-slate-500">No transactions found.</TableCell>
+        {/* Compact Table Toolbar & Ticker */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Transactions ({ledger.length})
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+            <span className="px-2.5 py-1 rounded-md bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200/60 dark:border-red-900/40">
+              Total Dr: <strong>{formatCurrency(totalBilled)}</strong>
+            </span>
+            <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+              Total Cr: <strong>{formatCurrency(totalPaid)}</strong>
+            </span>
+          </div>
+        </div>
+
+        <div id="ledger-table-container" className="rounded-lg border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
+          <Table className="min-w-[700px]">
+            <TableHeader className="bg-slate-50/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800">
+              <TableRow className="border-b border-slate-200 dark:border-slate-800 hover:bg-transparent">
+                <TableHead className="h-9 py-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-36">Date</TableHead>
+                <TableHead className="h-9 py-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Transaction Details</TableHead>
+                <TableHead className="h-9 py-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-32">Voucher / Ref</TableHead>
+                <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400 w-32">Debit (Dr)</TableHead>
+                <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 w-32">Credit (Cr)</TableHead>
+                <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 w-36">Net Balance</TableHead>
+                <TableHead className="h-9 py-2 px-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-20" data-html2canvas-ignore="true">Actions</TableHead>
               </TableRow>
-            ) : (
-              ledger.map((entry: any) => {
-                const isPayment = entry.type === 'PAYMENT';
-                let billAmount = 0;
-                let paidAmount = 0;
+            </TableHeader>
+            <TableBody>
+              {ledger.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10 text-slate-400 text-xs">
+                    <Receipt className="w-8 h-8 mx-auto mb-2 opacity-30 text-slate-400" />
+                    No transactions recorded for this account yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                ledger.map((entry: any) => {
+                  const isPayment = entry.type === 'PAYMENT';
+                  let billAmount = 0;
+                  let paidAmount = 0;
 
-                if (!isPayment) {
-                  billAmount = entry.grandTotal || 0;
-                } else {
-                  paidAmount = entry.amount || 0;
-                }
+                  if (!isPayment) {
+                    billAmount = entry.grandTotal || 0;
+                  } else {
+                    paidAmount = entry.amount || 0;
+                  }
 
-                // Format description
-                let description = '';
-                if (isPayment) {
-                  description = `Payment ${entry.paymentType === 'MONEY_IN' ? 'Received' : 'Sent'} (${entry.paymentMode})`;
-                } else {
-                  const itemNames = entry.items?.map((item: any) => {
-                    const sn = item.serialNumbers?.length ? ` [SN: ${item.serialNumbers.join(', ')}]` : '';
-                    return `${item.productId?.name || 'Product'}${sn}`;
-                  }).join(', ');
-                  description = `Invoice: ${itemNames}`;
-                }
+                  // Format description
+                  let description = '';
+                  if (isPayment) {
+                    description = `Payment ${entry.paymentType === 'MONEY_IN' ? 'Received' : 'Disbursed'} via ${entry.paymentMode || 'Cash'}${entry.notes ? ` • ${entry.notes}` : ''}`;
+                  } else {
+                    const itemNames = entry.items?.map((item: any) => {
+                      const sn = item.serialNumbers?.length ? ` [SN: ${item.serialNumbers.join(', ')}]` : '';
+                      return `${item.productId?.name || 'Product'}${sn}`;
+                    }).join(', ');
+                    description = itemNames ? `Items: ${itemNames}` : 'Tax Invoice';
+                  }
 
-                return (
-                  <TableRow key={entry._id || entry.id}>
-                    <TableCell className="whitespace-nowrap">{format(new Date(entry.date), 'dd MMM yyyy, hh:mm a')}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2 font-medium">
-                          {isPayment ? <IndianRupee className="w-4 h-4 text-blue-500" /> : <FileText className="w-4 h-4 text-slate-500" />}
-                          {isPayment ? 'Payment' : (isCustomer ? 'Sale' : 'Purchase')}
-                        </div>
-                        <span className="text-sm text-slate-500 mt-1 max-w-md truncate" title={description}>
-                          {description}
+                  return (
+                    <TableRow 
+                      key={entry._id || entry.id}
+                      className="group border-b border-slate-100 dark:border-slate-800/70 hover:bg-slate-50/90 dark:hover:bg-slate-900/60 transition-colors duration-150"
+                    >
+                      {/* Date & Time */}
+                      <TableCell className="py-2 px-3 whitespace-nowrap">
+                        <span className="font-medium text-xs text-slate-800 dark:text-slate-200 block">
+                          {format(new Date(entry.date), 'dd MMM yyyy')}
                         </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{entry.invoiceNumber || entry.referenceId || '-'}</TableCell>
-                    <TableCell className="text-right text-red-600">
-                      {billAmount > 0 ? formatCurrency(billAmount) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right text-green-600">
-                      {paidAmount > 0 ? formatCurrency(paidAmount) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(entry.runningBalance)}</TableCell>
-                    <TableCell className="text-center whitespace-nowrap">
-                      {isPayment ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Edit Payment"
-                            className="h-8 w-8 text-blue-600 hover:text-blue-800"
-                            onClick={() => handleOpenEditPayment(entry)}
+                        <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 block">
+                          {format(new Date(entry.date), 'hh:mm a')}
+                        </span>
+                      </TableCell>
+
+                      {/* Type & Description */}
+                      <TableCell className="py-2 px-3">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isPayment ? (
+                              entry.paymentType === 'MONEY_IN' ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/50">
+                                  <ArrowDownLeft className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                  Payment In
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/50">
+                                  <ArrowUpRight className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                  Payment Out
+                                </span>
+                              )
+                            ) : isCustomer ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/50">
+                                <FileText className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                Sales Invoice
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/50">
+                                <ShoppingBag className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                                Purchase Bill
+                              </span>
+                            )}
+                            {isPayment && entry.paymentMode && (
+                              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1 rounded">
+                                {entry.paymentMode}
+                              </span>
+                            )}
+                          </div>
+                          <span 
+                            className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-sm block" 
+                            title={description}
                           >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Delete Payment"
-                            className="h-8 w-8 text-red-500 hover:text-red-700"
-                            onClick={() => handleDeletePayment(entry._id || entry.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                            {description}
+                          </span>
                         </div>
-                      ) : (
-                        <span className="text-slate-400 text-xs">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+                      </TableCell>
+
+                      {/* Ref / Voucher # */}
+                      <TableCell className="py-2 px-3 whitespace-nowrap">
+                        {entry.invoiceNumber || entry.referenceId ? (
+                          <span className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-300 bg-slate-100/90 dark:bg-slate-800/70 px-1.5 py-0.5 rounded border border-slate-200/60 dark:border-slate-700/50 inline-block">
+                            {entry.invoiceNumber || entry.referenceId}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600 text-xs font-mono">-</span>
+                        )}
+                      </TableCell>
+
+                      {/* Debit (Dr) */}
+                      <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-semibold text-red-600 dark:text-red-400">
+                        {billAmount > 0 ? formatCurrency(billAmount) : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                      </TableCell>
+
+                      {/* Credit (Cr) */}
+                      <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        {paidAmount > 0 ? formatCurrency(paidAmount) : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                      </TableCell>
+
+                      {/* Net Balance */}
+                      <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-bold text-slate-900 dark:text-slate-100">
+                        {formatCurrency(entry.runningBalance)}
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="py-2 px-3 text-center whitespace-nowrap" data-html2canvas-ignore="true">
+                        {isPayment ? (
+                          <div className="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity duration-150">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit Payment"
+                              className="h-7 w-7 text-blue-600 dark:text-blue-400 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-transform duration-150 active:scale-90 hover:scale-105"
+                              onClick={() => handleOpenEditPayment(entry)}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete Payment"
+                              className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50 transition-transform duration-150 active:scale-90 hover:scale-105"
+                              onClick={() => handleDeletePayment(entry._id || entry.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600 text-xs">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+            {ledger.length > 0 && (
+              <TableFooter className="bg-slate-50/90 dark:bg-slate-900/90 border-t-2 border-slate-200 dark:border-slate-800 font-medium">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={3} className="py-2 px-3 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Total Statement Summary ({ledger.length} entries)
+                  </TableCell>
+                  <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-bold text-red-600 dark:text-red-400">
+                    {formatCurrency(totalBilled)}
+                  </TableCell>
+                  <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(totalPaid)}
+                  </TableCell>
+                  <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-extrabold text-slate-900 dark:text-white">
+                    {formatCurrency(party?.outstandingBalance || 0)}
+                  </TableCell>
+                  <TableCell className="py-2 px-3" data-html2canvas-ignore="true" />
+                </TableRow>
+              </TableFooter>
             )}
-          </TableBody>
-        </Table>
+          </Table>
+        </div>
       </div>
 
       {/* Record Payment Dialog */}
