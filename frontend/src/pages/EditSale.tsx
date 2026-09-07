@@ -911,7 +911,7 @@ export default function EditSale() {
               buttonText="Scan Serial Number (Camera)"
             />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 max-h-[60vh] overflow-y-auto p-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-4 max-h-[60vh] overflow-y-auto p-2">
             {availableSerials.length === 0 ? (
               <p className="col-span-full text-center text-muted-foreground py-8">No serial numbers in stock</p>
             ) : (
