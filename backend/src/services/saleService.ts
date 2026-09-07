@@ -16,6 +16,14 @@ export interface SaleItemInput {
   unit?: string;
   wattage: number;
   serialNumbers?: string[];
+  comboGroupId?: string;
+}
+
+export interface SaleComboGroupInput {
+  internalId: string;
+  name: string;
+  totalPrice: number;
+  isGstInclusive: boolean;
 }
 
 export interface SaleServiceInput {
@@ -42,6 +50,7 @@ export interface SaleInput {
   documentType?: string;
   items: SaleItemInput[];
   services?: SaleServiceInput[];
+  comboGroups?: SaleComboGroupInput[];
   subtotal: number;
   discount: number;
   taxableAmount: number;
@@ -95,6 +104,77 @@ export class SaleService {
           }
         }
         const invoiceNumber = `${prefix}${nextCount.toString().padStart(4, '0')}`;
+
+        // Step 0: Process Combo Groups & Override item prices BEFORE math validation
+        if (data.comboGroups && data.comboGroups.length > 0) {
+          for (const combo of data.comboGroups) {
+            const comboItems = items.filter(i => i.comboGroupId === combo.internalId);
+            if (comboItems.length === 0) continue;
+
+            let totalBaseWeight = 0;
+            const itemWeights: number[] = [];
+
+            for (const item of comboItems) {
+              const product = await tx.product.findUnique({ where: { id: item.productId } });
+              const catalogPrice = product?.sellingPrice || item.unitPrice;
+              const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+              const weight = calculatedQty * catalogPrice;
+              itemWeights.push(weight);
+              totalBaseWeight += weight;
+            }
+
+            let allocatedSum = 0;
+            for (let i = 0; i < comboItems.length; i++) {
+              const item = comboItems[i];
+              let allocatedPrice = 0;
+              if (i === comboItems.length - 1) {
+                 allocatedPrice = combo.totalPrice - allocatedSum;
+              } else {
+                 allocatedPrice = totalBaseWeight > 0 
+                     ? (combo.totalPrice * (itemWeights[i] / totalBaseWeight))
+                     : (combo.totalPrice / comboItems.length);
+                 allocatedPrice = Number(allocatedPrice.toFixed(2));
+              }
+              allocatedSum += allocatedPrice;
+              
+              const product = await tx.product.findUnique({ where: { id: item.productId } });
+              const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+              
+              item.totalPrice = allocatedPrice;
+              item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
+              
+              let trueGstRate = product?.gstRate || 0;
+              if (invoiceType === 'NON_GST') trueGstRate = 0;
+
+              let lineTaxable = allocatedPrice;
+              let lineTax = 0;
+
+              if (trueGstRate > 0) {
+                if (combo.isGstInclusive) {
+                  lineTaxable = allocatedPrice / (1 + (trueGstRate / 100));
+                  lineTax = allocatedPrice - lineTaxable;
+                } else {
+                  lineTaxable = allocatedPrice;
+                  lineTax = allocatedPrice * (trueGstRate / 100);
+                }
+              }
+
+              item.taxableTotalPrice = lineTaxable;
+              item.taxableUnitPrice = calculatedQty > 0 ? lineTaxable / calculatedQty : 0;
+              item.gstRate = trueGstRate;
+
+              if (placeOfSupplyCode && placeOfSupplyCode !== '09') {
+                item.igstAmount = lineTax;
+                item.cgstAmount = 0;
+                item.sgstAmount = 0;
+              } else {
+                item.cgstAmount = lineTax / 2;
+                item.sgstAmount = lineTax / 2;
+                item.igstAmount = 0;
+              }
+            }
+          }
+        }
 
         // Server-side Math Validation
         let expectedSubtotal = 0;
@@ -191,6 +271,14 @@ export class SaleService {
             eInvoiceAckNo,
             eWayBillNo,
             customerSignatureUrl,
+            comboGroups: {
+              create: data.comboGroups?.map(c => ({
+                id: c.internalId,
+                name: c.name,
+                totalPrice: c.totalPrice,
+                isGstInclusive: c.isGstInclusive
+              })) || []
+            }
           }
         });
 
@@ -235,6 +323,7 @@ export class SaleService {
               hsnCode: item.hsnCode || product?.hsnCode || null,
               unit: item.unit || product?.unit || 'PC',
               wattage: item.wattage || 0,
+              comboGroupId: item.comboGroupId,
             }
           });
 
@@ -351,6 +440,77 @@ export class SaleService {
         
         const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
+        // Step 0: Process Combo Groups & Override item prices BEFORE math validation
+        if (data.comboGroups && data.comboGroups.length > 0) {
+          for (const combo of data.comboGroups) {
+            const comboItems = items.filter(i => i.comboGroupId === combo.internalId);
+            if (comboItems.length === 0) continue;
+
+            let totalBaseWeight = 0;
+            const itemWeights: number[] = [];
+
+            for (const item of comboItems) {
+              const product = await tx.product.findUnique({ where: { id: item.productId } });
+              const catalogPrice = product?.sellingPrice || item.unitPrice;
+              const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+              const weight = calculatedQty * catalogPrice;
+              itemWeights.push(weight);
+              totalBaseWeight += weight;
+            }
+
+            let allocatedSum = 0;
+            for (let i = 0; i < comboItems.length; i++) {
+              const item = comboItems[i];
+              let allocatedPrice = 0;
+              if (i === comboItems.length - 1) {
+                 allocatedPrice = combo.totalPrice - allocatedSum;
+              } else {
+                 allocatedPrice = totalBaseWeight > 0 
+                     ? (combo.totalPrice * (itemWeights[i] / totalBaseWeight))
+                     : (combo.totalPrice / comboItems.length);
+                 allocatedPrice = Number(allocatedPrice.toFixed(2));
+              }
+              allocatedSum += allocatedPrice;
+              
+              const product = await tx.product.findUnique({ where: { id: item.productId } });
+              const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+              
+              item.totalPrice = allocatedPrice;
+              item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
+              
+              let trueGstRate = product?.gstRate || 0;
+              if (invoiceType === 'NON_GST') trueGstRate = 0;
+
+              let lineTaxable = allocatedPrice;
+              let lineTax = 0;
+
+              if (trueGstRate > 0) {
+                if (combo.isGstInclusive) {
+                  lineTaxable = allocatedPrice / (1 + (trueGstRate / 100));
+                  lineTax = allocatedPrice - lineTaxable;
+                } else {
+                  lineTaxable = allocatedPrice;
+                  lineTax = allocatedPrice * (trueGstRate / 100);
+                }
+              }
+
+              item.taxableTotalPrice = lineTaxable;
+              item.taxableUnitPrice = calculatedQty > 0 ? lineTaxable / calculatedQty : 0;
+              item.gstRate = trueGstRate;
+
+              if (placeOfSupplyCode && placeOfSupplyCode !== '09') {
+                item.igstAmount = lineTax;
+                item.cgstAmount = 0;
+                item.sgstAmount = 0;
+              } else {
+                item.cgstAmount = lineTax / 2;
+                item.sgstAmount = lineTax / 2;
+                item.igstAmount = 0;
+              }
+            }
+          }
+        }
+
         // Validation
         let expectedSubtotal = 0;
         let expectedTaxableAmount = 0;
@@ -444,6 +604,7 @@ export class SaleService {
         // 2. Delete existing items and services
         await tx.saleItem.deleteMany({ where: { saleId: existingSale.id } });
         await tx.saleService.deleteMany({ where: { saleId: existingSale.id } });
+        await tx.saleComboGroup.deleteMany({ where: { saleId: existingSale.id } });
 
         // 3. Revert Ledger and SalePayments
         await tx.salePayment.deleteMany({ where: { saleId: existingSale.id } });
@@ -499,6 +660,14 @@ export class SaleService {
             eInvoiceAckNo,
             eWayBillNo,
             customerSignatureUrl,
+            comboGroups: {
+              create: data.comboGroups?.map(c => ({
+                id: c.internalId,
+                name: c.name,
+                totalPrice: c.totalPrice,
+                isGstInclusive: c.isGstInclusive
+              })) || []
+            }
           }
         });
 
@@ -541,6 +710,7 @@ export class SaleService {
               hsnCode: item.hsnCode || product?.hsnCode || null,
               unit: item.unit || product?.unit || 'PC',
               wattage: item.wattage || 0,
+              comboGroupId: item.comboGroupId,
             }
           });
 

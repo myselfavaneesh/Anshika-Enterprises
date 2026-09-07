@@ -17,6 +17,14 @@ const QuotationItemSchema = z.object({
   cgstAmount: z.number().min(0).default(0),
   sgstAmount: z.number().min(0).default(0),
   wattage: z.number().min(0).default(0),
+  comboGroupId: z.string().optional().nullable(),
+});
+
+const QuotationComboGroupSchema = z.object({
+  internalId: z.string(),
+  name: z.string(),
+  totalPrice: z.number().min(0),
+  isGstInclusive: z.boolean().default(true),
 });
 
 const QuotationServiceSchema = z.object({
@@ -34,6 +42,7 @@ const QuotationInputSchema = z.object({
   invoiceType: z.enum(['GST', 'NON_GST']).default('GST'),
   items: z.array(QuotationItemSchema).min(1),
   services: z.array(QuotationServiceSchema).optional().default([]),
+  comboGroups: z.array(QuotationComboGroupSchema).optional().default([]),
   subtotal: z.number().min(0),
   discount: z.number().min(0).default(0),
   taxableAmount: z.number().min(0),
@@ -71,7 +80,73 @@ const generateQuotationNumber = async (): Promise<string> => {
 
 export const createQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil, status } = QuotationInputSchema.parse(req.body);
+    const parsedData = QuotationInputSchema.parse(req.body);
+    let { customerId, invoiceType, items, services, comboGroups, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil, status } = parsedData;
+
+    if (comboGroups && comboGroups.length > 0) {
+      for (const combo of comboGroups) {
+        const comboItems = items.filter(i => i.comboGroupId === combo.internalId);
+        if (comboItems.length === 0) continue;
+
+        let totalBaseWeight = 0;
+        const itemWeights: number[] = [];
+
+        for (const item of comboItems) {
+          const product = await prisma.product.findUnique({ where: { id: item.productId } });
+          const catalogPrice = product?.sellingPrice || item.unitPrice;
+          const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+          const weight = calculatedQty * catalogPrice;
+          itemWeights.push(weight);
+          totalBaseWeight += weight;
+        }
+
+        let allocatedSum = 0;
+        for (let i = 0; i < comboItems.length; i++) {
+          const item = comboItems[i];
+          let allocatedPrice = 0;
+          if (i === comboItems.length - 1) {
+             allocatedPrice = combo.totalPrice - allocatedSum;
+          } else {
+             allocatedPrice = totalBaseWeight > 0 
+                 ? (combo.totalPrice * (itemWeights[i] / totalBaseWeight))
+                 : (combo.totalPrice / comboItems.length);
+             allocatedPrice = Number(allocatedPrice.toFixed(2));
+          }
+          allocatedSum += allocatedPrice;
+          
+          const product = await prisma.product.findUnique({ where: { id: item.productId } });
+          const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+          
+          item.totalPrice = allocatedPrice;
+          item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
+          
+          let trueGstRate = product?.gstRate || 0;
+          if (invoiceType === 'NON_GST') trueGstRate = 0;
+
+          let lineTaxable = allocatedPrice;
+          let lineTax = 0;
+
+          if (trueGstRate > 0) {
+            if (combo.isGstInclusive) {
+              lineTaxable = allocatedPrice / (1 + (trueGstRate / 100));
+              lineTax = allocatedPrice - lineTaxable;
+            } else {
+              lineTaxable = allocatedPrice;
+              lineTax = allocatedPrice * (trueGstRate / 100);
+            }
+          }
+
+          item.taxableTotalPrice = lineTaxable;
+          item.taxableUnitPrice = calculatedQty > 0 ? lineTaxable / calculatedQty : 0;
+          item.gstRate = trueGstRate;
+
+          // For quotation, we assume intra-state if no explicit placeOfSupplyCode is provided easily, but realistically we should just use the passed cgst/igst proportion.
+          // Since it's a quotation and might lack placeOfSupplyCode, we'll split evenly to CGST/SGST by default.
+          item.cgstAmount = lineTax / 2;
+          item.sgstAmount = lineTax / 2;
+        }
+      }
+    }
 
     const quotationNumber = await generateQuotationNumber();
 
@@ -102,6 +177,7 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
             cgstAmount: Number(item.cgstAmount || 0),
             sgstAmount: Number(item.sgstAmount || 0),
             wattage: Number(item.wattage || 0),
+            comboGroupId: item.comboGroupId || null,
           }))
         },
         quotationServices: {
@@ -114,6 +190,14 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
             taxableAmount: Number(service.taxableAmount || 0),
             isGstInclusive: Boolean(service.isGstInclusive)
           }))
+        },
+        comboGroups: {
+          create: comboGroups?.map(c => ({
+            id: c.internalId,
+            name: c.name,
+            totalPrice: c.totalPrice,
+            isGstInclusive: c.isGstInclusive
+          })) || []
         }
       },
       include: {
@@ -294,7 +378,71 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
 export const updateQuotation = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { customerId, invoiceType, items, services, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil, status } = QuotationInputSchema.parse(req.body);
+    const parsedData = QuotationInputSchema.parse(req.body);
+    let { customerId, invoiceType, items, services, comboGroups, subtotal, discount, taxableAmount, taxRate, taxAmount, cgstAmount, sgstAmount, grandTotal, validUntil, status } = parsedData;
+
+    if (comboGroups && comboGroups.length > 0) {
+      for (const combo of comboGroups) {
+        const comboItems = items.filter(i => i.comboGroupId === combo.internalId);
+        if (comboItems.length === 0) continue;
+
+        let totalBaseWeight = 0;
+        const itemWeights: number[] = [];
+
+        for (const item of comboItems) {
+          const product = await prisma.product.findUnique({ where: { id: item.productId } });
+          const catalogPrice = product?.sellingPrice || item.unitPrice;
+          const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+          const weight = calculatedQty * catalogPrice;
+          itemWeights.push(weight);
+          totalBaseWeight += weight;
+        }
+
+        let allocatedSum = 0;
+        for (let i = 0; i < comboItems.length; i++) {
+          const item = comboItems[i];
+          let allocatedPrice = 0;
+          if (i === comboItems.length - 1) {
+             allocatedPrice = combo.totalPrice - allocatedSum;
+          } else {
+             allocatedPrice = totalBaseWeight > 0 
+                 ? (combo.totalPrice * (itemWeights[i] / totalBaseWeight))
+                 : (combo.totalPrice / comboItems.length);
+             allocatedPrice = Number(allocatedPrice.toFixed(2));
+          }
+          allocatedSum += allocatedPrice;
+          
+          const product = await prisma.product.findUnique({ where: { id: item.productId } });
+          const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+          
+          item.totalPrice = allocatedPrice;
+          item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
+          
+          let trueGstRate = product?.gstRate || 0;
+          if (invoiceType === 'NON_GST') trueGstRate = 0;
+
+          let lineTaxable = allocatedPrice;
+          let lineTax = 0;
+
+          if (trueGstRate > 0) {
+            if (combo.isGstInclusive) {
+              lineTaxable = allocatedPrice / (1 + (trueGstRate / 100));
+              lineTax = allocatedPrice - lineTaxable;
+            } else {
+              lineTaxable = allocatedPrice;
+              lineTax = allocatedPrice * (trueGstRate / 100);
+            }
+          }
+
+          item.taxableTotalPrice = lineTaxable;
+          item.taxableUnitPrice = calculatedQty > 0 ? lineTaxable / calculatedQty : 0;
+          item.gstRate = trueGstRate;
+
+          item.cgstAmount = lineTax / 2;
+          item.sgstAmount = lineTax / 2;
+        }
+      }
+    }
 
     const quotation = await prisma.quotation.findUnique({ where: { id: id as string } });
     if (!quotation) {
@@ -305,8 +453,8 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
     const updatedQuotation = await prisma.$transaction(async (tx) => {
       // Delete old items
       await tx.quotationItem.deleteMany({ where: { quotationId: id as string } });
-
       await tx.quotationService.deleteMany({ where: { quotationId: id as string } });
+      await tx.quotationComboGroup.deleteMany({ where: { quotationId: id as string } });
 
       // Update quotation and recreate items
       return await tx.quotation.update({
@@ -336,6 +484,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
               cgstAmount: Number(item.cgstAmount || 0),
               sgstAmount: Number(item.sgstAmount || 0),
               wattage: Number(item.wattage || 0),
+              comboGroupId: item.comboGroupId || null,
             }))
           },
           quotationServices: {
@@ -348,6 +497,14 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
               taxableAmount: Number(service.taxableAmount || 0),
               isGstInclusive: Boolean(service.isGstInclusive)
             }))
+          },
+          comboGroups: {
+            create: comboGroups?.map(c => ({
+              id: c.internalId,
+              name: c.name,
+              totalPrice: c.totalPrice,
+              isGstInclusive: c.isGstInclusive
+            })) || []
           }
         },
         include: {

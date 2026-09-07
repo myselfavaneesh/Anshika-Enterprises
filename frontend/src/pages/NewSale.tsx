@@ -45,6 +45,11 @@ export default function NewSale() {
   // Dynamic Services selected
   const [selectedServices, setSelectedServices] = useState<{name: string, amount: string, gstRate: string, isGstInclusive: boolean}[]>([]);
 
+  // Combo Groups
+  const [comboGroups, setComboGroups] = useState<{ internalId: string, name: string, totalPrice: number, isGstInclusive: boolean }[]>([]);
+  const [isComboDialogOpen, setIsComboDialogOpen] = useState(false);
+  const [newCombo, setNewCombo] = useState({ name: '', totalPrice: '', isGstInclusive: true });
+
   // Multiple Payments
   const [payments, setPayments] = useState([{ paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }]);
   
@@ -241,6 +246,62 @@ export default function NewSale() {
     }));
   };
 
+  const updateItemCombo = (productId: string, comboGroupId: string) => {
+    setCart(cart.map(item => {
+      if (item.productId === productId) {
+        return { ...item, comboGroupId: comboGroupId || undefined };
+      }
+      return item;
+    }));
+  };
+
+  const getCartWithCombos = () => {
+    const newCart = JSON.parse(JSON.stringify(cart));
+    
+    if (comboGroups && comboGroups.length > 0) {
+      for (const combo of comboGroups) {
+        const comboItems = newCart.filter((i: any) => i.comboGroupId === combo.internalId);
+        if (comboItems.length === 0) continue;
+
+        let totalBaseWeight = 0;
+        const itemWeights: number[] = [];
+
+        for (const item of comboItems) {
+          const product = products.find(p => p._id === item.productId);
+          const catalogPrice = product?.sellingPrice || item.unitPrice;
+          const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+          const weight = calculatedQty * catalogPrice;
+          itemWeights.push(weight);
+          totalBaseWeight += weight;
+        }
+
+        let allocatedSum = 0;
+        for (let i = 0; i < comboItems.length; i++) {
+          const item = comboItems[i];
+          let allocatedPrice = 0;
+          if (i === comboItems.length - 1) {
+             allocatedPrice = combo.totalPrice - allocatedSum;
+          } else {
+             allocatedPrice = totalBaseWeight > 0 
+                 ? (combo.totalPrice * (itemWeights[i] / totalBaseWeight))
+                 : (combo.totalPrice / comboItems.length);
+             allocatedPrice = Number(allocatedPrice.toFixed(2));
+          }
+          allocatedSum += allocatedPrice;
+          
+          const product = products.find(p => p._id === item.productId);
+          const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
+          
+          item.totalPrice = allocatedPrice;
+          item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
+          item.isComboItem = true;
+          item.comboIsGstInclusive = combo.isGstInclusive;
+        }
+      }
+    }
+    return newCart;
+  };
+
   // Math
   const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
   const isInterState = selectedCustomer?.stateCode && selectedCustomer.stateCode !== SHOP_STATE_CODE;
@@ -251,8 +312,10 @@ export default function NewSale() {
   let cgstAmount = 0;
   let sgstAmount = 0;
 
+  const cartWithCombos = getCartWithCombos();
+
   // Process items
-  const processedCart = cart.map(item => {
+  const processedCart = cartWithCombos.map((item: any) => {
     let trueGstRate = item.gstRate || 0;
     if (invoiceType === 'NON_GST') trueGstRate = 0;
 
@@ -262,8 +325,10 @@ export default function NewSale() {
     let lineTaxable = lineTotal;
     let lineTax = 0;
 
+    const isGstInc = item.isComboItem ? item.comboIsGstInclusive : item.isGstInclusive;
+
     if (trueGstRate > 0) {
-      if (item.isGstInclusive) {
+      if (isGstInc) {
         lineTaxable = lineTotal / (1 + (trueGstRate / 100));
         lineTax = lineTotal - lineTaxable;
       } else {
@@ -374,7 +439,7 @@ export default function NewSale() {
       const payload = {
         customerId: selectedCustomerId,
         invoiceType,
-        items: processedCart.map(item => ({
+        items: processedCart.map((item: any) => ({
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -388,7 +453,14 @@ export default function NewSale() {
           hsnCode: item.hsnCode || '',
           unit: item.unit || 'PC',
           serialNumbers: item.serialNumbers,
-          wattage: item.wattage || 0
+          wattage: item.wattage || 0,
+          comboGroupId: item.comboGroupId
+        })),
+        comboGroups: comboGroups.map(c => ({
+          internalId: c.internalId,
+          name: c.name,
+          totalPrice: Number(c.totalPrice),
+          isGstInclusive: c.isGstInclusive
         })),
         subtotal,
         discount: discountAmount,
@@ -647,6 +719,17 @@ export default function NewSale() {
                 </Button>
               </div>
 
+              <div className="mb-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-dashed"
+                  onClick={() => setIsComboDialogOpen(true)}
+                >
+                  + Create Combo Package
+                </Button>
+              </div>
+
               <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-x-auto">
                 <Table className="min-w-[600px]">
                   <TableHeader className="bg-slate-50 dark:bg-slate-900/60">
@@ -659,10 +742,10 @@ export default function NewSale() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cart.length === 0 ? (
+                    {cartWithCombos.length === 0 ? (
                       <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400 dark:text-slate-600 text-xs font-medium">Cart is empty. Scan or search a product to begin.</TableCell></TableRow>
                     ) : (
-                      cart.map((item) => (
+                      cartWithCombos.map((item: any) => (
                         <TableRow key={item.productId} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800/80">
                           <TableCell className="font-medium">
                             <div className="text-slate-900 dark:text-white font-semibold text-xs">{item.name}</div>
@@ -676,6 +759,18 @@ export default function NewSale() {
                                 Panel Wattage: {item.wattage}W | Total: {item.wattage * item.quantity}W
                               </div>
                             )}
+                            {comboGroups.length > 0 && (
+                              <div className="mt-2">
+                                <select 
+                                  className="text-[11px] h-7 px-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950"
+                                  value={item.comboGroupId || ''}
+                                  onChange={e => updateItemCombo(item.productId, e.target.value)}
+                                >
+                                  <option value="">No Combo Package</option>
+                                  {comboGroups.map(c => <option key={c.internalId} value={c.internalId}>{c.name}</option>)}
+                                </select>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-bold text-base font-mono">{item.quantity}</TableCell>
                           <TableCell className="text-right">
@@ -686,6 +781,7 @@ export default function NewSale() {
                                 className="w-full h-8 text-right font-medium font-mono text-xs bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
                                 value={item.unitPrice || ''} 
                                 onChange={e => updateItemPrice(item.productId, Number(e.target.value))}
+                                disabled={item.isComboItem}
                                 placeholder="0.00"
                               />
                               {item.wattage > 0 && <span className="text-[10px] text-slate-400 mt-0.5">Per Watt</span>}
@@ -1064,6 +1160,68 @@ export default function NewSale() {
           </div>
           <DialogFooter>
             <Button onClick={addToCart} size="lg" className="w-full">Confirm & Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isComboDialogOpen} onOpenChange={setIsComboDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Combo Package</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Combo Name</label>
+              <Input 
+                placeholder="e.g. 3kW Solar Package" 
+                value={newCombo.name}
+                onChange={e => setNewCombo({ ...newCombo, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Total Package Price</label>
+              <Input 
+                type="number"
+                min="0"
+                placeholder="Total amount" 
+                value={newCombo.totalPrice}
+                onChange={e => setNewCombo({ ...newCombo, totalPrice: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-4">
+              <input 
+                type="checkbox" 
+                id="combo-gst" 
+                checked={newCombo.isGstInclusive}
+                onChange={e => setNewCombo({ ...newCombo, isGstInclusive: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <label htmlFor="combo-gst" className="text-sm font-medium">
+                Price is GST Inclusive
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={() => {
+                if (!newCombo.name || !newCombo.totalPrice) {
+                  toast.error("Please fill name and price");
+                  return;
+                }
+                setComboGroups([...comboGroups, {
+                  internalId: 'combo_' + Date.now().toString(),
+                  name: newCombo.name,
+                  totalPrice: Number(newCombo.totalPrice),
+                  isGstInclusive: newCombo.isGstInclusive
+                }]);
+                setNewCombo({ name: '', totalPrice: '', isGstInclusive: true });
+                setIsComboDialogOpen(false);
+                toast.success("Combo Package created!");
+              }} 
+              size="lg" 
+              className="w-full"
+            >
+              Create Package
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

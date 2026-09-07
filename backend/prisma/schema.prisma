@@ -237,6 +237,7 @@ model Quotation {
 
   quotationItems    QuotationItem[]
   quotationServices QuotationService[]
+  comboGroups       QuotationComboGroup[]
 }
 
 model QuotationItem {
@@ -254,6 +255,8 @@ model QuotationItem {
   cgstAmount        Float    @default(0)
   sgstAmount        Float    @default(0)
   wattage           Float    @default(0)
+  comboGroupId      String?
+  comboGroup        QuotationComboGroup? @relation(fields: [comboGroupId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -292,6 +295,7 @@ model Sale {
   saleReturns   SaleReturn[]
   productUnits  ProductUnit[]
   salePayments  SalePayment[]
+  comboGroups   SaleComboGroup[]
 }
 
 model SalePayment {
@@ -340,6 +344,8 @@ model SaleItem {
   hsnCode           String?  // Snapshot of HSN at time of sale
   unit              String   @default("PC") // Snapshot of unit at time of sale
   wattage           Float    @default(0)
+  comboGroupId      String?
+  comboGroup        SaleComboGroup? @relation(fields: [comboGroupId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -524,4 +530,28 @@ model InventoryAuditItem {
   actualQty       Int
   discrepancy     Int
   notes           String?
+}
+
+model SaleComboGroup {
+  id             String     @id @default(uuid())
+  saleId         String
+  sale           Sale       @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  name           String
+  totalPrice     Float
+  isGstInclusive Boolean    @default(true)
+  items          SaleItem[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model QuotationComboGroup {
+  id             String          @id @default(uuid())
+  quotationId    String
+  quotation      Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  name           String
+  totalPrice     Float
+  isGstInclusive Boolean         @default(true)
+  items          QuotationItem[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }

@@ -110,7 +110,35 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
     };
   }, [type, data]);
 
+  // Group items
+  const processedItems: any[] = [];
+  const comboMap = new Map();
 
+  data?.items?.forEach((item: any) => {
+    if (item.comboGroupId) {
+      if (!comboMap.has(item.comboGroupId)) {
+        const comboGroup = data.comboGroups?.find((c: any) => c.id === item.comboGroupId);
+        comboMap.set(item.comboGroupId, {
+          isComboGroup: true,
+          comboGroup: comboGroup || { name: 'Combo Package' },
+          items: [],
+          taxableTotalPrice: 0,
+          cgstAmount: 0,
+          sgstAmount: 0,
+          igstAmount: 0
+        });
+        processedItems.push(comboMap.get(item.comboGroupId));
+      }
+      const group = comboMap.get(item.comboGroupId);
+      group.items.push(item);
+      group.taxableTotalPrice += item.taxableTotalPrice || 0;
+      group.cgstAmount += item.cgstAmount || 0;
+      group.sgstAmount += item.sgstAmount || 0;
+      group.igstAmount += item.igstAmount || 0;
+    } else {
+      processedItems.push(item);
+    }
+  });
 
   return (
     <div className="bg-white text-black p-4 md:p-8 w-[210mm] min-h-[297mm] mx-auto text-xs shadow-lg print:shadow-none print:p-[10mm]" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -234,7 +262,57 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
           </tr>
         </thead>
         <tbody>
-          {data?.items?.map((item: any, index: number) => {
+          {processedItems?.map((row: any, index: number) => {
+            if (row.isComboGroup) {
+              const cg = row.comboGroup;
+              // determine if single GST rate
+              const uniqueRates = Array.from(new Set(row.items.map((i: any) => i.gstRate || 0)));
+              const isSingleRate = uniqueRates.length === 1;
+              const gstRate = isSingleRate ? uniqueRates[0] as number : 0;
+              const halfRate = gstRate / 2;
+
+              // Extract unique HSNs
+              const uniqueHsns = Array.from(new Set(row.items.map((i: any) => i.hsnCode || i.productId?.hsnCode || '-')));
+              const displayHsn = uniqueHsns.length > 2 ? 'Mixed' : uniqueHsns.join(', ');
+
+              return (
+                <tr key={index}>
+                  <td className="text-center align-top border-b-0">{index + 1}</td>
+                  <td className="border-b-0">
+                    <p className="font-bold text-[13px]">{cg.name}</p>
+                    <div className="text-[10px] mt-1 text-gray-700">
+                      {row.items.map((item: any, idx: number) => (
+                        <div key={idx}>• {item.productId?.name} × {item.quantity} {item.unit || item.productId?.unit || 'PC'}
+                          {item.serialNumbers && item.serialNumbers.length > 0 && ` (SN: ${item.serialNumbers.join(', ')})`}
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="text-center align-top border-b-0 text-[10px]">{displayHsn}</td>
+                  <td className="text-center align-top border-b-0 font-bold">1</td>
+                  <td className="text-center align-top border-b-0">PKG</td>
+                  <td className="text-right align-top border-b-0">{row.taxableTotalPrice.toFixed(2)}</td>
+                  {isGST && (
+                    isInterState ? (
+                      <>
+                        <td className="text-center align-top border-b-0">{isSingleRate ? `${gstRate}%` : 'Mixed'}</td>
+                        <td className="text-right align-top border-b-0">{(row.igstAmount || ((row.cgstAmount || 0) + (row.sgstAmount || 0)))?.toFixed(2)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="text-center align-top border-b-0">{isSingleRate ? `${halfRate}%` : 'Mixed'}</td>
+                        <td className="text-right align-top border-b-0">{row.cgstAmount?.toFixed(2)}</td>
+                        <td className="text-center align-top border-b-0">{isSingleRate ? `${halfRate}%` : 'Mixed'}</td>
+                        <td className="text-right align-top border-b-0">{row.sgstAmount?.toFixed(2)}</td>
+                      </>
+                    )
+                  )}
+                  <td className="text-right align-top border-b-0 font-bold">{row.taxableTotalPrice.toFixed(2)}</td>
+                </tr>
+              );
+            }
+
+            const item = row;
             const gstRate = item.gstRate || data?.taxRate || 0;
             const halfRate = gstRate / 2;
             return (
