@@ -23,9 +23,16 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Check if session exists and is active
+    // Check if session exists, is active, and not expired
     const session = await prisma.session.findUnique({ where: { token } });
-    if (!session || !session.isActive) {
+    if (!session || !session.isActive || (session.expiresAt && session.expiresAt < new Date())) {
+      // If session is expired but still marked active, deactivate it
+      if (session && session.isActive && session.expiresAt && session.expiresAt < new Date()) {
+        await prisma.session.update({
+          where: { id: session.id },
+          data: { isActive: false },
+        });
+      }
       res.status(401).json({ error: 'Session expired or invalid. Please login again.' });
       return;
     }

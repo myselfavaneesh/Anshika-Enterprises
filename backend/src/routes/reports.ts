@@ -11,18 +11,22 @@ import {
   getStockAging,
   getPartyProfitability
 } from '../controllers/reports';
+import { authenticate, checkActive, requirePermission } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/gst-summary', getGSTSummary);
-router.get('/profit-and-loss', getProfitAndLoss);
-router.get('/sales-by-category', getSalesByCategory);
-router.get('/sales-by-product', getSalesByProduct);
-router.get('/sales-by-customer', getSalesByCustomer);
-router.get('/purchases-by-supplier', getPurchasesBySupplier);
-router.get('/sales-register', getSalesRegister);
-router.get('/inventory-valuation', getInventoryValuation);
-router.get('/stock-aging', getStockAging);
-router.get('/party-profitability', getPartyProfitability);
+router.use(authenticate);
+router.use(checkActive);
+
+router.get('/gst-summary', requirePermission('reports:view'), getGSTSummary);
+router.get('/profit-and-loss', requirePermission('reports:view'), getProfitAndLoss);
+router.get('/sales-by-category', requirePermission('reports:view'), getSalesByCategory);
+router.get('/sales-by-product', requirePermission('reports:view'), getSalesByProduct);
+router.get('/sales-by-customer', requirePermission('reports:view'), getSalesByCustomer);
+router.get('/purchases-by-supplier', requirePermission('reports:view'), getPurchasesBySupplier);
+router.get('/sales-register', requirePermission('reports:view'), getSalesRegister);
+router.get('/inventory-valuation', requirePermission('reports:view'), getInventoryValuation);
+router.get('/stock-aging', requirePermission('reports:view'), getStockAging);
+router.get('/party-profitability', requirePermission('reports:view'), getPartyProfitability);
 
 export default router;
