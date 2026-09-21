@@ -188,7 +188,7 @@ const Dashboard = () => {
       )}
 
       {/* Bento Grid Metrics */}
-      {loading ? (
+      {loading || !stats ? (
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
@@ -242,7 +242,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="h-[300px] w-full">
-            {loading ? (
+            {loading || !stats ? (
               <div className="h-full shimmer rounded-xl" />
             ) : stats.chartData && stats.chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -305,7 +305,7 @@ const Dashboard = () => {
             )}
           </CardHeader>
           <CardContent className="pt-2">
-            {loading ? (
+            {loading || !stats ? (
               <div className="space-y-3 pt-2">
                 {[1,2,3,4,5].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
               </div>
@@ -368,7 +368,7 @@ const Dashboard = () => {
             )}
           </CardHeader>
           <CardContent className="pt-4">
-            {loading ? (
+            {loading || !stats ? (
               <div className="space-y-3">
                 {[1,2,3].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
               </div>
@@ -405,7 +405,7 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
-            {loading ? (
+            {loading || !stats ? (
               <div className="space-y-3 pt-2">
                 {[1,2,3].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
               </div>
