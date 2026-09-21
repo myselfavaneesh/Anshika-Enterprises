@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Package, TrendingUp, AlertTriangle, Users, Calendar, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { Package, TrendingUp, AlertTriangle, Users, Calendar, ShoppingCart, ShieldCheck, Flame } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface DashboardStats {
@@ -19,6 +19,7 @@ interface DashboardStats {
   isFiltered: boolean;
   lowStockProducts: any[];
   recentSales: any[];
+  trendingProducts: any[];
 }
 
 const DATE_FILTERS = [
@@ -71,6 +72,7 @@ const SkeletonCard = () => (
 
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
   
   // Date filtering state
   const [dateRangeType, setDateRangeType] = useState('30days');
@@ -79,6 +81,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
+      setLoading(true);
       try {
         let url = '/dashboard';
         let queryParams = new URLSearchParams();
@@ -111,6 +114,8 @@ const Dashboard = () => {
         setStats(response.data);
       } catch (error) {
         console.error('Failed to fetch dashboard stats', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchStats();
@@ -183,7 +188,7 @@ const Dashboard = () => {
       )}
 
       {/* Bento Grid Metrics */}
-      {!stats ? (
+      {loading ? (
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
@@ -237,7 +242,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="h-[300px] w-full">
-            {!stats ? (
+            {loading ? (
               <div className="h-full shimmer rounded-xl" />
             ) : stats.chartData && stats.chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -284,8 +289,71 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Bottom Grid: Low Stock & Recent Transactions */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* Bottom Grid: Trending Products, Low Stock & Recent Transactions */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Trending Products Card */}
+        <Card className="border border-slate-200/80 dark:border-slate-800 shadow-soft">
+          <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80 flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <Flame className="mr-2 h-4 w-4 text-orange-500" />
+              Trending Products
+            </CardTitle>
+            {!loading && stats && stats.trendingProducts && stats.trendingProducts.length > 0 && (
+              <span className="text-[10px] bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-full px-2 py-0.5 font-bold border border-orange-200/80 dark:border-orange-900/40">
+                Top {stats.trendingProducts.length}
+              </span>
+            )}
+          </CardHeader>
+          <CardContent className="pt-2">
+            {loading ? (
+              <div className="space-y-3 pt-2">
+                {[1,2,3,4,5].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
+              </div>
+            ) : !stats.trendingProducts || stats.trendingProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+                <Flame className="h-8 w-8 mb-2 opacity-30" />
+                <p className="text-xs font-medium">No sales data yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-100 dark:border-slate-800">
+                      <TableHead className="text-[11px] font-bold uppercase text-slate-400 w-8">#</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase text-slate-400">Product</TableHead>
+                      <TableHead className="text-right text-[11px] font-bold uppercase text-slate-400">Sold</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.trendingProducts.map((item: any) => (
+                      <TableRow key={item.productId} className="border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <TableCell className="py-2.5 w-8">
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${
+                            item.rank === 1 ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300' :
+                            item.rank === 2 ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300' :
+                            item.rank === 3 ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300' :
+                            'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                          }`}>
+                            {item.rank}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2.5">
+                          <p className="font-semibold text-xs text-slate-800 dark:text-white truncate max-w-[140px]">{item.productName}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">SKU: {item.sku}</p>
+                        </TableCell>
+                        <TableCell className="text-right py-2.5">
+                          <p className="text-xs font-bold text-orange-600 dark:text-orange-400 font-mono tabular-nums">{item.totalQtySold} units</p>
+                          <p className="text-[10px] text-slate-400 font-mono">₹{(item.sellingPrice || 0).toLocaleString('en-IN')}</p>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Low Stock Card */}
         <Card className="border border-slate-200/80 dark:border-slate-800 shadow-soft">
           <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80 flex flex-row items-center justify-between">
@@ -293,14 +361,14 @@ const Dashboard = () => {
               <AlertTriangle className="mr-2 h-4 w-4 text-amber-500" />
               Low Stock Alerts
             </CardTitle>
-            {stats && stats.lowStockProducts.length > 0 && (
+            {!loading && stats && stats.lowStockProducts.length > 0 && (
               <span className="text-[10px] bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 rounded-full px-2 py-0.5 font-bold border border-red-200/80 dark:border-red-900/40">
                 {stats.lowStockProducts.length} items
               </span>
             )}
           </CardHeader>
           <CardContent className="pt-4">
-            {!stats ? (
+            {loading ? (
               <div className="space-y-3">
                 {[1,2,3].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
               </div>
@@ -337,7 +405,7 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
-            {!stats ? (
+            {loading ? (
               <div className="space-y-3 pt-2">
                 {[1,2,3].map(i => <div key={i} className="h-11 shimmer rounded-xl" />)}
               </div>

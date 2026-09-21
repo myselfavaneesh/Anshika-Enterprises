@@ -75,7 +75,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
     const hsnMap: Record<string, { hsnCode: string; taxableValue: number; gstRate: number; cgst: number; sgst: number; igst: number; totalTax: number }> = {};
     
     data?.items?.forEach((item: any) => {
-      const hsn = item.hsnCode || item.productId?.hsnCode || '-';
+      const hsn = item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || '-';
       const rate = item.gstRate || 0;
       const key = `${hsn}_${rate}`;
       
@@ -272,7 +272,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
               const halfRate = gstRate / 2;
 
               // Extract unique HSNs
-              const uniqueHsns = Array.from(new Set(row.items.map((i: any) => i.hsnCode || i.productId?.hsnCode || '-')));
+              const uniqueHsns = Array.from(new Set(row.items.map((i: any) => i.hsnCode || i.productId?.hsnCode || i.product?.hsnCode || '-')));
               const displayHsn = uniqueHsns.length > 2 ? 'Mixed' : uniqueHsns.join(', ');
 
               return (
@@ -282,7 +282,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
                     <p className="font-bold text-[13px]">{cg.name}</p>
                     <div className="text-[10px] mt-1 text-gray-700">
                       {row.items.map((item: any, idx: number) => (
-                        <div key={idx}>• {item.productId?.name} × {item.quantity} {item.unit || item.productId?.unit || 'PC'}
+                        <div key={idx}>• {item.productId?.name || item.product?.name || item.name || 'Item'} × {item.quantity} {item.unit || item.productId?.unit || item.product?.unit || 'PC'}
                           {item.serialNumbers && item.serialNumbers.length > 0 && ` (SN: ${item.serialNumbers.join(', ')})`}
                         </div>
                       ))}
@@ -315,21 +315,24 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
             const item = row;
             const gstRate = item.gstRate || data?.taxRate || 0;
             const halfRate = gstRate / 2;
+            const productName = item.productId?.name || item.product?.name || item.name || 'Item Name';
+            const unitVal = item.unit || item.productId?.unit || item.product?.unit || 'PC';
+            const hsnVal = item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || '-';
             return (
             <tr key={index}>
               <td className="text-center align-top border-b-0">{index + 1}</td>
               <td className="border-b-0">
-                <p className="font-bold">{item.productId?.name}</p>
+                <p className="font-bold">{productName}</p>
                 {item.wattage > 0 && (
-                  <p className="text-[10px] text-gray-500 mt-0.5">({item.quantity} units × {item.wattage}W = {item.quantity * item.wattage}W @ ₹{item.unitPrice || (item.taxableUnitPrice / (item.quantity * item.wattage)).toFixed(2)}/W)</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">({item.quantity} units × ${item.wattage}W = {item.quantity * item.wattage}W @ ₹{item.unitPrice || (item.taxableUnitPrice / (item.quantity * item.wattage)).toFixed(2)}/W)</p>
                 )}
                 {item.serialNumbers && item.serialNumbers.length > 0 && (
                   <p className="text-[10px] text-gray-500 mt-1">SN: {item.serialNumbers.join(', ')}</p>
                 )}
               </td>
-              <td className="text-center align-top border-b-0">{item.hsnCode || item.productId?.hsnCode || '-'}</td>
+              <td className="text-center align-top border-b-0">{hsnVal}</td>
               <td className="text-center align-top border-b-0 font-bold">{item.quantity}</td>
-              <td className="text-center align-top border-b-0">{item.unit || item.productId?.unit || 'PC'}</td>
+              <td className="text-center align-top border-b-0">{unitVal}</td>
               <td className="text-right align-top border-b-0">{item.taxableUnitPrice?.toFixed(2)}</td>
               {isGST && (
                 isInterState ? (

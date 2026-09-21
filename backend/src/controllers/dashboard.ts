@@ -200,6 +200,33 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     });
     const totalCustomerOutstanding = customerOutstandingAggregate._sum.outstandingBalance || 0;
 
+    // 6. Trending Products — Top 10 by total quantity sold
+    const trendingProductsRaw = await prisma.saleItem.groupBy({
+      by: ['productId'],
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: 'desc' } },
+      take: 10,
+    });
+
+    const trendingProductIds = trendingProductsRaw.map(tp => tp.productId);
+    const trendingProductDetails = await prisma.product.findMany({
+      where: { id: { in: trendingProductIds } },
+      select: { id: true, name: true, sku: true, sellingPrice: true },
+    });
+
+    const productDetailsMap = new Map(trendingProductDetails.map(p => [p.id, p]));
+    const trendingProducts = trendingProductsRaw.map((tp, index) => {
+      const product = productDetailsMap.get(tp.productId);
+      return {
+        rank: index + 1,
+        productId: tp.productId,
+        productName: product?.name || 'Unknown',
+        sku: product?.sku || '-',
+        sellingPrice: product?.sellingPrice || 0,
+        totalQtySold: tp._sum.quantity || 0,
+      };
+    });
+
     res.json({
       totalProducts,
       totalUnitsInStock,
@@ -217,6 +244,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       chartData: finalChartData,
       isFiltered,
       lowStockProducts,
+      trendingProducts,
       recentSales: recentSales.map((sale: any) => {
         const { customer, productUnits, saleItems, ...rest } = sale;
         const profit = calculateSaleProfit(sale);

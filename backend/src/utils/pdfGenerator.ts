@@ -85,14 +85,18 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
     const amountVal = (item.taxableTotalPrice || item.totalPrice || 0).toFixed(2);
     const gstRate = item.gstRate || data?.taxRate || 0;
     const halfRate = gstRate / 2;
-    const unitVal = item.unit || item.productId?.unit || 'PC';
-    const hsnVal = item.hsnCode || item.productId?.hsnCode || '-';
+    const prodObj = (typeof item.productId === 'object' && item.productId !== null) 
+      ? item.productId 
+      : (typeof item.product === 'object' && item.product !== null ? item.product : null);
+    const prodName = prodObj?.name || item.name || item.productName || 'Item Name';
+    const unitVal = item.unit || prodObj?.unit || 'PC';
+    const hsnVal = item.hsnCode || prodObj?.hsnCode || '-';
 
     return `
       <tr>
         <td style="text-align: center; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">${index + 1}</td>
         <td style="text-align: left; vertical-align: top; border-right: 1px solid #000; border-bottom: 1px solid #000; padding: 4px 6px;">
-          <div style="font-weight: bold; color: #000;">${item.productId?.name || 'Item Name'}</div>
+          <div style="font-weight: bold; color: #000;">${prodName}</div>
           ${wattageHtml}
           ${serialsHtml}
         </td>
@@ -133,7 +137,10 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
   const hsnMap: Record<string, { hsnCode: string; taxableValue: number; gstRate: number; cgst: number; sgst: number; igst: number; totalTax: number }> = {};
   if (!isNonGst) {
     items.forEach((item: any) => {
-      const hsn = item.hsnCode || item.productId?.hsnCode || '-';
+      const prodObj = (typeof item.productId === 'object' && item.productId !== null) 
+        ? item.productId 
+        : (typeof item.product === 'object' && item.product !== null ? item.product : null);
+      const hsn = item.hsnCode || prodObj?.hsnCode || '-';
       const rate = item.gstRate || 0;
       const key = `${hsn}_${rate}`;
       if (!hsnMap[key]) {

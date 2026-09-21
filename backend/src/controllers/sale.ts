@@ -92,6 +92,8 @@ export const createSale = async (req: Request, res: Response): Promise<void> => 
             });
             return {
               ...mapEntityId(item),
+              productId: item.product ? mapEntityId(item.product) : null,
+              product: item.product ? mapEntityId(item.product) : null,
               serialNumbers: units.map(u => u.serialNumber)
             };
           }));
@@ -253,6 +255,8 @@ export const downloadInvoice = async (req: Request, res: Response): Promise<void
       });
       return {
         ...mapEntityId(item),
+        productId: item.product ? mapEntityId(item.product) : null,
+        product: item.product ? mapEntityId(item.product) : null,
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
@@ -291,6 +295,7 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
       return {
         ...mapEntityId(item),
         productId: mapEntityId((item as any).product),
+        product: mapEntityId((item as any).product),
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
@@ -363,6 +368,8 @@ export const sendSaleEmailController = async (req: Request, res: Response): Prom
       });
       return {
         ...mapEntityId(item),
+        productId: item.product ? mapEntityId(item.product) : null,
+        product: item.product ? mapEntityId(item.product) : null,
         serialNumbers: units.map(u => u.serialNumber)
       };
     }));
