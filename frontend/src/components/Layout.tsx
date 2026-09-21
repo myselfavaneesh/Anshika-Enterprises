@@ -25,6 +25,7 @@ import {
   Receipt,
   Sun,
   Moon,
+  ScanBarcode,
 } from 'lucide-react';
 
 const Layout = () => {
@@ -63,6 +64,7 @@ const Layout = () => {
     { name: 'Products', href: '/products', icon: Package, permission: 'products:view' },
     { name: 'Categories', href: '/categories', icon: ListTree, permission: 'categories:view' },
     { name: 'Inventory', href: '/inventory', icon: Warehouse, permission: 'inventory:view' },
+    { name: 'Serial Lookup', href: '/serial-lookup', icon: ScanBarcode, permission: 'inventory:view' },
     { name: 'Khata Book', href: '/parties', icon: Users, permission: 'parties:view' },
     { name: 'Purchases', href: '/purchases', icon: ShoppingBag, permission: 'purchases:view' },
     { name: 'Sales', href: '/sales', icon: ShoppingCart, permission: 'sales:view' },

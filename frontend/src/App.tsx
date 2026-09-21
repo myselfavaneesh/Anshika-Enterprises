@@ -31,6 +31,7 @@ import PurchaseOrders from './pages/PurchaseOrders';
 import InventoryAudits from './pages/InventoryAudits';
 import SaleReturns from './pages/SaleReturns';
 import Subscriptions from './pages/Subscriptions';
+import SerialLookup from './pages/SerialLookup';
 
 import TitleUpdater from './components/TitleUpdater';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -74,6 +75,7 @@ function App() {
             <Route path="inventory-audits" element={<ProtectedRoute permission="inventory:view"><InventoryAudits /></ProtectedRoute>} />
             <Route path="returns" element={<ProtectedRoute permission="sales:view"><SaleReturns /></ProtectedRoute>} />
             <Route path="subscriptions" element={<ProtectedRoute permission="sales:view"><Subscriptions /></ProtectedRoute>} />
+            <Route path="serial-lookup" element={<ProtectedRoute permission="inventory:view"><SerialLookup /></ProtectedRoute>} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />

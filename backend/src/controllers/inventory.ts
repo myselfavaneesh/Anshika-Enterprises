@@ -225,6 +225,138 @@ export const updateSerial = async (req: Request, res: Response): Promise<void> =
   }
 };
 
+export const serialLookup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { q } = req.query;
+    if (!q || typeof q !== 'string' || q.trim().length === 0) {
+      res.status(400).json({ error: 'Serial number query is required' });
+      return;
+    }
+
+    const unit = await prisma.productUnit.findFirst({
+      where: {
+        serialNumber: { equals: q.trim(), mode: 'insensitive' }
+      },
+      include: {
+        product: {
+          include: { category: true }
+        },
+        purchase: {
+          include: { supplier: true }
+        },
+        supplier: true,
+        sale: {
+          include: { customer: true }
+        },
+        saleItem: true,
+        warehouse: true
+      }
+    });
+
+    if (!unit) {
+      res.status(404).json({ error: 'Serial number not found' });
+      return;
+    }
+
+    const result: any = {
+      _id: unit.id,
+      id: unit.id,
+      serialNumber: unit.serialNumber,
+      status: unit.status,
+      purchasePrice: unit.purchasePrice,
+      batchNumber: unit.batchNumber,
+      manufactureDate: unit.manufactureDate,
+      expiryDate: unit.expiryDate,
+      createdAt: unit.createdAt,
+      updatedAt: unit.updatedAt,
+      product: unit.product ? {
+        _id: unit.product.id,
+        id: unit.product.id,
+        name: unit.product.name,
+        sku: unit.product.sku,
+        hsnCode: unit.product.hsnCode,
+        unit: unit.product.unit,
+        category: unit.product.category ? {
+          _id: unit.product.category.id,
+          id: unit.product.category.id,
+          name: unit.product.category.name
+        } : null
+      } : null,
+      warehouse: unit.warehouse ? {
+        _id: unit.warehouse.id,
+        id: unit.warehouse.id,
+        name: unit.warehouse.name
+      } : null,
+      // Purchase info
+      purchaseInfo: null,
+      // Sale info
+      saleInfo: null
+    };
+
+    // Purchase details
+    if (unit.purchase) {
+      result.purchaseInfo = {
+        purchaseId: unit.purchase.id,
+        invoiceNumber: unit.purchase.purchaseInvoiceNumber,
+        purchaseDate: unit.purchase.createdAt,
+        grandTotal: unit.purchase.grandTotal,
+        supplier: unit.purchase.supplier ? {
+          _id: unit.purchase.supplier.id,
+          id: unit.purchase.supplier.id,
+          name: unit.purchase.supplier.name,
+          phone: unit.purchase.supplier.phone
+        } : null
+      };
+    } else if (unit.supplier) {
+      // Fallback: supplier linked directly
+      result.purchaseInfo = {
+        purchaseId: null,
+        invoiceNumber: unit.purchaseInvoiceNumber,
+        purchaseDate: unit.createdAt,
+        grandTotal: null,
+        supplier: {
+          _id: unit.supplier.id,
+          id: unit.supplier.id,
+          name: unit.supplier.name,
+          phone: unit.supplier.phone
+        }
+      };
+    } else if (unit.purchaseInvoiceNumber || unit.supplierName) {
+      // Fallback: manual stock-in without linked purchase
+      result.purchaseInfo = {
+        purchaseId: null,
+        invoiceNumber: unit.purchaseInvoiceNumber,
+        purchaseDate: unit.createdAt,
+        grandTotal: null,
+        supplier: unit.supplierName ? { name: unit.supplierName } : null
+      };
+    }
+
+    // Sale details (if sold)
+    if (unit.sale) {
+      result.saleInfo = {
+        saleId: unit.sale.id,
+        invoiceNumber: unit.sale.invoiceNumber,
+        saleDate: unit.sale.createdAt,
+        grandTotal: unit.sale.grandTotal,
+        documentType: unit.sale.documentType,
+        customer: unit.sale.customer ? {
+          _id: unit.sale.customer.id,
+          id: unit.sale.customer.id,
+          name: unit.sale.customer.name,
+          phone: unit.sale.customer.phone,
+          address: unit.sale.customer.address
+        } : null
+      };
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    logger.error('Error in serial lookup', { query: req.query.q, error: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Server error during serial lookup' });
+  }
+};
+
 export const deleteSerial = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
