@@ -1,5 +1,9 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
+import dns from 'dns';
+
+// Force IPv4 resolution to fix Vercel ENETUNREACH IPv6 issue
+dns.setDefaultResultOrder('ipv4first');
 
 // Lazily create transporter to ensure env vars are loaded by dotenv first
 let transporter: nodemailer.Transporter | null = null;
@@ -17,9 +21,7 @@ function getTransporter(): nodemailer.Transporter {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      // Force IPv4 to avoid Vercel IPv6 ENETUNREACH issue
-      family: 4
-    } as any);
+    });
   }
   return transporter;
 }
