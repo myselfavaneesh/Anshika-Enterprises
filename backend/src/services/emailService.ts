@@ -17,7 +17,9 @@ function getTransporter(): nodemailer.Transporter {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-    });
+      // Force IPv4 to avoid Vercel IPv6 ENETUNREACH issue
+      family: 4
+    } as any);
   }
   return transporter;
 }
