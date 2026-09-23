@@ -18,7 +18,6 @@ import {
   CircleDot,
   Warehouse,
   ScanBarcode,
-  ArrowRight,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -200,7 +199,6 @@ const SerialLookup = () => {
             <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">Scan Serial Number</h3>
             <BarcodeScanner
               onScan={handleScanResult}
-              onClose={() => setShowScanner(false)}
             />
           </div>
         </div>
