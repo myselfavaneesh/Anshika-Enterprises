@@ -33,7 +33,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       where: { status: 'IN_STOCK' },
       include: { product: true }
     });
-    const totalInventoryValue = inStockUnits.reduce((acc, unit) => acc + (unit.purchasePrice || 0), 0);
+    const totalInventoryValue = inStockUnits.reduce((acc, unit) => acc + Number(unit.purchasePrice || 0), 0);
 
     const totalUnitsInStock = inStockCount;
     const totalUnitsSold = soldCount;
@@ -113,8 +113,8 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       _sum: { grandTotal: true }
     });
     
-    const ytdThisYear = ytdSalesThisYear._sum.grandTotal || 0;
-    const ytdLastYear = ytdSalesLastYear._sum.grandTotal || 0;
+    const ytdThisYear = Number(ytdSalesThisYear._sum.grandTotal || 0);
+    const ytdLastYear = Number(ytdSalesLastYear._sum.grandTotal || 0);
     let yoyGrowth = 0;
     if (ytdLastYear > 0) {
       yoyGrowth = ((ytdThisYear - ytdLastYear) / ytdLastYear) * 100;
@@ -137,7 +137,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const chartDataMap = new Map();
 
     for (const sale of filteredSalesQuery) {
-      const revenue = sale.grandTotal || 0;
+      const revenue = Number(sale.grandTotal || 0);
       filteredTotalRevenue += revenue;
 
       const profit = calculateSaleProfit(sale);
@@ -162,7 +162,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
 
     let filteredTotalPurchases = 0;
     for (const purchase of filteredPurchasesQuery) {
-      const amount = purchase.grandTotal || 0;
+      const amount = Number(purchase.grandTotal || 0);
       filteredTotalPurchases += amount;
       const dateStr = purchase.createdAt.toISOString().split('T')[0];
       if (!chartDataMap.has(dateStr)) {

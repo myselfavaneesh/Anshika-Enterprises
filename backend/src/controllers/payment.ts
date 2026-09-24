@@ -191,8 +191,8 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
          type: 'PAYMENT',
          description: `Payment (${p.paymentMode})`,
          reference: p.referenceId || '-',
-         debit: isCustomer ? (p.type === 'MONEY_OUT' ? p.amount : 0) : (p.type === 'MONEY_OUT' ? p.amount : 0),
-         credit: isCustomer ? (p.type === 'MONEY_IN' ? p.amount : 0) : (p.type === 'MONEY_IN' ? p.amount : 0),
+         debit: isCustomer ? (p.type === 'MONEY_OUT' ? Number(p.amount) : 0) : (p.type === 'MONEY_OUT' ? Number(p.amount) : 0),
+         credit: isCustomer ? (p.type === 'MONEY_IN' ? Number(p.amount) : 0) : (p.type === 'MONEY_IN' ? Number(p.amount) : 0),
        };
     }).concat(
       invoices.map(inv => {
@@ -204,8 +204,8 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
           type: isCustomer ? 'SALE' : 'PURCHASE',
           description: isCustomer ? 'Sale Invoice' : 'Purchase Invoice',
           reference: isCustomer ? inv.invoiceNumber : inv.purchaseInvoiceNumber,
-          debit: isCustomer ? inv.grandTotal : 0, // Sale increases Customer's Debit
-          credit: !isCustomer ? inv.grandTotal : 0, // Purchase increases Supplier's Credit
+          debit: isCustomer ? Number(inv.grandTotal) : 0, // Sale increases Customer's Debit
+          credit: !isCustomer ? Number(inv.grandTotal) : 0, // Purchase increases Supplier's Credit
         };
       })
     );
@@ -258,7 +258,8 @@ export const updatePayment = async (req: Request, res: Response): Promise<void> 
         throw new Error('NOT_FOUND');
       }
 
-      const newAmount = updateData.amount !== undefined ? Number(updateData.amount) : existingPayment.amount;
+      const existingAmount = Number(existingPayment.amount);
+      const newAmount = updateData.amount !== undefined ? Number(updateData.amount) : existingAmount;
       const newType = updateData.type || existingPayment.type;
 
       const entityType = existingPayment.entityType;
@@ -268,7 +269,7 @@ export const updatePayment = async (req: Request, res: Response): Promise<void> 
 
       if (entityType === 'CUSTOMER') {
         // Revert old effect (MONEY_IN decreased balance, MONEY_OUT increased it)
-        const oldEffect = existingPayment.type === 'MONEY_IN' ? existingPayment.amount : -existingPayment.amount;
+        const oldEffect = existingPayment.type === 'MONEY_IN' ? existingAmount : -existingAmount;
         // Apply new effect
         const newEffect = newType === 'MONEY_IN' ? -newAmount : newAmount;
         netBalanceChange = oldEffect + newEffect;
@@ -281,7 +282,7 @@ export const updatePayment = async (req: Request, res: Response): Promise<void> 
         }
       } else if (entityType === 'SUPPLIER') {
         // Revert old effect (MONEY_OUT decreased balance, MONEY_IN increased it)
-        const oldEffect = existingPayment.type === 'MONEY_OUT' ? existingPayment.amount : -existingPayment.amount;
+        const oldEffect = existingPayment.type === 'MONEY_OUT' ? existingAmount : -existingAmount;
         // Apply new effect
         const newEffect = newType === 'MONEY_OUT' ? -newAmount : newAmount;
         netBalanceChange = oldEffect + newEffect;
@@ -332,14 +333,15 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
 
       // Revert balance
       let balanceChange = 0;
+      const paymentAmount = Number(payment.amount);
       if (payment.entityType === 'CUSTOMER') {
-        balanceChange = payment.type === 'MONEY_IN' ? payment.amount : -payment.amount;
+        balanceChange = payment.type === 'MONEY_IN' ? paymentAmount : -paymentAmount;
         await tx.customer.update({
           where: { id: payment.entityId },
           data: { outstandingBalance: { increment: balanceChange } }
         });
       } else if (payment.entityType === 'SUPPLIER') {
-        balanceChange = payment.type === 'MONEY_OUT' ? payment.amount : -payment.amount;
+        balanceChange = payment.type === 'MONEY_OUT' ? paymentAmount : -paymentAmount;
         await tx.supplier.update({
           where: { id: payment.entityId },
           data: { outstandingBalance: { increment: balanceChange } }

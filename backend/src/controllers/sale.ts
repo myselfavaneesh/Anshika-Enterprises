@@ -137,21 +137,21 @@ export const updateSale = async (req: Request, res: Response): Promise<void> => 
 };
 
 export const calculateSaleProfit = (sale: any): number => {
-  const revenue = sale.grandTotal || 0;
+  const revenue = Number(sale.grandTotal || 0);
   let totalCost = 0;
 
   const productUnits = sale.productUnits || [];
   const saleItems = sale.saleItems || [];
 
   if (productUnits.length > 0) {
-    const unitCost = productUnits.reduce((acc: number, u: any) => acc + (u.purchasePrice || 0), 0);
+    const unitCost = productUnits.reduce((acc: number, u: any) => acc + Number(u.purchasePrice || 0), 0);
     const nonSerialCost = saleItems
       .filter((item: any) => item.product && !item.product.trackSerials)
-      .reduce((acc: number, item: any) => acc + (item.quantity * (item.product?.purchasePrice || 0)), 0);
+      .reduce((acc: number, item: any) => acc + (item.quantity * Number(item.product?.purchasePrice || 0)), 0);
     totalCost = unitCost + nonSerialCost;
   } else if (saleItems.length > 0) {
     totalCost = saleItems.reduce((acc: number, item: any) => {
-      const itemCost = item.product?.purchasePrice || 0;
+      const itemCost = Number(item.product?.purchasePrice || 0);
       return acc + (item.quantity * itemCost);
     }, 0);
   }

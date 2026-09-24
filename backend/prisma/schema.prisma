@@ -44,11 +44,11 @@ model Product {
   sku               String   @unique
   hsnCode           String?
   unit              String   @default("PC") // PC, NOS, SET, KG, MTR, LTR, W
-  gstRate           Float    @default(0)
+  gstRate           Decimal  @default(0) @db.Decimal(5, 2)
   trackSerials      Boolean  @default(true) // true=serial tracked, false=quantity only
   lowStockThreshold Int      @default(5)
-  purchasePrice     Float    @default(0)
-  sellingPrice      Float    @default(0)
+  purchasePrice     Decimal  @default(0) @db.Decimal(12, 2)
+  sellingPrice      Decimal  @default(0) @db.Decimal(12, 2)
   isGstInclusive    Boolean  @default(true)
   wattage           Float    @default(0)
   createdAt         DateTime @default(now())
@@ -101,8 +101,8 @@ model Customer {
   state              String?
   stateCode          String?
   group              String?
-  creditLimit        Float?
-  outstandingBalance Float    @default(0)
+  creditLimit        Decimal? @db.Decimal(12, 2)
+  outstandingBalance Decimal  @default(0) @db.Decimal(12, 2)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
@@ -128,8 +128,8 @@ model Supplier {
   state              String?
   stateCode          String?
   group              String?
-  creditLimit        Float?
-  outstandingBalance Float    @default(0)
+  creditLimit        Decimal? @db.Decimal(12, 2)
+  outstandingBalance Decimal  @default(0) @db.Decimal(12, 2)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
@@ -148,7 +148,7 @@ model Payment {
   entityType  String   // 'CUSTOMER' | 'SUPPLIER'
   entityId    String
   type        String   // 'MONEY_IN' | 'MONEY_OUT'
-  amount      Float
+  amount      Decimal  @db.Decimal(12, 2)
   paymentMode String?  // 'CASH' | 'UPI' | 'BANK' | 'CHEQUE' | 'OTHER'
   referenceId String?  @unique
   notes       String?
@@ -178,7 +178,7 @@ model ProductUnit {
   sale                  Sale? @relation(fields: [saleId], references: [id])
   saleItemId            String?
   saleItem              SaleItem? @relation(fields: [saleItemId], references: [id])
-  purchasePrice         Float?
+  purchasePrice         Decimal?  @db.Decimal(12, 2)
   
   // Advanced Inventory
   warehouseId           String?
@@ -203,14 +203,14 @@ model Purchase {
   supplierId            String
   supplier              Supplier @relation(fields: [supplierId], references: [id])
   invoiceType           String   @default("GST") // 'GST' | 'NON_GST'
-  subtotal              Float
-  discount              Float    @default(0)
-  taxableAmount         Float
-  taxRate               Float    @default(0)
-  taxAmount             Float    @default(0)
-  cgstAmount            Float    @default(0)
-  sgstAmount            Float    @default(0)
-  grandTotal            Float
+  subtotal              Decimal  @db.Decimal(12, 2)
+  discount              Decimal  @default(0) @db.Decimal(12, 2)
+  taxableAmount         Decimal  @db.Decimal(12, 2)
+  taxRate               Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount             Decimal  @default(0) @db.Decimal(12, 2)
+  cgstAmount            Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount            Decimal  @default(0) @db.Decimal(12, 2)
+  grandTotal            Decimal  @db.Decimal(12, 2)
   status                String   @default("PAID") // 'PAID' | 'PENDING' | 'CANCELLED'
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -232,13 +232,13 @@ model PurchaseItem {
   productId         String
   product           Product  @relation(fields: [productId], references: [id])
   quantity          Int
-  unitPrice         Float
-  taxableUnitPrice  Float
-  taxableTotalPrice Float
-  totalPrice        Float
-  gstRate           Float    @default(0)
-  cgstAmount        Float    @default(0)
-  sgstAmount        Float    @default(0)
+  unitPrice         Decimal  @db.Decimal(12, 2)
+  taxableUnitPrice  Decimal  @db.Decimal(12, 2)
+  taxableTotalPrice Decimal  @db.Decimal(12, 2)
+  totalPrice        Decimal  @db.Decimal(12, 2)
+  gstRate           Decimal  @default(0) @db.Decimal(5, 2)
+  cgstAmount        Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount        Decimal  @default(0) @db.Decimal(12, 2)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -253,14 +253,14 @@ model Quotation {
   customerId      String
   customer        Customer @relation(fields: [customerId], references: [id])
   invoiceType     String   @default("GST") // 'GST' | 'NON_GST'
-  subtotal        Float
-  discount        Float    @default(0)
-  taxableAmount   Float
-  taxRate         Float    @default(0)
-  taxAmount       Float    @default(0)
-  cgstAmount      Float    @default(0)
-  sgstAmount      Float    @default(0)
-  grandTotal      Float
+  subtotal        Decimal  @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(12, 2)
+  taxableAmount   Decimal  @db.Decimal(12, 2)
+  taxRate         Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal  @default(0) @db.Decimal(12, 2)
+  cgstAmount      Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount      Decimal  @default(0) @db.Decimal(12, 2)
+  grandTotal      Decimal  @db.Decimal(12, 2)
   status          String   @default("DRAFT") // 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED'
   validUntil      DateTime?
   createdAt       DateTime @default(now())
@@ -282,13 +282,13 @@ model QuotationItem {
   productId         String
   product           Product  @relation(fields: [productId], references: [id])
   quantity          Int
-  unitPrice         Float
-  totalPrice        Float
-  taxableUnitPrice  Float
-  taxableTotalPrice Float
-  gstRate           Float    @default(0)
-  cgstAmount        Float    @default(0)
-  sgstAmount        Float    @default(0)
+  unitPrice         Decimal  @db.Decimal(12, 2)
+  totalPrice        Decimal  @db.Decimal(12, 2)
+  taxableUnitPrice  Decimal  @db.Decimal(12, 2)
+  taxableTotalPrice Decimal  @db.Decimal(12, 2)
+  gstRate           Decimal  @default(0) @db.Decimal(5, 2)
+  cgstAmount        Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount        Decimal  @default(0) @db.Decimal(12, 2)
   wattage           Float    @default(0)
   comboGroupId      String?
   comboGroup        QuotationComboGroup? @relation(fields: [comboGroupId], references: [id], onDelete: Cascade)
@@ -304,16 +304,16 @@ model Sale {
   customerId    String
   customer      Customer @relation(fields: [customerId], references: [id])
   invoiceType   String   @default("GST") // 'GST' | 'NON_GST'
-  subtotal      Float
-  discount      Float    @default(0)
-  taxableAmount Float
-  taxRate       Float    @default(0)
-  taxAmount     Float    @default(0)
-  cgstAmount    Float    @default(0)
-  sgstAmount    Float    @default(0)
-  igstAmount    Float    @default(0)
-  roundOff      Float    @default(0)
-  grandTotal    Float
+  subtotal      Decimal  @db.Decimal(12, 2)
+  discount      Decimal  @default(0) @db.Decimal(12, 2)
+  taxableAmount Decimal  @db.Decimal(12, 2)
+  taxRate       Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal  @default(0) @db.Decimal(12, 2)
+  cgstAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  igstAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  roundOff      Decimal  @default(0) @db.Decimal(12, 2)
+  grandTotal    Decimal  @db.Decimal(12, 2)
   status        String   @default("PAID") // 'PAID' | 'PENDING' | 'CANCELLED'
   documentType  String   @default("TAX_INVOICE") // 'TAX_INVOICE' | 'PROFORMA' | 'CHALLAN'
   placeOfSupply     String?  // State name for Place of Supply
@@ -346,7 +346,7 @@ model SalePayment {
   saleId             String
   sale               Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   paymentMode        String   // 'CASH' | 'UPI' | 'BANK' | 'CHEQUE' | 'BAJAJ_FINANCE' | 'CREDIT_CARD' | 'OTHER'
-  amount             Float
+  amount             Decimal  @db.Decimal(12, 2)
   referenceNumber    String?
   emiProvider        String?  // e.g. "Bajaj Finance", "HDFC"
   emiReferenceNumber String?
@@ -363,7 +363,7 @@ model Subscription {
   customer        Customer @relation(fields: [customerId], references: [id])
   planName        String
   billingInterval String   // 'MONTHLY' | 'YEARLY'
-  amount          Float
+  amount          Decimal  @db.Decimal(12, 2)
   startDate       DateTime
   nextBillingDate DateTime
   status          String   @default("ACTIVE") // 'ACTIVE' | 'CANCELLED' | 'PAUSED'
@@ -380,14 +380,14 @@ model SaleItem {
   productId         String
   product           Product  @relation(fields: [productId], references: [id])
   quantity          Int
-  unitPrice         Float
-  totalPrice        Float
-  taxableUnitPrice  Float
-  taxableTotalPrice Float
-  gstRate           Float    @default(0)
-  cgstAmount        Float    @default(0)
-  sgstAmount        Float    @default(0)
-  igstAmount        Float    @default(0)
+  unitPrice         Decimal  @db.Decimal(12, 2)
+  totalPrice        Decimal  @db.Decimal(12, 2)
+  taxableUnitPrice  Decimal  @db.Decimal(12, 2)
+  taxableTotalPrice Decimal  @db.Decimal(12, 2)
+  gstRate           Decimal  @default(0) @db.Decimal(5, 2)
+  cgstAmount        Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount        Decimal  @default(0) @db.Decimal(12, 2)
+  igstAmount        Decimal  @default(0) @db.Decimal(12, 2)
   hsnCode           String?  // Snapshot of HSN at time of sale
   unit              String   @default("PC") // Snapshot of unit at time of sale
   wattage           Float    @default(0)
@@ -408,7 +408,7 @@ model SaleReturn {
   originalSale   Sale     @relation(fields: [originalSaleId], references: [id])
   customerId     String
   customer       Customer @relation(fields: [customerId], references: [id])
-  refundAmount   Float
+  refundAmount   Decimal  @db.Decimal(12, 2)
   notes          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -424,11 +424,11 @@ model SaleService {
   saleId      String
   sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   name        String   
-  amount        Float
-  gstRate       Float    @default(0)
-  cgstAmount    Float    @default(0)
-  sgstAmount    Float    @default(0)
-  taxableAmount Float    @default(0)
+  amount        Decimal  @db.Decimal(12, 2)
+  gstRate       Decimal  @default(0) @db.Decimal(5, 2)
+  cgstAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  taxableAmount Decimal  @default(0) @db.Decimal(12, 2)
   isGstInclusive Boolean @default(true)
   createdAt     DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -441,11 +441,11 @@ model QuotationService {
   quotationId String
   quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   name        String   
-  amount        Float
-  gstRate       Float    @default(0)
-  cgstAmount    Float    @default(0)
-  sgstAmount    Float    @default(0)
-  taxableAmount Float    @default(0)
+  amount        Decimal  @db.Decimal(12, 2)
+  gstRate       Decimal  @default(0) @db.Decimal(5, 2)
+  cgstAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  sgstAmount    Decimal  @default(0) @db.Decimal(12, 2)
+  taxableAmount Decimal  @default(0) @db.Decimal(12, 2)
   isGstInclusive Boolean @default(true)
   createdAt     DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -492,7 +492,7 @@ model Expense {
   id              String   @id @default(uuid())
   categoryId      String
   category        ExpenseCategory @relation(fields: [categoryId], references: [id])
-  amount          Float
+  amount          Decimal  @db.Decimal(12, 2)
   date            DateTime
   paymentMode     String?  // CASH, UPI, BANK
   referenceNumber String?
@@ -551,7 +551,7 @@ model PurchaseOrder {
   supplier    Supplier @relation(fields: [supplierId], references: [id])
   status      String   @default("DRAFT") // DRAFT, SENT, PARTIAL, COMPLETED, CANCELLED
   expectedDate DateTime?
-  grandTotal  Float
+  grandTotal  Decimal  @db.Decimal(12, 2)
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -566,8 +566,8 @@ model PurchaseOrderItem {
   productId   String
   product     Product  @relation(fields: [productId], references: [id])
   quantity    Int
-  unitPrice   Float
-  totalPrice  Float
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  totalPrice  Decimal  @db.Decimal(12, 2)
 }
 
 model InventoryAudit {
@@ -600,7 +600,7 @@ model SaleComboGroup {
   saleId         String
   sale           Sale       @relation(fields: [saleId], references: [id], onDelete: Cascade)
   name           String
-  totalPrice     Float
+  totalPrice     Decimal    @db.Decimal(12, 2)
   isGstInclusive Boolean    @default(true)
   items          SaleItem[]
   createdAt      DateTime   @default(now())
@@ -612,7 +612,7 @@ model QuotationComboGroup {
   quotationId    String
   quotation      Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   name           String
-  totalPrice     Float
+  totalPrice     Decimal         @db.Decimal(12, 2)
   isGstInclusive Boolean         @default(true)
   items          QuotationItem[]
   createdAt      DateTime        @default(now())

@@ -41,15 +41,15 @@ export const getGSTSummary = async (req: Request, res: Response): Promise<void> 
     let totalIGST = 0;
 
     sales.forEach(sale => {
-      totalTaxable += sale.taxableAmount || 0;
-      totalCGST += sale.cgstAmount || 0;
-      totalSGST += sale.sgstAmount || 0;
+      totalTaxable += Number(sale.taxableAmount || 0);
+      totalCGST += Number(sale.cgstAmount || 0);
+      totalSGST += Number(sale.sgstAmount || 0);
       // IGST = CGST + SGST for inter-state (no separate igstAmount field)
       
       if (sale.customer?.gstNumber) {
-        b2bSales += sale.grandTotal;
+        b2bSales += Number(sale.grandTotal || 0);
       } else {
-        b2cSales += sale.grandTotal;
+        b2cSales += Number(sale.grandTotal || 0);
       }
     });
 
@@ -88,10 +88,11 @@ export const getProfitAndLoss = async (req: Request, res: Response): Promise<voi
     let grossProfit = 0;
 
     sales.forEach(sale => {
-      totalRevenue += sale.grandTotal || 0;
+      const grandTotal = Number(sale.grandTotal || 0);
+      totalRevenue += grandTotal;
       const profit = calculateSaleProfit(sale);
       grossProfit += profit;
-      totalCOGS += ((sale.grandTotal || 0) - profit);
+      totalCOGS += (grandTotal - profit);
     });
 
     const expenses = await prisma.expense.findMany({
@@ -103,9 +104,10 @@ export const getProfitAndLoss = async (req: Request, res: Response): Promise<voi
     const expenseBreakdown = new Map<string, number>();
 
     expenses.forEach(exp => {
-      totalExpenses += exp.amount;
+      const amt = Number(exp.amount || 0);
+      totalExpenses += amt;
       const catName = exp.category?.name || 'Uncategorized';
-      expenseBreakdown.set(catName, (expenseBreakdown.get(catName) || 0) + exp.amount);
+      expenseBreakdown.set(catName, (expenseBreakdown.get(catName) || 0) + amt);
     });
 
     const netProfit = grossProfit - totalExpenses;
@@ -306,7 +308,7 @@ export const getInventoryValuation = async (req: Request, res: Response): Promis
 
     productUnits.forEach(unit => {
       const productId = unit.productId;
-      const price = unit.purchasePrice || unit.product?.purchasePrice || 0;
+      const price = Number(unit.purchasePrice || unit.product?.purchasePrice || 0);
       totalValuation += price;
 
       if (!valuationByProduct.has(productId)) {

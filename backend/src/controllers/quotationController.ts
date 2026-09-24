@@ -81,7 +81,7 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
 
         for (const item of comboItems) {
           const product = await prisma.product.findUnique({ where: { id: item.productId } });
-          const catalogPrice = product?.sellingPrice || item.unitPrice;
+          const catalogPrice = product ? Number(product.sellingPrice) : item.unitPrice;
           const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
           const weight = calculatedQty * catalogPrice;
           itemWeights.push(weight);
@@ -108,7 +108,7 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
           item.totalPrice = allocatedPrice;
           item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
           
-          let trueGstRate = product?.gstRate || 0;
+          let trueGstRate = product ? Number(product.gstRate) : 0;
           if (invoiceType === 'NON_GST') trueGstRate = 0;
 
           let lineTaxable = allocatedPrice;
@@ -385,7 +385,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
 
         for (const item of comboItems) {
           const product = await prisma.product.findUnique({ where: { id: item.productId } });
-          const catalogPrice = product?.sellingPrice || item.unitPrice;
+          const catalogPrice = product ? Number(product.sellingPrice) : item.unitPrice;
           const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
           const weight = calculatedQty * catalogPrice;
           itemWeights.push(weight);
@@ -412,7 +412,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
           item.totalPrice = allocatedPrice;
           item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
           
-          let trueGstRate = product?.gstRate || 0;
+          let trueGstRate = product ? Number(product.gstRate) : 0;
           if (invoiceType === 'NON_GST') trueGstRate = 0;
 
           let lineTaxable = allocatedPrice;

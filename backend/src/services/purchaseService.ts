@@ -176,7 +176,7 @@ export class PurchaseService {
         });
         let amountPaid = 0;
         if (payment) {
-          amountPaid = payment.amount;
+          amountPaid = Number(payment.amount);
           await tx.payment.update({ 
             where: { id: payment.id },
             data: { deletedAt: new Date() }
@@ -184,7 +184,7 @@ export class PurchaseService {
         }
 
         // 4. Revert Supplier balance
-        const amountDue = purchase.grandTotal - amountPaid;
+        const amountDue = Number(purchase.grandTotal) - amountPaid;
         await tx.supplier.update({
           where: { id: purchase.supplierId },
           data: { outstandingBalance: { decrement: amountDue } }
@@ -227,12 +227,12 @@ export class PurchaseService {
         const oldPayment = await tx.payment.findFirst({ where: { referenceId: oldPurchase.purchaseInvoiceNumber, entityType: 'SUPPLIER' } });
         let oldAmountPaid = 0;
         if (oldPayment) {
-          oldAmountPaid = oldPayment.amount;
+          oldAmountPaid = Number(oldPayment.amount);
           await tx.payment.delete({ where: { id: oldPayment.id } });
         }
 
         // 3. Revert Old Supplier balance
-        const oldAmountDue = oldPurchase.grandTotal - oldAmountPaid;
+        const oldAmountDue = Number(oldPurchase.grandTotal) - oldAmountPaid;
         await tx.supplier.update({
           where: { id: oldPurchase.supplierId },
           data: { outstandingBalance: { decrement: oldAmountDue } }

@@ -106,7 +106,7 @@ export class SaleService {
 
             for (const item of comboItems) {
               const product = await tx.product.findUnique({ where: { id: item.productId } });
-              const catalogPrice = product?.sellingPrice || item.unitPrice;
+              const catalogPrice = product ? Number(product.sellingPrice) : item.unitPrice;
               const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
               const weight = calculatedQty * catalogPrice;
               itemWeights.push(weight);
@@ -133,7 +133,7 @@ export class SaleService {
               item.totalPrice = allocatedPrice;
               item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
               
-              let trueGstRate = product?.gstRate || 0;
+              let trueGstRate = product ? Number(product.gstRate) : 0;
               if (invoiceType === 'NON_GST') trueGstRate = 0;
 
               let lineTaxable = allocatedPrice;
@@ -175,7 +175,7 @@ export class SaleService {
           const product = await tx.product.findUnique({ where: { id: item.productId } });
           if (!product) throw new Error(`Product not found: ${item.productId}`);
           
-          let trueGstRate = product.gstRate || 0;
+          let trueGstRate = Number(product.gstRate) || 0;
           if (invoiceType === 'NON_GST') {
              trueGstRate = 0;
           }
@@ -231,10 +231,12 @@ export class SaleService {
         const customer = await tx.customer.findUnique({ where: { id: customerId } });
         if (!customer) throw new Error('Customer not found');
 
-        if (customer.creditLimit !== null && customer.creditLimit > 0) {
-          const newBalance = customer.outstandingBalance + expectedGrandTotal - totalAmountPaid;
-          if (newBalance > customer.creditLimit) {
-            throw new Error(`Credit Limit Exceeded. Customer has a credit limit of ₹${customer.creditLimit}. This transaction results in a balance of ₹${newBalance}. Please increase amount paid.`);
+        const creditLimitNum = customer.creditLimit !== null ? Number(customer.creditLimit) : null;
+        const outstandingBalanceNum = Number(customer.outstandingBalance);
+        if (creditLimitNum !== null && creditLimitNum > 0) {
+          const newBalance = outstandingBalanceNum + expectedGrandTotal - totalAmountPaid;
+          if (newBalance > creditLimitNum) {
+            throw new Error(`Credit Limit Exceeded. Customer has a credit limit of ₹${creditLimitNum}. This transaction results in a balance of ₹${newBalance}. Please increase amount paid.`);
           }
         }
 
@@ -444,7 +446,7 @@ export class SaleService {
 
             for (const item of comboItems) {
               const product = await tx.product.findUnique({ where: { id: item.productId } });
-              const catalogPrice = product?.sellingPrice || item.unitPrice;
+              const catalogPrice = product ? Number(product.sellingPrice) : item.unitPrice;
               const calculatedQty = (product?.wattage || 0) > 0 ? item.quantity * product!.wattage : item.quantity;
               const weight = calculatedQty * catalogPrice;
               itemWeights.push(weight);
@@ -471,7 +473,7 @@ export class SaleService {
               item.totalPrice = allocatedPrice;
               item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
               
-              let trueGstRate = product?.gstRate || 0;
+              let trueGstRate = product ? Number(product.gstRate) : 0;
               if (invoiceType === 'NON_GST') trueGstRate = 0;
 
               let lineTaxable = allocatedPrice;
@@ -512,7 +514,7 @@ export class SaleService {
         for (const item of items) {
           const product = await tx.product.findUnique({ where: { id: item.productId } });
           if (!product) throw new Error(`Product not found: ${item.productId}`);
-          let trueGstRate = product.gstRate || 0;
+          let trueGstRate = Number(product.gstRate) || 0;
           if (invoiceType === 'NON_GST') {
              trueGstRate = 0;
           }
@@ -569,7 +571,7 @@ export class SaleService {
         if (!customer) throw new Error('Customer not found');
 
         // Note: For update, we must calculate the net change because the old invoice grandTotal is currently in outstandingBalance
-        if (customer.creditLimit !== null && customer.creditLimit > 0) {
+        if (customer.creditLimit !== null && Number(customer.creditLimit) > 0) {
           // Revert old invoice impact
           const oldAmountPaid = payments.length > 0 ? 0 : 0; // It's complex to know old amount paid perfectly here without looking at DB, but we know existingSale.grandTotal and existingSale.status
           // Actually, we'll revert the DB balance first, THEN check credit limit to be safe, but we are inside transaction.
@@ -621,13 +623,14 @@ export class SaleService {
         });
 
         // APPLY NEW SALE DATA
-        const updatedCustomerBalance = (await tx.customer.findUnique({ where: { id: customerId } }))?.outstandingBalance || 0;
+        const updatedCustomerBalance = Number((await tx.customer.findUnique({ where: { id: customerId } }))?.outstandingBalance || 0);
         const customerRef = await tx.customer.findUnique({ where: { id: customerId } });
+        const creditLimitNum = customerRef && customerRef.creditLimit !== null ? Number(customerRef.creditLimit) : null;
 
-        if (customerRef && customerRef.creditLimit !== null && customerRef.creditLimit > 0) {
+        if (creditLimitNum !== null && creditLimitNum > 0) {
           const newBalance = updatedCustomerBalance + expectedGrandTotal - totalAmountPaid;
-          if (newBalance > customerRef.creditLimit) {
-            throw new Error(`Credit Limit Exceeded. Customer has a credit limit of ₹${customerRef.creditLimit}. This update results in a balance of ₹${newBalance}.`);
+          if (newBalance > creditLimitNum) {
+            throw new Error(`Credit Limit Exceeded. Customer has a credit limit of ₹${creditLimitNum}. This update results in a balance of ₹${newBalance}.`);
           }
         }
 
