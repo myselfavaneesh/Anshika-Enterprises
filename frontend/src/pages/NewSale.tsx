@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt, Loader2, Search, X, ChevronDown } from 'lucide-react';
+import { Trash2, Receipt, Loader2, Search, X, ChevronDown, Plus } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
@@ -58,6 +58,30 @@ export default function NewSale() {
   const [eWayBillNo, setEWayBillNo] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add Customer State
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({ name: '', phone: '', email: '', address: '', gstNumber: '', state: '', stateCode: '' });
+  const [isSubmittingCustomer, setIsSubmittingCustomer] = useState(false);
+
+  const handleAddCustomerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingCustomer(true);
+    try {
+      const response = await api.post('/customers', newCustomerData);
+      const newCustomer = response.data;
+      setCustomers([...customers, newCustomer]);
+      setSelectedCustomerId(newCustomer._id);
+      setCustomerSearch(`${newCustomer.name} (${newCustomer.phone})`);
+      setIsAddCustomerModalOpen(false);
+      setNewCustomerData({ name: '', phone: '', email: '', address: '', gstNumber: '', state: '', stateCode: '' });
+      toast.success('Customer added successfully!');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to add customer');
+    } finally {
+      setIsSubmittingCustomer(false);
+    }
+  };
 
   // Refs for keyboard navigation
   const productInputRef = useRef<HTMLInputElement>(null);
@@ -575,14 +599,24 @@ export default function NewSale() {
               <CardTitle className="text-base font-bold text-slate-900 dark:text-white">Customer Selection</CardTitle>
             </CardHeader>
             <CardContent>
-              <Input 
-                list="customers-list"
-                placeholder="Search Customer by Name or Phone... (Press Tab to move)"
-                value={customerSearch}
-                onChange={e => setCustomerSearch(e.target.value)}
-                className="text-base py-5 shadow-inner bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
-                autoFocus
-              />
+              <div className="flex gap-2">
+                <Input 
+                  list="customers-list"
+                  placeholder="Search Customer by Name or Phone... (Press Tab to move)"
+                  value={customerSearch}
+                  onChange={e => setCustomerSearch(e.target.value)}
+                  className="text-base py-5 shadow-inner bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 flex-1"
+                  autoFocus
+                />
+                <Button 
+                  onClick={() => setIsAddCustomerModalOpen(true)}
+                  className="h-[42px] px-3 whitespace-nowrap self-center"
+                  variant="outline"
+                  type="button"
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add New
+                </Button>
+              </div>
               <datalist id="customers-list">
                 {customers.map(c => <option key={c._id} value={`${c.name} (${c.phone})`} />)}
               </datalist>
@@ -1223,6 +1257,51 @@ export default function NewSale() {
               Create Package
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Add Customer Modal */}
+      <Dialog open={isAddCustomerModalOpen} onOpenChange={setIsAddCustomerModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddCustomerSubmit} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input required value={newCustomerData.name} onChange={e => setNewCustomerData({...newCustomerData, name: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Phone</label>
+                <Input required value={newCustomerData.phone} onChange={e => setNewCustomerData({...newCustomerData, phone: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input type="email" value={newCustomerData.email} onChange={e => setNewCustomerData({...newCustomerData, email: e.target.value})} placeholder="Optional" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Address</label>
+              <Input value={newCustomerData.address} onChange={e => setNewCustomerData({...newCustomerData, address: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">GST Number</label>
+              <Input value={newCustomerData.gstNumber} onChange={e => setNewCustomerData({...newCustomerData, gstNumber: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">State Name</label>
+                <Input value={newCustomerData.state} onChange={e => setNewCustomerData({...newCustomerData, state: e.target.value})} placeholder="e.g. Uttar Pradesh" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">State Code</label>
+                <Input value={newCustomerData.stateCode} onChange={e => setNewCustomerData({...newCustomerData, stateCode: e.target.value})} placeholder="e.g. 09" />
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmittingCustomer}>
+              {isSubmittingCustomer ? 'Saving...' : 'Save Customer'}
+            </Button>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

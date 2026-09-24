@@ -83,7 +83,7 @@ export class PurchaseService {
               purchaseId: newPurchase.id,
               purchaseItemId: purchaseItem.id,
               supplierId: supplierId,
-              purchasePrice: item.unitPrice,
+              purchasePrice: item.unitPrice * (1 + (taxRate || 0) / 100),
               purchaseInvoiceNumber: purchaseInvoiceNumber,
               supplierName: supplier?.name || null,
             }));
@@ -128,6 +128,9 @@ export class PurchaseService {
         }
 
         return newPurchase;
+      }, {
+        maxWait: 15000,
+        timeout: 30000
       });
 
       logger.info('Purchase completed successfully', { purchaseId: purchase.id, purchaseInvoiceNumber: purchase.purchaseInvoiceNumber });
@@ -286,7 +289,7 @@ export class PurchaseService {
               purchaseId: updatedPurchase.id,
               purchaseItemId: purchaseItem.id,
               supplierId: supplierId,
-              purchasePrice: item.unitPrice,
+              purchasePrice: item.unitPrice * (1 + (taxRate || 0) / 100),
               purchaseInvoiceNumber: purchaseInvoiceNumber,
               supplierName: supplier?.name || null,
             }));
@@ -329,6 +332,9 @@ export class PurchaseService {
         }
 
         return updatedPurchase;
+      }, {
+        maxWait: 15000,
+        timeout: 30000
       });
 
       logger.info('Purchase updated successfully', { purchaseId, purchaseInvoiceNumber: updated.purchaseInvoiceNumber });

@@ -173,6 +173,7 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
     res.status(200).json(mapEntityId(purchase));
   } catch (error: any) {
     if (error instanceof z.ZodError) {
+      console.error("Zod Validation Error:", JSON.stringify(error.issues, null, 2));
       res.status(400).json({ error: 'Validation failed', details: (error as any).issues });
       return;
     }
@@ -181,6 +182,6 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
       return;
     }
     logger.error('Error updating purchase', { error: error.message });
-    res.status(400).json({ error: 'Error updating purchase' });
+    res.status(400).json({ error: error.message || 'Error updating purchase' });
   }
 };

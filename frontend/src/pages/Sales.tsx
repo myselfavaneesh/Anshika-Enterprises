@@ -10,7 +10,7 @@ const Sales = () => {
   const [sales, setSales] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -267,11 +267,26 @@ const Sales = () => {
         </Table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-500">
-            Page {page} of {totalPages}
-          </div>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <span>Show</span>
+          <select 
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm"
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries | Page {page} of {totalPages}</span>
+        </div>
+        
+        {totalPages > 1 && (
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
@@ -292,8 +307,8 @@ const Sales = () => {
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

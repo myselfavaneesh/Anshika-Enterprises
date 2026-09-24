@@ -410,8 +410,8 @@ export default function EditPurchase() {
                     {cart.length === 0 ? (
                       <TableRow><TableCell colSpan={5} className="text-center text-slate-500 py-6">No items added yet</TableCell></TableRow>
                     ) : (
-                      cart.map(item => (
-                        <TableRow key={item.productId}>
+                      cart.map((item, index) => (
+                        <TableRow key={`${item.productId}-${index}`}>
                           <TableCell>
                             <div className="font-medium">{item.name}</div>
                             <div className="text-xs text-slate-500">SN: {item.serialNumbers.length} items</div>

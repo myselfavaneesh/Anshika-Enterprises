@@ -163,7 +163,8 @@ export const getSerials = async (req: Request, res: Response): Promise<void> => 
     const serials = await prisma.productUnit.findMany({
       where,
       include: {
-        saleItem: true
+        saleItem: true,
+        product: true
       },
       orderBy: { createdAt: 'desc' }
     });

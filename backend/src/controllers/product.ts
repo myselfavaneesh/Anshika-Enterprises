@@ -119,23 +119,35 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     const { categoryId, name, sku, lowStockThreshold, hsnCode, unit, gstRate, purchasePrice, sellingPrice, isGstInclusive, wattage, trackSerials } = ProductSchema.parse(req.body);
     
     try {
-      const product = await prisma.product.update({
-        where: { id: id as string },
-        data: {
-          categoryId,
-          name,
-          sku,
-          ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
-          hsnCode,
-          ...(unit !== undefined && { unit }),
-          ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
-          ...(purchasePrice !== undefined && { purchasePrice: Number(purchasePrice) }),
-          ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),
-          ...(isGstInclusive !== undefined && { isGstInclusive: Boolean(isGstInclusive) }),
-          ...(wattage !== undefined && { wattage: Number(wattage) }),
-          ...(trackSerials !== undefined && { trackSerials: Boolean(trackSerials) }),
+      const product = await prisma.$transaction(async (tx) => {
+        const updatedProduct = await tx.product.update({
+          where: { id: id as string },
+          data: {
+            categoryId,
+            name,
+            sku,
+            ...(lowStockThreshold !== undefined && { lowStockThreshold: Number(lowStockThreshold) }),
+            hsnCode,
+            ...(unit !== undefined && { unit }),
+            ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
+            ...(purchasePrice !== undefined && { purchasePrice: Number(purchasePrice) }),
+            ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),
+            ...(isGstInclusive !== undefined && { isGstInclusive: Boolean(isGstInclusive) }),
+            ...(wattage !== undefined && { wattage: Number(wattage) }),
+            ...(trackSerials !== undefined && { trackSerials: Boolean(trackSerials) }),
+          }
+        });
+        
+        if (purchasePrice !== undefined) {
+          await tx.productUnit.updateMany({
+            where: { productId: id as string, status: 'IN_STOCK' },
+            data: { purchasePrice: Number(purchasePrice) }
+          });
         }
+        
+        return updatedProduct;
       });
+
       logger.info('Product updated successfully', { productId: id });
       res.json(mapEntityId(product));
     } catch (e: any) {
