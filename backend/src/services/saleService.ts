@@ -412,6 +412,9 @@ export class SaleService {
         }
 
         return newSale;
+      }, {
+        maxWait: 15000,
+        timeout: 30000
       });
 
       logger.info('Sale completed successfully', { saleId: sale.id, invoiceNumber: sale.invoiceNumber });
@@ -797,6 +800,9 @@ export class SaleService {
         }
 
         return sale;
+      }, {
+        maxWait: 15000,
+        timeout: 30000
       });
 
       logger.info('Sale updated successfully', { saleId });
@@ -863,6 +869,9 @@ export class SaleService {
 
         // 5. Delete Sale
         await tx.sale.delete({ where: { id: sale.id } });
+      }, {
+        maxWait: 15000,
+        timeout: 30000
       });
 
       logger.info('Sale deleted successfully', { saleId });
