@@ -26,7 +26,7 @@ import subscriptionRoutes from './routes/subscription';
 import morgan from 'morgan';
 import { logger } from './utils/logger';
 import { initBackupCron } from './utils/backup';
-import { initInventoryCron } from './utils/inventoryCron';
+import { initJobs } from './jobs';
 
 // dotenv is already loaded by config.ts (imported via routes/middleware)
 
@@ -132,25 +132,9 @@ app.listen(port, () => {
   logger.info(`Server is running on port ${port}`);
 });
 
-// Initialize Cron Jobs
+// Initialize Backup Cron & Background Job Queues
 initBackupCron();
-initInventoryCron();
-
-// Session cleanup: delete expired sessions every 6 hours
-import cron from 'node-cron';
-cron.schedule('0 */6 * * *', async () => {
-  try {
-    const result = await prisma.session.deleteMany({
-      where: { expiresAt: { lt: new Date() } }
-    });
-    if (result.count > 0) {
-      logger.info(`Cleaned up ${result.count} expired sessions`);
-    }
-  } catch (error: any) {
-    logger.error('Error cleaning up expired sessions', { error: error.message });
-  }
-});
-logger.info('Session cleanup cron initialized (every 6 hours)');
+initJobs();
 
 
 
