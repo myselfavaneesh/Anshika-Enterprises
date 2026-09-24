@@ -829,21 +829,20 @@ export class SaleService {
           }
         }
 
-        // 2. Delete SaleItems, SaleServices, SalePayments
-        await tx.saleItem.deleteMany({ where: { saleId: sale.id } });
-        await tx.saleService.deleteMany({ where: { saleId: sale.id } });
-        await tx.salePayment.deleteMany({ where: { saleId: sale.id } });
-
-        // 3. Find and delete associated Global Payments
+        // 3. Find and soft-delete associated Global Payments
         // Using invoiceNumber as prefix due to the `${invoiceNumber}-${mode}-${date}` pattern used now.
         const existingPayments = await tx.payment.findMany({ 
           where: { 
             referenceId: { startsWith: sale.invoiceNumber }, 
-            entityType: 'CUSTOMER' 
+            entityType: 'CUSTOMER',
+            deletedAt: null
           } 
         });
         for (const existingPayment of existingPayments) {
-          await tx.payment.delete({ where: { id: existingPayment.id } });
+          await tx.payment.update({
+            where: { id: existingPayment.id },
+            data: { deletedAt: new Date() }
+          });
           // Revert the payment deduction
           await tx.customer.update({
             where: { id: sale.customerId },
@@ -857,8 +856,14 @@ export class SaleService {
           data: { outstandingBalance: { decrement: sale.grandTotal } }
         });
 
-        // 5. Delete Sale
-        await tx.sale.delete({ where: { id: sale.id } });
+        // 5. Soft-delete Sale (preserve record for GST compliance audit trail)
+        await tx.sale.update({
+          where: { id: sale.id },
+          data: { 
+            deletedAt: new Date(),
+            status: 'CANCELLED'
+          }
+        });
       }, {
         maxWait: 15000,
         timeout: 30000

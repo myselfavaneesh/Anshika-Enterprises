@@ -74,24 +74,26 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     }
 
     const todaySalesData = await prisma.sale.aggregate({
-      where: { createdAt: { gte: today } },
+      where: { createdAt: { gte: today }, deletedAt: null },
       _sum: { grandTotal: true, taxableAmount: true }
     });
     const todaysGrossSales = todaySalesData._sum.grandTotal || 0;
 
     const monthlySalesData = await prisma.sale.aggregate({
-      where: { createdAt: { gte: startOfMonth } },
+      where: { createdAt: { gte: startOfMonth }, deletedAt: null },
       _sum: { grandTotal: true, taxableAmount: true }
     });
     const monthlyGrossSales = monthlySalesData._sum.grandTotal || 0;
 
     const allSalesData = await prisma.sale.aggregate({
+      where: { deletedAt: null },
       _sum: { grandTotal: true, taxableAmount: true }
     });
     const totalGrossSales = allSalesData._sum.grandTotal || 0;
     const totalTaxableSales = allSalesData._sum.taxableAmount || 0;
 
     const recentSales = await prisma.sale.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: {
@@ -103,11 +105,11 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
 
     // YoY Calculation (Year-to-Date this year vs Year-to-Date last year)
     const ytdSalesThisYear = await prisma.sale.aggregate({
-      where: { createdAt: { gte: thisYearStart, lte: today } },
+      where: { createdAt: { gte: thisYearStart, lte: today }, deletedAt: null },
       _sum: { grandTotal: true }
     });
     const ytdSalesLastYear = await prisma.sale.aggregate({
-      where: { createdAt: { gte: lastYearStart, lte: lastYearEnd } },
+      where: { createdAt: { gte: lastYearStart, lte: lastYearEnd }, deletedAt: null },
       _sum: { grandTotal: true }
     });
     
@@ -122,7 +124,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
 
     // Fetch filtered sales for profit and chart
     const filteredSalesQuery = await prisma.sale.findMany({
-      where: dateFilter,
+      where: { ...dateFilter, deletedAt: null },
       include: {
         productUnits: true,
         saleItems: { include: { product: true } }

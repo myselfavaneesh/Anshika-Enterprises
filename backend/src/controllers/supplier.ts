@@ -19,7 +19,9 @@ const SupplierSchema = z.object({
 
 export const getSuppliers = async (req: Request, res: Response) => {
   try {
-    const suppliers = await prisma.supplier.findMany();
+    const suppliers = await prisma.supplier.findMany({
+      where: { deletedAt: null }
+    });
     res.json(mapEntityId(suppliers));
   } catch (error: any) {
     logger.error('Error fetching suppliers', { error: error.message, stack: error.stack });
@@ -149,7 +151,7 @@ export const getSupplierLedger = async (req: Request, res: Response): Promise<vo
 
     // 1. Fetch Purchases with PurchaseItems and Product info
     const purchasesRaw = await prisma.purchase.findMany({
-      where: { supplierId: id as string },
+      where: { supplierId: id as string, deletedAt: null },
       include: {
         purchaseItems: {
           include: {
@@ -185,7 +187,7 @@ export const getSupplierLedger = async (req: Request, res: Response): Promise<vo
 
     // 2. Fetch Payments
     const paymentsRaw = await prisma.payment.findMany({
-      where: { entityId: id as string, entityType: 'SUPPLIER' }
+      where: { entityId: id as string, entityType: 'SUPPLIER', deletedAt: null }
     });
     
     const payments = paymentsRaw.map(payment => ({
@@ -243,7 +245,10 @@ export const deleteSupplier = async (req: Request, res: Response): Promise<void>
     }
 
     try {
-      await prisma.supplier.delete({ where: { id: id as string } });
+      await prisma.supplier.update({ 
+        where: { id: id as string },
+        data: { deletedAt: new Date() }
+      });
       res.json({ message: 'Supplier deleted' });
     } catch (e: any) {
       if (e.code === 'P2025') {

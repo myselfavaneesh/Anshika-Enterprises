@@ -14,7 +14,7 @@ const getDateRange = (startDate?: string, endDate?: string) => {
     end.setHours(23, 59, 59, 999);
     filter.lte = end;
   }
-  return Object.keys(filter).length > 0 ? { createdAt: filter } : {};
+  return Object.keys(filter).length > 0 ? { createdAt: filter, deletedAt: null } : { deletedAt: null };
 };
 
 export const getGSTSummary = async (req: Request, res: Response): Promise<void> => {
@@ -73,7 +73,7 @@ export const getProfitAndLoss = async (req: Request, res: Response): Promise<voi
   try {
     const { startDate, endDate } = req.query;
     const dateFilter = getDateRange(startDate as string, endDate as string);
-    const expenseDateFilter = Object.keys(dateFilter).length > 0 ? { date: dateFilter.createdAt } : {};
+    const expenseDateFilter = dateFilter.createdAt ? { date: dateFilter.createdAt, deletedAt: null } : { deletedAt: null };
 
     const sales = await prisma.sale.findMany({
       where: dateFilter,

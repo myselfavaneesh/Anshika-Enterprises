@@ -238,7 +238,9 @@ export const getQuotations = async (req: Request, res: Response): Promise<void> 
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const expiringSoon = req.query.expiringSoon === 'true';
 
-    const where: any = {};
+    const where: any = {
+      deletedAt: null
+    };
 
     if (status) {
       where.status = status;
@@ -351,9 +353,13 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.quotationService.deleteMany({ where: { quotationId: id as string } });
-      await tx.quotationItem.deleteMany({ where: { quotationId: id as string } });
-      await tx.quotation.delete({ where: { id: id as string } });
+      await tx.quotation.update({ 
+        where: { id: id as string },
+        data: {
+          deletedAt: new Date(),
+          status: 'REJECTED'
+        }
+      });
     });
 
     res.json({ message: 'Quotation deleted successfully' });

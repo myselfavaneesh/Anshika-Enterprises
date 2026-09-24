@@ -90,7 +90,9 @@ const ExpenseSchema = z.object({
 export const getExpenses = async (req: Request, res: Response): Promise<void> => {
   try {
     const { startDate, endDate, categoryId } = req.query;
-    const where: any = {};
+    const where: any = {
+      deletedAt: null
+    };
     
     if (startDate && endDate) {
       where.date = { gte: new Date(startDate as string), lte: new Date(endDate as string) };
@@ -158,7 +160,10 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
 export const deleteExpense = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    await prisma.expense.delete({ where: { id: id as string } });
+    await prisma.expense.update({ 
+      where: { id: id as string },
+      data: { deletedAt: new Date() }
+    });
     res.status(204).send();
   } catch (error: any) {
     res.status(500).json({ error: 'Server error' });

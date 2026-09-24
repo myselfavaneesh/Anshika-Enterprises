@@ -19,7 +19,9 @@ const CustomerSchema = z.object({
 
 export const getCustomers = async (req: Request, res: Response) => {
   try {
-    const customers = await prisma.customer.findMany();
+    const customers = await prisma.customer.findMany({
+      where: { deletedAt: null }
+    });
     res.json(mapEntityId(customers));
   } catch (error: any) {
     logger.error('Error fetching customers', { error: error.message, stack: error.stack });
@@ -151,7 +153,7 @@ export const getCustomerLedger = async (req: Request, res: Response): Promise<vo
 
     // 1. Fetch Sales with SaleItems and Product info
     const salesRaw = await prisma.sale.findMany({
-      where: { customerId: id as string },
+      where: { customerId: id as string, deletedAt: null },
       include: {
         saleItems: {
           include: {
@@ -245,7 +247,10 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
     }
 
     try {
-      await prisma.customer.delete({ where: { id: id as string } });
+      await prisma.customer.update({ 
+        where: { id: id as string },
+        data: { deletedAt: new Date() }
+      });
       res.json({ message: 'Customer deleted' });
     } catch (e: any) {
       if (e.code === 'P2025') {

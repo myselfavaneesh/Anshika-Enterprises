@@ -166,15 +166,21 @@ export class PurchaseService {
           }
         }
 
-        // 2. Delete PurchaseItems
-        await tx.purchaseItem.deleteMany({ where: { purchaseId: purchase.id } });
-
-        // 3. Find and delete associated Payment
-        const payment = await tx.payment.findFirst({ where: { referenceId: purchase.purchaseInvoiceNumber, entityType: 'SUPPLIER' } });
+        // 3. Find and soft-delete associated Payment
+        const payment = await tx.payment.findFirst({ 
+          where: { 
+            referenceId: purchase.purchaseInvoiceNumber, 
+            entityType: 'SUPPLIER',
+            deletedAt: null
+          } 
+        });
         let amountPaid = 0;
         if (payment) {
           amountPaid = payment.amount;
-          await tx.payment.delete({ where: { id: payment.id } });
+          await tx.payment.update({ 
+            where: { id: payment.id },
+            data: { deletedAt: new Date() }
+          });
         }
 
         // 4. Revert Supplier balance
@@ -184,8 +190,14 @@ export class PurchaseService {
           data: { outstandingBalance: { decrement: amountDue } }
         });
 
-        // 5. Delete Purchase
-        await tx.purchase.delete({ where: { id: purchase.id } });
+        // 5. Soft-delete Purchase (preserve audit trail)
+        await tx.purchase.update({ 
+          where: { id: purchase.id },
+          data: {
+            deletedAt: new Date(),
+            status: 'CANCELLED'
+          }
+        });
       });
 
       logger.info('Purchase deleted successfully', { purchaseId });

@@ -105,6 +105,7 @@ model Customer {
   outstandingBalance Float    @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  deletedAt          DateTime?
 
   quotations    Quotation[]
   sales         Sale[]
@@ -114,6 +115,7 @@ model Customer {
   @@index([phone])
   @@index([name])
   @@index([gstNumber])
+  @@index([deletedAt])
 }
 
 model Supplier {
@@ -130,6 +132,7 @@ model Supplier {
   outstandingBalance Float    @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  deletedAt          DateTime?
 
   purchases     Purchase[]
   productUnits  ProductUnit[]
@@ -137,6 +140,7 @@ model Supplier {
 
   @@index([phone])
   @@index([name])
+  @@index([deletedAt])
 }
 
 model Payment {
@@ -150,8 +154,10 @@ model Payment {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 
   @@index([entityId, entityType])
+  @@index([deletedAt])
 }
 
 model ProductUnit {
@@ -208,6 +214,7 @@ model Purchase {
   status                String   @default("PAID") // 'PAID' | 'PENDING' | 'CANCELLED'
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  deletedAt             DateTime?
 
   purchaseItems         PurchaseItem[]
   productUnits          ProductUnit[]
@@ -215,6 +222,7 @@ model Purchase {
   @@unique([purchaseInvoiceNumber, supplierId])
   @@index([supplierId])
   @@index([createdAt])
+  @@index([deletedAt])
 }
 
 model PurchaseItem {
@@ -257,12 +265,14 @@ model Quotation {
   validUntil      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
 
   quotationItems    QuotationItem[]
   quotationServices QuotationService[]
   comboGroups       QuotationComboGroup[]
 
   @@index([customerId])
+  @@index([deletedAt])
 }
 
 model QuotationItem {
@@ -316,6 +326,7 @@ model Sale {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
 
   saleItems     SaleItem[]
   saleServices  SaleService[]
@@ -327,6 +338,7 @@ model Sale {
   @@index([customerId])
   @@index([createdAt])
   @@index([status])
+  @@index([deletedAt])
 }
 
 model SalePayment {
@@ -400,9 +412,11 @@ model SaleReturn {
   notes          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
 
   @@index([originalSaleId])
   @@index([customerId])
+  @@index([deletedAt])
 }
 
 model SaleService {
@@ -485,9 +499,11 @@ model Expense {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
 
   @@index([categoryId])
   @@index([date])
+  @@index([deletedAt])
 }
 
 model Warehouse {

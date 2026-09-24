@@ -60,7 +60,9 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
     const search = typeof req.query.q === 'string' ? req.query.q : undefined;
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
 
-    const where: any = {};
+    const where: any = {
+      deletedAt: null
+    };
 
     if (status) {
       where.status = status;

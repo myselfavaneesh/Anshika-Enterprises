@@ -161,15 +161,16 @@ export const getLedger = async (req: Request, res: Response): Promise<void> => {
     const payments = await prisma.payment.findMany({ 
       where: { 
         entityId: entityId as string, 
-        entityType: entityType as string
-      }
+        entityType: entityType as string,
+        deletedAt: null
+      } 
     });
 
     let invoices: any[] = [];
     if (entityType === 'CUSTOMER') {
-      invoices = await prisma.sale.findMany({ where: { customerId: entityId as string } });
+      invoices = await prisma.sale.findMany({ where: { customerId: entityId as string, deletedAt: null } });
     } else if (entityType === 'SUPPLIER') {
-      invoices = await prisma.purchase.findMany({ where: { supplierId: entityId as string } });
+      invoices = await prisma.purchase.findMany({ where: { supplierId: entityId as string, deletedAt: null } });
     }
 
     // We need standard Debit/Credit for Khata:
@@ -345,7 +346,10 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
         });
       }
 
-      await tx.payment.delete({ where: { id: payment.id } });
+      await tx.payment.update({ 
+        where: { id: payment.id },
+        data: { deletedAt: new Date() }
+      });
     });
 
     res.json({ message: 'Payment deleted successfully' });
