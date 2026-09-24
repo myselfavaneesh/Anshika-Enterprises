@@ -1,5 +1,6 @@
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
+import { getNextSequenceNumber } from '../utils/sequence';
 
 export interface SaleItemInput {
   productId: string;
@@ -91,18 +92,7 @@ export class SaleService {
         const nextYear = (date.getFullYear() + 1).toString().slice(-2);
         const prefix = `INV/${year}-${nextYear}/`;
         
-        const lastSale = await tx.sale.findFirst({
-          where: { invoiceNumber: { startsWith: prefix } },
-          orderBy: { createdAt: 'desc' }
-        });
-
-        let nextCount = 1;
-        if (lastSale) {
-          const lastNumber = parseInt(lastSale.invoiceNumber.replace(prefix, ''), 10);
-          if (!isNaN(lastNumber)) {
-            nextCount = lastNumber + 1;
-          }
-        }
+        const nextCount = await getNextSequenceNumber(tx, prefix, 'sale');
         const invoiceNumber = `${prefix}${nextCount.toString().padStart(4, '0')}`;
 
         // Step 0: Process Combo Groups & Override item prices BEFORE math validation

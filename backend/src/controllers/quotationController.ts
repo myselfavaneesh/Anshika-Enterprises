@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
 import { generateQuotationPDF, getQuotationHTML } from '../utils/pdfGenerator';
 import { sendInvoiceEmail } from '../services/emailService';
+import { getNextSequenceNumber } from '../utils/sequence';
 
 const QuotationItemSchema = z.object({
   productId: z.string(),
@@ -55,27 +56,14 @@ const QuotationInputSchema = z.object({
   status: z.enum(['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED']).optional().default('DRAFT'),
 });
 
-const generateQuotationNumber = async (): Promise<string> => {
+const generateQuotationNumber = async (tx?: any): Promise<string> => {
   const date = new Date();
   const year = date.getFullYear().toString().slice(-2);
   const nextYear = (date.getFullYear() + 1).toString().slice(-2);
   const prefix = `QT/${year}-${nextYear}/`;
   
-  const lastQuotation = await prisma.quotation.findFirst({
-    where: { quotationNumber: { startsWith: prefix } },
-    orderBy: { createdAt: 'desc' }
-  });
-
-  let nextCount = 1;
-  if (lastQuotation) {
-    const lastNumber = parseInt(lastQuotation.quotationNumber.replace(prefix, ''), 10);
-    if (!isNaN(lastNumber)) {
-      nextCount = lastNumber + 1;
-    }
-  }
-
-  const formattedCount = nextCount.toString().padStart(4, '0');
-  return `${prefix}${formattedCount}`;
+  const nextCount = await getNextSequenceNumber(tx || prisma, prefix, 'quotation');
+  return `${prefix}${nextCount.toString().padStart(4, '0')}`;
 };
 
 export const createQuotation = async (req: Request, res: Response): Promise<void> => {
