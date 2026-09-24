@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
-import { generateQuotationPDF, getQuotationHTML } from '../utils/pdfGenerator';
+import { generateQuotationPDF, getQuotationHTML } from '../services/invoice';
 import { sendInvoiceEmail } from '../services/emailService';
 import { getNextSequenceNumber } from '../utils/sequence';
 

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../prisma';
 import { SaleService } from '../services/saleService';
-import { generateInvoicePDF, getInvoiceHTML } from '../utils/pdfGenerator';
+import { generateInvoicePDF, getInvoiceHTML } from '../services/invoice';
 import { sendInvoiceEmail } from '../services/emailService';
 import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
