@@ -6,6 +6,7 @@ import { mapEntityId } from '../utils/mapper';
 import { generateQuotationPDF, getQuotationHTML } from '../services/invoice';
 import { sendInvoiceEmail } from '../services/emailService';
 import { getNextSequenceNumber } from '../utils/sequence';
+import { calculateLineTax } from '../services/gstService';
 
 const QuotationItemSchema = z.object({
   productId: z.string(),
@@ -111,27 +112,19 @@ export const createQuotation = async (req: Request, res: Response): Promise<void
           let trueGstRate = product ? Number(product.gstRate) : 0;
           if (invoiceType === 'NON_GST') trueGstRate = 0;
 
-          let lineTaxable = allocatedPrice;
-          let lineTax = 0;
+          const taxResult = calculateLineTax({
+            unitPrice: allocatedPrice,
+            quantity: 1,
+            gstRate: trueGstRate,
+            isGstInclusive: Boolean(combo.isGstInclusive),
+            isNonGst: invoiceType === 'NON_GST',
+          });
 
-          if (trueGstRate > 0) {
-            if (combo.isGstInclusive) {
-              lineTaxable = allocatedPrice / (1 + (trueGstRate / 100));
-              lineTax = allocatedPrice - lineTaxable;
-            } else {
-              lineTaxable = allocatedPrice;
-              lineTax = allocatedPrice * (trueGstRate / 100);
-            }
-          }
-
-          item.taxableTotalPrice = lineTaxable;
-          item.taxableUnitPrice = calculatedQty > 0 ? lineTaxable / calculatedQty : 0;
+          item.taxableTotalPrice = taxResult.taxableTotalPrice;
+          item.taxableUnitPrice = calculatedQty > 0 ? Number((taxResult.taxableTotalPrice / calculatedQty).toFixed(2)) : 0;
           item.gstRate = trueGstRate;
-
-          // For quotation, we assume intra-state if no explicit placeOfSupplyCode is provided easily, but realistically we should just use the passed cgst/igst proportion.
-          // Since it's a quotation and might lack placeOfSupplyCode, we'll split evenly to CGST/SGST by default.
-          item.cgstAmount = lineTax / 2;
-          item.sgstAmount = lineTax / 2;
+          item.cgstAmount = taxResult.cgstAmount;
+          item.sgstAmount = taxResult.sgstAmount;
         }
       }
     }

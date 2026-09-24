@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
+import { LedgerService } from '../services/ledgerService';
 
 const PaymentSchema = z.object({
   entityType: z.enum(['CUSTOMER', 'SUPPLIER']),
@@ -17,43 +18,8 @@ const PaymentSchema = z.object({
 // Record a new payment and update the ledger balance securely
 export const recordPayment = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { entityType, entityId, type, amount, paymentMode, referenceId, notes } = PaymentSchema.parse(req.body);
-
-    const numAmount = Number(amount);
-
-    const payment = await prisma.$transaction(async (tx) => {
-      // 1. Create the payment record
-      const newPayment = await tx.payment.create({
-        data: {
-          entityType,
-          entityId,
-          type,
-          amount: numAmount,
-          paymentMode,
-          referenceId,
-          notes,
-        }
-      });
-      
-      // 2. Update the outstanding balance
-      let balanceChange = 0;
-      if (entityType === 'CUSTOMER') {
-        balanceChange = type === 'MONEY_IN' ? -numAmount : numAmount;
-        await tx.customer.update({
-          where: { id: entityId },
-          data: { outstandingBalance: { increment: balanceChange } }
-        });
-      } else if (entityType === 'SUPPLIER') {
-        balanceChange = type === 'MONEY_OUT' ? -numAmount : numAmount;
-        await tx.supplier.update({
-          where: { id: entityId },
-          data: { outstandingBalance: { increment: balanceChange } }
-        });
-      }
-
-      return newPayment;
-    });
-
+    const data = PaymentSchema.parse(req.body);
+    const payment = await LedgerService.recordPayment(data);
     res.status(201).json(mapEntityId(payment));
   } catch (error: any) {
     logger.error('Error in recordPayment transaction:', { error: error.message, stack: error.stack });
@@ -78,58 +44,7 @@ const BulkPaymentSchema = z.array(PaymentSchema);
 export const bulkRecordPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const paymentsData = BulkPaymentSchema.parse(req.body);
-
-    const payments = await prisma.$transaction(async (tx) => {
-      const createdPayments = [];
-      let customerBalances: Record<string, number> = {};
-      let supplierBalances: Record<string, number> = {};
-
-      for (const data of paymentsData) {
-        const numAmount = Number(data.amount);
-        
-        const newPayment = await tx.payment.create({
-          data: {
-            entityType: data.entityType,
-            entityId: data.entityId,
-            type: data.type,
-            amount: numAmount,
-            paymentMode: data.paymentMode,
-            referenceId: data.referenceId,
-            notes: data.notes,
-          }
-        });
-        createdPayments.push(newPayment);
-
-        if (data.entityType === 'CUSTOMER') {
-          const balanceChange = data.type === 'MONEY_IN' ? -numAmount : numAmount;
-          customerBalances[data.entityId] = (customerBalances[data.entityId] || 0) + balanceChange;
-        } else if (data.entityType === 'SUPPLIER') {
-          const balanceChange = data.type === 'MONEY_OUT' ? -numAmount : numAmount;
-          supplierBalances[data.entityId] = (supplierBalances[data.entityId] || 0) + balanceChange;
-        }
-      }
-
-      for (const [entityId, change] of Object.entries(customerBalances)) {
-        if (change !== 0) {
-          await tx.customer.update({
-            where: { id: entityId },
-            data: { outstandingBalance: { increment: change } }
-          });
-        }
-      }
-
-      for (const [entityId, change] of Object.entries(supplierBalances)) {
-        if (change !== 0) {
-          await tx.supplier.update({
-            where: { id: entityId },
-            data: { outstandingBalance: { increment: change } }
-          });
-        }
-      }
-
-      return createdPayments;
-    });
-
+    const payments = await LedgerService.bulkRecordPayments(paymentsData);
     res.status(201).json(payments.map(mapEntityId));
   } catch (error: any) {
     logger.error('Error in bulkRecordPayment transaction:', { error: error.message, stack: error.stack });

@@ -1,6 +1,7 @@
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { getNextSequenceNumber } from '../utils/sequence';
+import { calculateLineTax } from './gstService';
 
 export interface SaleItemInput {
   productId: string;
@@ -136,32 +137,21 @@ export class SaleService {
               let trueGstRate = product ? Number(product.gstRate) : 0;
               if (invoiceType === 'NON_GST') trueGstRate = 0;
 
-              let lineTaxable = allocatedPrice;
-              let lineTax = 0;
+              const taxResult = calculateLineTax({
+                unitPrice: allocatedPrice,
+                quantity: 1,
+                gstRate: trueGstRate,
+                isGstInclusive: Boolean(combo.isGstInclusive),
+                placeOfSupplyCode,
+                isNonGst: invoiceType === 'NON_GST',
+              });
 
-              if (trueGstRate > 0) {
-                if (combo.isGstInclusive) {
-                  lineTaxable = allocatedPrice / (1 + (trueGstRate / 100));
-                  lineTax = allocatedPrice - lineTaxable;
-                } else {
-                  lineTaxable = allocatedPrice;
-                  lineTax = allocatedPrice * (trueGstRate / 100);
-                }
-              }
-
-              item.taxableTotalPrice = lineTaxable;
-              item.taxableUnitPrice = calculatedQty > 0 ? lineTaxable / calculatedQty : 0;
+              item.taxableTotalPrice = taxResult.taxableTotalPrice;
+              item.taxableUnitPrice = calculatedQty > 0 ? Number((taxResult.taxableTotalPrice / calculatedQty).toFixed(2)) : 0;
               item.gstRate = trueGstRate;
-
-              if (placeOfSupplyCode && placeOfSupplyCode !== '09') {
-                item.igstAmount = lineTax;
-                item.cgstAmount = 0;
-                item.sgstAmount = 0;
-              } else {
-                item.cgstAmount = lineTax / 2;
-                item.sgstAmount = lineTax / 2;
-                item.igstAmount = 0;
-              }
+              item.cgstAmount = taxResult.cgstAmount;
+              item.sgstAmount = taxResult.sgstAmount;
+              item.igstAmount = taxResult.igstAmount;
             }
           }
         }

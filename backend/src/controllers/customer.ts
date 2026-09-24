@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
+import { LedgerService } from '../services/ledgerService';
 
 const CustomerSchema = z.object({
   name: z.string().min(1).max(255),
@@ -144,90 +145,14 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
 export const getCustomerLedger = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const customer = await prisma.customer.findUnique({ where: { id: id as string } });
+    const result = await LedgerService.getCustomerLedger(id as string);
     
-    if (!customer) {
+    if (!result) {
       res.status(404).json({ error: 'Customer not found' });
       return;
     }
 
-    // 1. Fetch Sales with SaleItems and Product info
-    const salesRaw = await prisma.sale.findMany({
-      where: { customerId: id as string, deletedAt: null },
-      include: {
-        saleItems: {
-          include: {
-            product: true,
-            productUnits: {
-              select: { serialNumber: true }
-            }
-          }
-        }
-      }
-    });
-
-    const sales = salesRaw.map(sale => {
-      const items = sale.saleItems.map((item: any) => {
-        const { product, productUnits, ...itemRest } = item;
-        return {
-          ...mapEntityId(itemRest),
-          productId: mapEntityId(product),
-          serialNumbers: productUnits.map((u: any) => u.serialNumber),
-        };
-      });
-
-      return {
-        _id: sale.id,
-        date: sale.createdAt,
-        type: 'SALE',
-        invoiceNumber: sale.invoiceNumber,
-        grandTotal: sale.grandTotal,
-        items,
-        status: sale.status,
-      };
-    });
-
-    // 2. Fetch Payments
-    const paymentsRaw = await prisma.payment.findMany({
-      where: { entityId: id as string, entityType: 'CUSTOMER' }
-    });
-
-    const payments = paymentsRaw.map(payment => ({
-      _id: payment.id,
-      date: payment.createdAt,
-      type: 'PAYMENT',
-      paymentType: payment.type, // 'MONEY_IN' or 'MONEY_OUT'
-      amount: payment.amount,
-      paymentMode: payment.paymentMode,
-      referenceId: payment.referenceId,
-      notes: payment.notes,
-    }));
-
-    // 3. Combine and Sort
-    const combined: any[] = [...sales, ...payments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // 4. Calculate Running Balance
-    let runningBalance = 0;
-    const ledger = combined.map(entry => {
-      if (entry.type === 'SALE') {
-        runningBalance += entry.grandTotal; // Customer owes more
-      } else if (entry.type === 'PAYMENT') {
-        if (entry.paymentType === 'MONEY_IN') {
-          runningBalance -= entry.amount; // Customer paid us
-        } else if (entry.paymentType === 'MONEY_OUT') {
-          runningBalance += entry.amount; // We refunded customer
-        }
-      }
-      return {
-        ...entry,
-        runningBalance
-      };
-    });
-
-    res.json({
-      customer: mapEntityId(customer),
-      ledger
-    });
+    res.json(result);
   } catch (error: any) {
     logger.error('Error fetching customer ledger', { customerId: req.params.id, error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error' });
