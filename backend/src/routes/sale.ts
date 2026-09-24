@@ -1,6 +1,8 @@
 import express from 'express';
 import { getSales, createSale, downloadInvoice, getSaleById, deleteSale, updateSale, sendSaleEmailController } from '../controllers/sale';
 import { authenticate, checkActive, requirePermission } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { CreateSaleSchema } from '../validators';
 
 const router = express.Router();
 
@@ -8,7 +10,7 @@ router.use(authenticate);
 router.use(checkActive);
 
 router.get('/', requirePermission('sales:view'), getSales);
-router.post('/', requirePermission('sales:create'), createSale);
+router.post('/', requirePermission('sales:create'), validate(CreateSaleSchema), createSale);
 router.get('/:id/invoice', requirePermission('sales:view'), downloadInvoice);
 router.post('/:id/email', requirePermission('sales:view'), sendSaleEmailController);
 router.get('/:id', requirePermission('sales:view'), getSaleById);

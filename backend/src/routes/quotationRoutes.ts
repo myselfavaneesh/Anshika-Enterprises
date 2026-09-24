@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { createQuotation, getQuotations, getQuotationById, updateQuotation, deleteQuotation, convertQuotation, downloadQuotationPDF, sendQuotationEmailController, updateQuotationStatus } from '../controllers/quotationController';
 import { authenticate, checkActive, requirePermission } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { CreateQuotationSchema } from '../validators';
 
 const router = Router();
 
@@ -8,7 +10,7 @@ router.use(authenticate);
 router.use(checkActive);
 
 router.get('/', requirePermission('quotations:view'), getQuotations);
-router.post('/', requirePermission('quotations:create'), createQuotation);
+router.post('/', requirePermission('quotations:create'), validate(CreateQuotationSchema), createQuotation);
 router.get('/:id/pdf', requirePermission('quotations:view'), downloadQuotationPDF);
 router.post('/:id/email', requirePermission('quotations:view'), sendQuotationEmailController);
 router.get('/:id', requirePermission('quotations:view'), getQuotationById);
