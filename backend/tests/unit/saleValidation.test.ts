@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+
 import { CreateSaleSchema } from '../../src/validators/sale.validator';
 
 describe('Sale Zod Validation & Composition Scheme (Unit Tests)', () => {

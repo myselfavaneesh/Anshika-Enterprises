@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+
 import { calculateLineTax, allocateComboItems, calculateInvoiceTotals } from '../../src/services/gstService';
 
 describe('GST Calculation Service (Unit Tests)', () => {

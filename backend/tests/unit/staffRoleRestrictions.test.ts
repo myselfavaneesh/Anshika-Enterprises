@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+
 import { forbidRole } from '../../src/middleware/auth';
 import { ROLE_PRESETS } from '../../src/controllers/staff';
 
