@@ -16,6 +16,7 @@ export const SaleItemSchema = z.object({
   wattage: z.number().min(0).default(0),
   serialNumbers: z.array(z.string()).optional(),
   comboGroupId: z.string().optional(),
+  purchasePrice: z.number().min(0).optional(),
 });
 
 export const SaleServiceSchema = z.object({

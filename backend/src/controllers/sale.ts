@@ -22,6 +22,7 @@ const SaleItemSchema = z.object({
   unit: z.string().optional(),
   wattage: z.number().min(0).default(0),
   serialNumbers: z.array(z.string()).optional(),
+  purchasePrice: z.number().optional(),
 });
 
 const SaleServiceSchema = z.object({

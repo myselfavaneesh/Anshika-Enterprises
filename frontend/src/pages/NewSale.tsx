@@ -40,8 +40,10 @@ export default function NewSale() {
 
   // Quick Inward inside Serials & Quantity Dialogs
   const [quickSerialInput, setQuickSerialInput] = useState('');
+  const [quickSerialCost, setQuickSerialCost] = useState('');
   const [isQuickInwardingSerial, setIsQuickInwardingSerial] = useState(false);
   const [quickQtyInput, setQuickQtyInput] = useState('');
+  const [quickQtyCost, setQuickQtyCost] = useState('');
   const [isQuickInwardingQty, setIsQuickInwardingQty] = useState(false);
 
   // Dedicated Quick Inward Modal
@@ -207,6 +209,12 @@ export default function NewSale() {
   };
 
   const fetchSerials = async (productId: string) => {
+    const prod = products.find(p => p._id === productId);
+    if (prod?.purchasePrice) {
+      setQuickSerialCost(String(prod.purchasePrice));
+    } else {
+      setQuickSerialCost('');
+    }
     try {
       const res = await api.get(`/inventory/serials/${productId}?status=IN_STOCK`);
       setAvailableSerials(res.data);
@@ -227,12 +235,14 @@ export default function NewSale() {
     if (cleanSerials.length === 0) return;
 
     const prod = products.find(p => p._id === selectedProductId);
+    const purchasePrice = quickSerialCost ? Number(quickSerialCost) : Number(prod?.purchasePrice || 0);
+
     setIsQuickInwardingSerial(true);
     try {
       await api.post('/inventory/stock-in', {
         productId: selectedProductId,
         serialNumbers: cleanSerials,
-        purchasePrice: Number(prod?.purchasePrice || 0),
+        purchasePrice,
         supplierName: 'POS Quick Inward'
       });
 
@@ -240,7 +250,7 @@ export default function NewSale() {
       setAvailableSerials(prev => [...newItems, ...prev]);
       setSelectedSerials(prev => Array.from(new Set([...prev, ...cleanSerials])));
       setQuickSerialInput('');
-      toast.success(`Inwarded & selected ${cleanSerials.length} serial(s)!`);
+      toast.success(`Inwarded & selected ${cleanSerials.length} serial(s) @ ₹${purchasePrice}!`);
       refreshProducts();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to inward serials');
@@ -258,16 +268,17 @@ export default function NewSale() {
       toast.success(`Selected serial: ${clean}`);
     } else {
       const prod = products.find(p => p._id === selectedProductId);
+      const purchasePrice = quickSerialCost ? Number(quickSerialCost) : Number(prod?.purchasePrice || 0);
       try {
         await api.post('/inventory/stock-in', {
           productId: selectedProductId,
           serialNumbers: [clean],
-          purchasePrice: Number(prod?.purchasePrice || 0),
+          purchasePrice,
           supplierName: 'Scanned at POS'
         });
         setAvailableSerials(prev => [{ _id: 'scanned-' + Date.now(), serialNumber: clean }, ...prev]);
         setSelectedSerials(prev => Array.from(new Set([...prev, clean])));
-        toast.success(`Scanned & inwarded new serial: ${clean}`);
+        toast.success(`Scanned & inwarded new serial: ${clean} (Cost: ₹${purchasePrice})`);
         refreshProducts();
       } catch (err: any) {
         toast.error(err.response?.data?.error || `Failed to inward serial ${clean}`);
@@ -279,15 +290,16 @@ export default function NewSale() {
     const qty = Number(quickQtyInput);
     if (!selectedProductId || !qty || qty <= 0) return;
     const prod = products.find(p => p._id === selectedProductId);
+    const purchasePrice = quickQtyCost ? Number(quickQtyCost) : Number(prod?.purchasePrice || 0);
     setIsQuickInwardingQty(true);
     try {
       await api.post('/inventory/stock-in', {
         productId: selectedProductId,
         quantity: qty,
-        purchasePrice: Number(prod?.purchasePrice || 0),
+        purchasePrice,
         supplierName: 'POS Quick Inward'
       });
-      toast.success(`Added ${qty} units to stock!`);
+      toast.success(`Added ${qty} units to stock @ ₹${purchasePrice}!`);
       setSelectedQuantity(String(qty));
       setQuickQtyInput('');
       refreshProducts();
@@ -411,7 +423,8 @@ export default function NewSale() {
         isGstInclusive: product.isGstInclusive !== undefined ? product.isGstInclusive : true,
         wattage: wattage,
         hsnCode: product.hsnCode || '',
-        unit: product.unit || 'PC'
+        unit: product.unit || 'PC',
+        purchasePrice: quickSerialCost ? Number(quickSerialCost) : (quickQtyCost ? Number(quickQtyCost) : (product.purchasePrice || 0))
       }]);
     }
     
@@ -423,6 +436,8 @@ export default function NewSale() {
     setIsSerialsDialogOpen(false);
     setIsQuantityDialogOpen(false);
     setSelectedQuantity('1');
+    setQuickSerialCost('');
+    setQuickQtyCost('');
     
     // Focus back to product search for next item
     setTimeout(() => productInputRef.current?.focus(), 100);
@@ -657,7 +672,8 @@ export default function NewSale() {
           unit: item.unit || 'PC',
           serialNumbers: item.serialNumbers,
           wattage: item.wattage || 0,
-          comboGroupId: item.comboGroupId
+          comboGroupId: item.comboGroupId,
+          purchasePrice: item.purchasePrice
         })),
         comboGroups: comboGroups.map(c => ({
           internalId: c.internalId,
@@ -932,6 +948,7 @@ export default function NewSale() {
                               // Immediately trigger serial fetch or quantity dialog
                               if (p.trackSerials === false) {
                                 setSelectedQuantity('1');
+                                if (p.purchasePrice) setQuickQtyCost(String(p.purchasePrice));
                                 setIsQuantityDialogOpen(true);
                               } else {
                                 fetchSerials(p._id);
@@ -959,8 +976,10 @@ export default function NewSale() {
                   onClick={() => {
                     const p = products.find(prod => prod._id === selectedProductId);
                     if (p?.trackSerials === false) {
+                      if (p?.purchasePrice) setQuickQtyCost(String(p.purchasePrice));
                       setIsQuantityDialogOpen(true);
                     } else {
+                      if (p?.purchasePrice) setQuickSerialCost(String(p.purchasePrice));
                       setIsSerialsDialogOpen(true);
                     }
                   }}
@@ -1381,29 +1400,54 @@ export default function NewSale() {
                 Type or scan serials to inward & auto-select
               </span>
             </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter new serial number(s) (comma or space separated) & click Inward..."
-                value={quickSerialInput}
-                onChange={e => setQuickSerialInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleQuickInwardSerials();
-                  }
-                }}
-                className="text-xs bg-white dark:bg-slate-900 font-mono"
-              />
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleQuickInwardSerials}
-                disabled={isQuickInwardingSerial || !quickSerialInput.trim()}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 text-xs font-semibold px-3"
-              >
-                {isQuickInwardingSerial ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-                Inward & Select
-              </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <div className="sm:col-span-6">
+                <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  Serial Number(s)
+                </label>
+                <Input
+                  placeholder="Enter serial(s) (comma or space separated)..."
+                  value={quickSerialInput}
+                  onChange={e => setQuickSerialInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleQuickInwardSerials();
+                    }
+                  }}
+                  className="text-xs bg-white dark:bg-slate-900 font-mono h-9"
+                />
+              </div>
+              <div className="sm:col-span-3">
+                <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  Purchase Price (₹)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder={products.find(p => p._id === selectedProductId)?.purchasePrice ? `₹${products.find(p => p._id === selectedProductId)?.purchasePrice}` : '0.00'}
+                  value={quickSerialCost}
+                  onChange={e => setQuickSerialCost(e.target.value)}
+                  className="text-xs bg-white dark:bg-slate-900 font-mono h-9"
+                />
+              </div>
+              <div className="sm:col-span-3 flex items-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleQuickInwardSerials}
+                  disabled={isQuickInwardingSerial || !quickSerialInput.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white w-full h-9 text-xs font-semibold px-2"
+                >
+                  {isQuickInwardingSerial ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                  Inward & Select
+                </Button>
+              </div>
+            </div>
+            <div className="text-[10px] text-slate-500 flex items-center justify-between">
+              <span>Cost defaults to catalog purchase price if left blank.</span>
+              <span>Barcodes scanned below will also use this purchase price.</span>
             </div>
           </div>
 
@@ -1484,26 +1528,47 @@ export default function NewSale() {
                 <span>Need more inventory stock right now?</span>
                 <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Quick Inward</span>
               </div>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="Qty to add (e.g. 10)"
-                  value={quickQtyInput}
-                  onChange={e => setQuickQtyInput(e.target.value)}
-                  className="text-xs bg-white dark:bg-slate-950 font-mono"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleQuickInwardQuantity}
-                  disabled={isQuickInwardingQty || !quickQtyInput || Number(quickQtyInput) <= 0}
-                  className="shrink-0 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
-                >
-                  {isQuickInwardingQty ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-                  + Inward Stock
-                </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                <div className="sm:col-span-6">
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    Quantity to Add
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Qty to add (e.g. 10)"
+                    value={quickQtyInput}
+                    onChange={e => setQuickQtyInput(e.target.value)}
+                    className="text-xs bg-white dark:bg-slate-950 font-mono h-9"
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    Purchase Price (₹)
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder={products.find(p => p._id === selectedProductId)?.purchasePrice ? `₹${products.find(p => p._id === selectedProductId)?.purchasePrice}` : '0.00'}
+                    value={quickQtyCost}
+                    onChange={e => setQuickQtyCost(e.target.value)}
+                    className="text-xs bg-white dark:bg-slate-950 font-mono h-9"
+                  />
+                </div>
+                <div className="sm:col-span-3 flex items-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleQuickInwardQuantity}
+                    disabled={isQuickInwardingQty || !quickQtyInput || Number(quickQtyInput) <= 0}
+                    className="w-full h-9 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                  >
+                    {isQuickInwardingQty ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-0.5" />}
+                    + Inward
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

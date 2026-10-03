@@ -19,6 +19,7 @@ export interface SaleItemInput {
   wattage: number;
   serialNumbers?: string[];
   comboGroupId?: string;
+  purchasePrice?: number;
 }
 
 export interface SaleComboGroupInput {
@@ -328,12 +329,13 @@ export class SaleService {
                 if (allowQuickInward) {
                   // Automatic on-the-fly inventory inward during sale
                   const catalogCost = product ? Number(product.purchasePrice || 0) : 0;
+                  const unitCost = item.purchasePrice !== undefined ? Number(item.purchasePrice) : catalogCost;
                   await tx.productUnit.create({
                     data: {
                       productId: item.productId,
                       serialNumber: serial,
                       status: 'SOLD',
-                      purchasePrice: catalogCost,
+                      purchasePrice: unitCost,
                       saleId: newSale.id,
                       saleItemId: saleItem.id,
                       supplierName: 'Direct Inward on Sale'
@@ -768,12 +770,13 @@ export class SaleService {
               if (!existingUnit) {
                 if (allowQuickInward) {
                   const catalogCost = product ? Number(product.purchasePrice || 0) : 0;
+                  const unitCost = item.purchasePrice !== undefined ? Number(item.purchasePrice) : catalogCost;
                   await tx.productUnit.create({
                     data: {
                       productId: item.productId,
                       serialNumber: serial,
                       status: 'SOLD',
-                      purchasePrice: catalogCost,
+                      purchasePrice: unitCost,
                       saleId: sale.id,
                       saleItemId: saleItem.id,
                       supplierName: 'Direct Inward on Sale'

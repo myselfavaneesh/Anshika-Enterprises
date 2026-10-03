@@ -172,6 +172,34 @@ describe('Sale Zod Validation & Composition Scheme (Unit Tests)', () => {
         expect(parsedTrue.data.allowQuickInward).toBe(true);
       }
     });
+
+    it('accepts custom item.purchasePrice for inwarded serials or stock', () => {
+      const payload = {
+        customerId: 'cust-123',
+        items: [
+          {
+            productId: 'prod-inverter-1',
+            quantity: 1,
+            unitPrice: 12000,
+            purchasePrice: 9500,
+            taxableUnitPrice: 12000,
+            taxableTotalPrice: 12000,
+            totalPrice: 12000,
+            wattage: 0,
+            serialNumbers: ['LUM-INV-9901'],
+          },
+        ],
+        subtotal: 12000,
+        taxableAmount: 12000,
+        grandTotal: 12000,
+      };
+
+      const parsed = CreateSaleSchema.safeParse(payload);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.items[0].purchasePrice).toBe(9500);
+      }
+    });
   });
 });
 
