@@ -33,7 +33,7 @@ export const QuotationServiceSchema = z.object({
 
 export const CreateQuotationSchema = z.object({
   customerId: z.string().min(1, 'customerId is required'),
-  invoiceType: z.enum(['GST', 'NON_GST']).default('GST'),
+  invoiceType: z.enum(['GST', 'NON_GST', 'COMPOSITION']).default('GST'),
   items: z.array(QuotationItemSchema).min(1, 'At least one item is required in a quotation'),
   services: z.array(QuotationServiceSchema).optional().default([]),
   comboGroups: z.array(QuotationComboGroupSchema).optional().default([]),

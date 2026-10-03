@@ -85,6 +85,11 @@ export class SaleService {
           payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl,
           placeOfSupply, placeOfSupplyCode
         } = data;
+
+        const isBillOfSupply = documentType === 'BILL_OF_SUPPLY' || invoiceType === 'COMPOSITION';
+        const isTaxExempt = invoiceType === 'NON_GST' || isBillOfSupply;
+        const finalDocType = isBillOfSupply ? 'BILL_OF_SUPPLY' : documentType;
+        const finalInvoiceType = isBillOfSupply && invoiceType !== 'COMPOSITION' ? 'COMPOSITION' : invoiceType;
         
         const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
         // Generate Sequential Invoice Number
@@ -135,7 +140,7 @@ export class SaleService {
               item.unitPrice = calculatedQty > 0 ? allocatedPrice / calculatedQty : 0;
               
               let trueGstRate = product ? Number(product.gstRate) : 0;
-              if (invoiceType === 'NON_GST') trueGstRate = 0;
+              if (isTaxExempt) trueGstRate = 0;
 
               const taxResult = calculateLineTax({
                 unitPrice: allocatedPrice,
@@ -143,7 +148,8 @@ export class SaleService {
                 gstRate: trueGstRate,
                 isGstInclusive: Boolean(combo.isGstInclusive),
                 placeOfSupplyCode,
-                isNonGst: invoiceType === 'NON_GST',
+                isNonGst: isTaxExempt,
+                isComposition: isBillOfSupply,
               });
 
               item.taxableTotalPrice = taxResult.taxableTotalPrice;
@@ -166,7 +172,7 @@ export class SaleService {
           if (!product) throw new Error(`Product not found: ${item.productId}`);
           
           let trueGstRate = Number(product.gstRate) || 0;
-          if (invoiceType === 'NON_GST') {
+          if (isTaxExempt) {
              trueGstRate = 0;
           }
 
@@ -196,7 +202,7 @@ export class SaleService {
            const sAmount = Number(s.amount);
            servicesTotal += sAmount;
            let sGstRate = s.gstRate || 0;
-           if (invoiceType === 'NON_GST') sGstRate = 0;
+           if (isTaxExempt) sGstRate = 0;
 
            if (sGstRate > 0) {
               if (s.isGstInclusive) {
@@ -234,20 +240,20 @@ export class SaleService {
         const newSale = await tx.sale.create({
           data: {
             invoiceNumber,
-            invoiceType,
+            invoiceType: finalInvoiceType,
             customerId,
             subtotal: expectedSubtotal,
             discount: discount || 0,
             taxableAmount: expectedTaxableAmount,
-            taxRate: data.taxRate || 0,
-            taxAmount: expectedTaxAmount,
-            cgstAmount: data.cgstAmount,
-            sgstAmount: data.sgstAmount,
-            igstAmount: data.igstAmount || 0,
+            taxRate: isTaxExempt ? 0 : (data.taxRate || 0),
+            taxAmount: isTaxExempt ? 0 : expectedTaxAmount,
+            cgstAmount: isTaxExempt ? 0 : data.cgstAmount,
+            sgstAmount: isTaxExempt ? 0 : data.sgstAmount,
+            igstAmount: isTaxExempt ? 0 : (data.igstAmount || 0),
             roundOff: data.roundOff || 0,
             grandTotal: expectedGrandTotal,
             status: totalAmountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
-            documentType,
+            documentType: finalDocType,
             placeOfSupply,
             placeOfSupplyCode,
             eInvoiceAckNo,
@@ -298,10 +304,10 @@ export class SaleService {
               totalPrice: item.totalPrice,
               taxableUnitPrice: item.taxableUnitPrice,
               taxableTotalPrice: item.taxableTotalPrice,
-              gstRate: item.gstRate,
-              cgstAmount: item.cgstAmount,
-              sgstAmount: item.sgstAmount,
-              igstAmount: item.igstAmount || 0,
+              gstRate: isTaxExempt ? 0 : item.gstRate,
+              cgstAmount: isTaxExempt ? 0 : item.cgstAmount,
+              sgstAmount: isTaxExempt ? 0 : item.sgstAmount,
+              igstAmount: isTaxExempt ? 0 : (item.igstAmount || 0),
               hsnCode: item.hsnCode || product?.hsnCode || null,
               unit: item.unit || product?.unit || 'PC',
               wattage: item.wattage || 0,

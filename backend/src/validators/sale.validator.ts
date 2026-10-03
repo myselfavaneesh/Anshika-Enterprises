@@ -45,7 +45,7 @@ export const SaleComboGroupSchema = z.object({
 
 export const CreateSaleSchema = z.object({
   customerId: z.string().min(1, 'customerId is required'),
-  invoiceType: z.enum(['GST', 'NON_GST']).default('GST'),
+  invoiceType: z.enum(['GST', 'NON_GST', 'COMPOSITION']).default('COMPOSITION'),
   documentType: z.string().optional(),
   items: z.array(SaleItemSchema).min(1, 'At least one item is required in a sale'),
   services: z.array(SaleServiceSchema).optional(),

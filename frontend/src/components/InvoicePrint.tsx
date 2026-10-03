@@ -55,13 +55,15 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
   };
 
   // Determine if this is inter-state based on customer state code vs shop state code
+  const isBillOfSupply = data?.documentType === 'BILL_OF_SUPPLY' || data?.invoiceType === 'COMPOSITION';
   const customerStateCode = data?.customerId?.stateCode || data?.placeOfSupplyCode || SHOP_STATE_CODE;
   const isInterState = customerStateCode !== SHOP_STATE_CODE;
-  const isGST = data?.invoiceType !== 'NON_GST';
+  const isGST = data?.invoiceType !== 'NON_GST' && !isBillOfSupply;
 
   // Determine document heading
   const getDocumentHeading = (): string => {
     if (type === 'QUOTATION') return 'QUOTATION';
+    if (isBillOfSupply) return 'BILL OF SUPPLY';
     if (data?.invoiceType === 'NON_GST') return 'ESTIMATE';
     switch (data?.documentType) {
       case 'PROFORMA': return 'PROFORMA INVOICE';
@@ -154,9 +156,14 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
       `}</style>
 
       {/* Header */}
-      <h1 className="text-center font-bold text-xl uppercase mb-2">
+      <h1 className="text-center font-bold text-xl uppercase mb-1">
         {getDocumentHeading()}
       </h1>
+      {isBillOfSupply && (
+        <p className="text-center text-xs font-bold text-gray-800 italic -mt-1 mb-2">
+          Composition taxable person, not eligible to collect tax on supplies
+        </p>
+      )}
 
       {/* Two Column Layout for Header Details */}
       <div className="grid grid-cols-2 border border-black mb-0">
@@ -185,7 +192,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
         {type === 'TAX INVOICE' ? (
           <div className="grid grid-cols-2">
             <div className="p-2 border-r border-b border-black">
-              <p className="font-semibold text-gray-600">Invoice No.</p>
+              <p className="font-semibold text-gray-600">{isBillOfSupply ? 'Bill of Supply No.' : 'Invoice No.'}</p>
               <p className="font-bold">{data?.invoiceNumber || '-'}</p>
             </div>
             <div className="p-2 border-b border-black">
@@ -542,7 +549,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
             <p>Company's GSTIN/UIN : <span className="font-bold">09BZOPK7723E1Z1</span></p>
             <div className="mt-2 text-[10px]">
               <p className="font-bold underline mb-1">Declaration</p>
-              <p>We declare that this {type === 'QUOTATION' ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</p>
+              <p>We declare that this {type === 'QUOTATION' ? 'quotation' : (isBillOfSupply ? 'bill of supply' : 'invoice')} shows the actual price of the goods described and that all particulars are true and correct.</p>
             </div>
           </div>
         </div>
@@ -568,7 +575,7 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
         </div>
       </div>
 
-      <p className="text-center mt-2 text-[10px]">This is a Computer Generated {type === 'QUOTATION' ? 'Quotation' : 'Invoice'}</p>
+      <p className="text-center mt-2 text-[10px]">This is a Computer Generated {type === 'QUOTATION' ? 'Quotation' : (isBillOfSupply ? 'Bill of Supply' : 'Invoice')}</p>
     </div>
   );
 };

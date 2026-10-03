@@ -26,6 +26,7 @@ export interface CalculateLineTaxInput {
   placeOfSupplyCode?: string | null;
   supplierStateCode?: string;
   isNonGst?: boolean;
+  isComposition?: boolean;
 }
 
 /**
@@ -39,8 +40,9 @@ export function calculateLineTax({
   placeOfSupplyCode,
   supplierStateCode = SHOP_STATE_CODE,
   isNonGst = false,
+  isComposition = false,
 }: CalculateLineTaxInput): LineTaxResult {
-  const effectiveGstRate = isNonGst ? 0 : Number(gstRate) || 0;
+  const effectiveGstRate = (isNonGst || isComposition) ? 0 : Number(gstRate) || 0;
   const totalPrice = Number((unitPrice * quantity).toFixed(2));
 
   let taxableTotalPrice = totalPrice;

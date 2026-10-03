@@ -51,7 +51,8 @@ const Sales = () => {
       toast.error('No phone number found for this customer.');
       return;
     }
-    const docType = sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Invoice';
+    const isBillOfSupply = sale.documentType === 'BILL_OF_SUPPLY' || sale.invoiceType === 'COMPOSITION';
+    const docType = isBillOfSupply ? 'Bill of Supply' : (sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Invoice');
     const message = `Hello ${sale.customerId.name},\n\nAapka ${docType} *${sale.invoiceNumber}* generate ho gaya hai.\nKul Raqam: *₹${sale.grandTotal.toFixed(2)}*\n\n- Anshika Enterprises`;
 
     if (navigator.share) {
@@ -165,9 +166,16 @@ const Sales = () => {
                   className="group border-b border-slate-100 dark:border-slate-800/70 hover:bg-slate-50/90 dark:hover:bg-slate-900/60 transition-colors duration-150"
                 >
                   <TableCell className="py-2 px-3 whitespace-nowrap">
-                    <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/40 inline-block">
-                      {sale.invoiceNumber}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/40 inline-block">
+                        {sale.invoiceNumber}
+                      </span>
+                      {(sale.documentType === 'BILL_OF_SUPPLY' || sale.invoiceType === 'COMPOSITION') && (
+                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 rounded">
+                          Bill of Supply
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="py-2 px-3 whitespace-nowrap">
                     <span className="font-mono text-xs text-slate-600 dark:text-slate-400">

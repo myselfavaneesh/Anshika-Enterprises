@@ -37,7 +37,7 @@ export default function EditSale() {
   const [selectedQuantity, setSelectedQuantity] = useState('1');
   
   const [discount, setDiscount] = useState('0');
-  const [invoiceType, setInvoiceType] = useState('GST'); 
+  const [invoiceType, setInvoiceType] = useState<'GST' | 'NON_GST' | 'COMPOSITION'>('GST'); 
   const [documentType, setDocumentType] = useState('TAX_INVOICE');
   
   // Dynamic Services selected
@@ -265,6 +265,8 @@ export default function EditSale() {
   // Math
   const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
   const isInterState = selectedCustomer?.stateCode && selectedCustomer.stateCode !== SHOP_STATE_CODE;
+  const isBillOfSupply = documentType === 'BILL_OF_SUPPLY' || invoiceType === 'COMPOSITION';
+  const isTaxExempt = invoiceType === 'NON_GST' || isBillOfSupply;
 
   let subtotal = 0;
   let taxableAmount = 0;
@@ -275,7 +277,7 @@ export default function EditSale() {
   // Process items
   const processedCart = cart.map(item => {
     let trueGstRate = item.gstRate || 0;
-    if (invoiceType === 'NON_GST') trueGstRate = 0;
+    if (isTaxExempt) trueGstRate = 0;
 
     const lineTotal = item.totalPrice;
     subtotal += lineTotal;
@@ -324,7 +326,7 @@ export default function EditSale() {
     servicesTotal += sAmount;
     
     let sGstRate = Number(s.gstRate) || 0;
-    if (invoiceType === 'NON_GST') sGstRate = 0;
+    if (isTaxExempt) sGstRate = 0;
 
     let sTaxable = sAmount;
     let sTax = 0;
@@ -466,8 +468,17 @@ export default function EditSale() {
           <select 
             className="h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
             value={documentType}
-            onChange={e => setDocumentType(e.target.value)}
+            onChange={e => {
+              const val = e.target.value;
+              setDocumentType(val);
+              if (val === 'BILL_OF_SUPPLY') {
+                setInvoiceType('COMPOSITION');
+              } else if (invoiceType === 'COMPOSITION') {
+                setInvoiceType('GST');
+              }
+            }}
           >
+            <option value="BILL_OF_SUPPLY">Bill of Supply (Composition)</option>
             <option value="TAX_INVOICE">Tax Invoice</option>
             <option value="PROFORMA">Proforma Invoice</option>
             <option value="CHALLAN">Delivery Challan</option>
@@ -475,9 +486,23 @@ export default function EditSale() {
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
             <Button 
               size="sm" 
+              variant={invoiceType === 'COMPOSITION' ? 'default' : 'ghost'} 
+              className={`rounded-lg text-xs font-semibold ${invoiceType === 'COMPOSITION' ? 'shadow-sm bg-amber-600 hover:bg-amber-700 text-white' : 'text-slate-600 dark:text-slate-400'}`}
+              onClick={() => {
+                setInvoiceType('COMPOSITION');
+                setDocumentType('BILL_OF_SUPPLY');
+              }}
+            >
+              Composition Bill
+            </Button>
+            <Button 
+              size="sm" 
               variant={invoiceType === 'GST' ? 'default' : 'ghost'} 
               className={`rounded-lg text-xs font-semibold ${invoiceType === 'GST' ? 'shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setInvoiceType('GST')}
+              onClick={() => {
+                setInvoiceType('GST');
+                if (documentType === 'BILL_OF_SUPPLY') setDocumentType('TAX_INVOICE');
+              }}
             >
               GST Invoice
             </Button>
@@ -485,9 +510,12 @@ export default function EditSale() {
               size="sm" 
               variant={invoiceType === 'NON_GST' ? 'default' : 'ghost'}
               className={`rounded-lg text-xs font-semibold ${invoiceType === 'NON_GST' ? 'shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setInvoiceType('NON_GST')}
+              onClick={() => {
+                setInvoiceType('NON_GST');
+                if (documentType === 'BILL_OF_SUPPLY') setDocumentType('TAX_INVOICE');
+              }}
             >
-              Non-GST Invoice
+              Non-GST
             </Button>
           </div>
           

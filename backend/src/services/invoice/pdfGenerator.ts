@@ -51,14 +51,17 @@ const numberToWords = (num: number): string => {
 };
 
 export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, items: any[], customer: any): string => {
-  const isNonGst = data?.invoiceType === 'NON_GST';
+  const isBillOfSupply = data?.documentType === 'BILL_OF_SUPPLY' || data?.invoiceType === 'COMPOSITION';
+  const isNonGst = data?.invoiceType === 'NON_GST' || isBillOfSupply;
   const customerStateCode = customer?.stateCode || data?.placeOfSupplyCode || SHOP_STATE_CODE;
   const isInterState = customerStateCode !== SHOP_STATE_CODE;
   
   let docTitle = 'TAX INVOICE';
   if (type === 'QUOTATION') {
-    docTitle = isNonGst ? 'ESTIMATE' : 'QUOTATION';
-  } else if (isNonGst) {
+    docTitle = (data?.invoiceType === 'NON_GST') ? 'ESTIMATE' : 'QUOTATION';
+  } else if (isBillOfSupply) {
+    docTitle = 'BILL OF SUPPLY';
+  } else if (data?.invoiceType === 'NON_GST') {
     docTitle = 'ESTIMATE';
   } else if (data?.documentType === 'PROFORMA') {
     docTitle = 'PROFORMA INVOICE';
@@ -177,9 +180,14 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
   <div class="invoice-card">
     
     <!-- Title -->
-    <h1 style="text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0 0 10px 0; color: #000;">
+    <h1 style="text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0 0 ${isBillOfSupply ? '3px' : '10px'} 0; color: #000;">
       ${docTitle}
     </h1>
+    ${isBillOfSupply ? `
+      <div style="text-align: center; font-size: 11px; font-weight: bold; color: #1e293b; margin-top: 0; margin-bottom: 10px; font-style: italic;">
+        Composition taxable person, not eligible to collect tax on supplies
+      </div>
+    ` : ''}
 
     <!-- Company & Buyer Info Box -->
     <table class="border-all" style="margin-bottom: 0;">
@@ -209,7 +217,7 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
             <table style="width: 100%;">
               <tr>
                 <td style="width: 50%; padding: 6px; border-right: 1px solid #000; border-bottom: 1px solid #000; vertical-align: top;">
-                  <div style="font-weight: 600; color: #555; font-size: 10px;">Invoice No.</div>
+                  <div style="font-weight: 600; color: #555; font-size: 10px;">${isBillOfSupply ? 'Bill of Supply No.' : 'Invoice No.'}</div>
                   <div style="font-weight: bold; font-size: 12px;">${docNumber || '-'}</div>
                 </td>
                 <td style="width: 50%; padding: 6px; border-bottom: 1px solid #000; vertical-align: top;">
@@ -456,7 +464,7 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
 
     <!-- Footer Note -->
     <div style="text-align: center; margin-top: 6px; font-size: 9px; color: #555;">
-      This is a Computer Generated ${type === 'QUOTATION' ? 'Quotation' : 'Invoice'}
+      This is a Computer Generated ${type === 'QUOTATION' ? 'Quotation' : (isBillOfSupply ? 'Bill of Supply' : 'Invoice')}
     </div>
 
   </div>
