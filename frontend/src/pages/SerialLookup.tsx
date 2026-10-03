@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 
 const SerialLookup = () => {
+  const { canViewProfit } = useAuth();
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -298,7 +300,7 @@ const SerialLookup = () => {
                 {result.warehouse && (
                   <InfoRow icon={Warehouse} label="Warehouse" value={result.warehouse.name} />
                 )}
-                {result.purchasePrice !== null && result.purchasePrice !== undefined && (
+                {canViewProfit && result.purchasePrice !== null && result.purchasePrice !== undefined && (
                   <InfoRow icon={FileText} label="Purchase Price" value={formatCurrency(result.purchasePrice)} highlight />
                 )}
                 {result.batchNumber && (
@@ -308,41 +310,43 @@ const SerialLookup = () => {
             </div>
 
             {/* Purchase Info */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center">
-                  <Truck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Purchase Info</h3>
-              </div>
-              {result.purchaseInfo ? (
-                <div className="space-y-3">
-                  <InfoRow icon={Calendar} label="Purchase Date" value={formatDate(result.purchaseInfo.purchaseDate)} />
-                  <InfoRow icon={FileText} label="Invoice No." value={result.purchaseInfo.invoiceNumber || '—'} mono />
-                  {result.purchaseInfo.supplier && (
-                    <>
-                      <InfoRow icon={User} label="Supplier" value={result.purchaseInfo.supplier.name || '—'} />
-                      {result.purchaseInfo.supplier.phone && (
-                        <InfoRow icon={Phone} label="Phone" value={result.purchaseInfo.supplier.phone} />
-                      )}
-                    </>
-                  )}
-                  {result.purchaseInfo.grandTotal && (
-                    <InfoRow icon={FileText} label="Invoice Total" value={formatCurrency(result.purchaseInfo.grandTotal)} highlight />
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
-                    <Truck className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+            {canViewProfit && (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center">
+                    <Truck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">No purchase info available</p>
-                  <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 mt-0.5">
-                    Added on {formatDate(result.createdAt)}
-                  </p>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Purchase Info</h3>
                 </div>
-              )}
-            </div>
+                {result.purchaseInfo ? (
+                  <div className="space-y-3">
+                    <InfoRow icon={Calendar} label="Purchase Date" value={formatDate(result.purchaseInfo.purchaseDate)} />
+                    <InfoRow icon={FileText} label="Invoice No." value={result.purchaseInfo.invoiceNumber || '—'} mono />
+                    {result.purchaseInfo.supplier && (
+                      <>
+                        <InfoRow icon={User} label="Supplier" value={result.purchaseInfo.supplier.name || '—'} />
+                        {result.purchaseInfo.supplier.phone && (
+                          <InfoRow icon={Phone} label="Phone" value={result.purchaseInfo.supplier.phone} />
+                        )}
+                      </>
+                    )}
+                    {result.purchaseInfo.grandTotal && (
+                      <InfoRow icon={FileText} label="Invoice Total" value={formatCurrency(result.purchaseInfo.grandTotal)} highlight />
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
+                      <Truck className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">No purchase info available</p>
+                    <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 mt-0.5">
+                      Added on {formatDate(result.createdAt)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Sale Info (or In-Stock info) */}
             <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm ${

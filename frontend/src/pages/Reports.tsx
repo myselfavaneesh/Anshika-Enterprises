@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import Papa from 'papaparse';
 import { Download, Calculator, BarChart3, Filter } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -11,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
 export default function Reports() {
+  const { canViewProfit } = useAuth();
   const [startDate, setStartDate] = useState(
     new Date(new Date().setDate(1)).toISOString().split('T')[0] // First of current month
   );
@@ -33,24 +35,32 @@ export default function Reports() {
     setLoading(true);
     try {
       const params = { startDate, endDate };
-      const [gst, pnlRes, catRes, prodRes, regRes, valRes, ageRes, partyProfitabilityRes] = await Promise.all([
+      const requests: Promise<any>[] = [
         api.get('/reports/gst-summary', { params }),
-        api.get('/reports/profit-and-loss', { params }),
         api.get('/reports/sales-by-category', { params }),
         api.get('/reports/sales-by-product', { params }),
         api.get('/reports/sales-register', { params }),
-        api.get('/reports/inventory-valuation'),
-        api.get('/reports/stock-aging'),
-        api.get('/reports/party-profitability', { params })
-      ]);
-      setGstSummary(gst.data);
-      setPnl(pnlRes.data);
-      setSalesByCategory(catRes.data);
-      setSalesByProduct(prodRes.data);
-      setSalesRegister(regRes.data);
-      setValuation(valRes.data);
-      setAging(ageRes.data);
-      setPartyProfitability(partyProfitabilityRes.data);
+        api.get('/reports/stock-aging')
+      ];
+
+      if (canViewProfit) {
+        requests.push(api.get('/reports/profit-and-loss', { params }));
+        requests.push(api.get('/reports/inventory-valuation'));
+        requests.push(api.get('/reports/party-profitability', { params }));
+      }
+
+      const results = await Promise.all(requests);
+      setGstSummary(results[0].data);
+      setSalesByCategory(results[1].data);
+      setSalesByProduct(results[2].data);
+      setSalesRegister(results[3].data);
+      setAging(results[4].data);
+
+      if (canViewProfit && results.length >= 8) {
+        setPnl(results[5].data);
+        setValuation(results[6].data);
+        setPartyProfitability(results[7].data);
+      }
     } catch (err) {
       console.error('Failed to fetch reports', err);
       toast.error('Failed to generate reports');
@@ -127,17 +137,18 @@ export default function Reports() {
         </div>
       </div>
 
-      <Tabs defaultValue="financials" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 max-w-5xl">
-          <TabsTrigger value="financials">Financials</TabsTrigger>
+      <Tabs defaultValue={canViewProfit ? "financials" : "sales"} className="w-full">
+        <TabsList className={`grid w-full ${canViewProfit ? 'grid-cols-6' : 'grid-cols-3'} max-w-5xl`}>
+          {canViewProfit && <TabsTrigger value="financials">Financials</TabsTrigger>}
           <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="register">Register</TabsTrigger>
-          <TabsTrigger value="valuation">Valuation</TabsTrigger>
+          {canViewProfit && <TabsTrigger value="valuation">Valuation</TabsTrigger>}
           <TabsTrigger value="aging">Aging</TabsTrigger>
-          <TabsTrigger value="profitability">Profitability</TabsTrigger>
+          {canViewProfit && <TabsTrigger value="profitability">Profitability</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="financials" className="space-y-4">
+        {canViewProfit && (
+          <TabsContent value="financials" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Profit and Loss */}
             <Card>
@@ -225,6 +236,7 @@ export default function Reports() {
             </Card>
           </div>
         </TabsContent>
+        )}
 
         <TabsContent value="sales" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -343,43 +355,45 @@ export default function Reports() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="valuation">
-          <Card>
-            <CardHeader>
-              <CardTitle>Inventory Valuation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {valuation ? (
-                <div className="space-y-4">
-                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                    <p className="text-sm text-emerald-800">Total Inventory Value (FIFO / Purchase Price)</p>
-                    <p className="text-2xl font-bold text-emerald-900">₹{Number(valuation.totalValuation || 0).toFixed(2)}</p>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>SKU</TableHead>
-                        <TableHead className="text-right">Qty in Stock</TableHead>
-                        <TableHead className="text-right">Total Value</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {valuation.valuationBreakdown.map((item: any) => (
-                        <TableRow key={item.productId}>
-                          <TableCell className="font-medium">{item.productName}</TableCell>
-                          <TableCell>{item.sku}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right font-semibold">₹{Number(item.totalValue || 0).toFixed(2)}</TableCell>
+        {canViewProfit && (
+          <TabsContent value="valuation">
+            <Card>
+              <CardHeader>
+                <CardTitle>Inventory Valuation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {valuation ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                      <p className="text-sm text-emerald-800">Total Inventory Value (FIFO / Purchase Price)</p>
+                      <p className="text-2xl font-bold text-emerald-900">₹{Number(valuation.totalValuation || 0).toFixed(2)}</p>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>SKU</TableHead>
+                          <TableHead className="text-right">Qty in Stock</TableHead>
+                          <TableHead className="text-right">Total Value</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : <p>Loading...</p>}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                      </TableHeader>
+                      <TableBody>
+                        {valuation.valuationBreakdown.map((item: any) => (
+                          <TableRow key={item.productId}>
+                            <TableCell className="font-medium">{item.productName}</TableCell>
+                            <TableCell>{item.sku}</TableCell>
+                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            <TableCell className="text-right font-semibold">₹{Number(item.totalValue || 0).toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : <p>Loading...</p>}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="aging">
           <Card>
@@ -408,62 +422,64 @@ export default function Reports() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="profitability">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Party-wise Profitability Report</CardTitle>
-                <p className="text-sm text-slate-500 mt-1">Analysis of profit earned per party</p>
-              </div>
-              <Button onClick={() => exportCSV(partyProfitability.map(p => ({
-                Customer: p.name,
-                Phone: p.phone,
-                Group: p.group,
-                Orders: p.orderCount,
-                Revenue: Number(p.revenue || 0).toFixed(2),
-                Profit: Number(p.profit || 0).toFixed(2)
-              })), 'Party_Profitability')} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                <Download className="w-4 h-4 mr-2" />
-                Export to CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Group</TableHead>
-                      <TableHead className="text-right">Orders</TableHead>
-                      <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-right">Profit</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {partyProfitability.map((p, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell>{p.phone}</TableCell>
-                        <TableCell>{p.group}</TableCell>
-                        <TableCell className="text-right">{p.orderCount}</TableCell>
-                        <TableCell className="text-right font-medium text-slate-700">₹{Number(p.revenue || 0).toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-bold text-emerald-600">₹{Number(p.profit || 0).toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {partyProfitability.length === 0 && (
+        {canViewProfit && (
+          <TabsContent value="profitability">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Party-wise Profitability Report</CardTitle>
+                  <p className="text-sm text-slate-500 mt-1">Analysis of profit earned per party</p>
+                </div>
+                <Button onClick={() => exportCSV(partyProfitability.map(p => ({
+                  Customer: p.name,
+                  Phone: p.phone,
+                  Group: p.group,
+                  Orders: p.orderCount,
+                  Revenue: Number(p.revenue || 0).toFixed(2),
+                  Profit: Number(p.profit || 0).toFixed(2)
+                })), 'Party_Profitability')} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export to CSV
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                          No data found in this date range.
-                        </TableCell>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Group</TableHead>
+                        <TableHead className="text-right">Orders</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-right">Profit</TableHead>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    </TableHeader>
+                    <TableBody>
+                      {partyProfitability.map((p, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{p.name}</TableCell>
+                          <TableCell>{p.phone}</TableCell>
+                          <TableCell>{p.group}</TableCell>
+                          <TableCell className="text-right">{p.orderCount}</TableCell>
+                          <TableCell className="text-right font-medium text-slate-700">₹{Number(p.revenue || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-bold text-emerald-600">₹{Number(p.profit || 0).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {partyProfitability.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                            No data found in this date range.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

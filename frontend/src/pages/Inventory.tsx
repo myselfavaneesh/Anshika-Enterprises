@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -12,6 +13,7 @@ import { BarcodeScanner } from '../components/BarcodeScanner';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Inventory = () => {
+  const { canViewProfit } = useAuth();
   const [inventory, setInventory] = useState<any[]>([]);
   const [isOpenStockIn, setIsOpenStockIn] = useState(false);
   const [isOpenStockOut, setIsOpenStockOut] = useState(false);
@@ -407,7 +409,7 @@ const Inventory = () => {
               />
               <label htmlFor="isFOC" className="text-sm font-medium">F.O.C (Free of Cost)</label>
             </div>
-            {!stockInForm.isFOC && (
+            {!stockInForm.isFOC && canViewProfit && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">Purchase Price (₹, Per Unit)</label>
                 <Input type="number" step="0.01" value={stockInForm.purchasePrice} onChange={e => setStockInForm({...stockInForm, purchasePrice: e.target.value})} />
@@ -504,10 +506,10 @@ const Inventory = () => {
                   <TableHead>Status</TableHead>
                   <TableHead>Origin Invoice</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead className="text-right">Purchase Price</TableHead>
+                  {canViewProfit && <TableHead className="text-right">Purchase Price</TableHead>}
                   <TableHead className="text-right">Sale Price</TableHead>
-                  <TableHead className="text-right">Profit</TableHead>
-                  <TableHead className="text-right">Profit (Before Tax)</TableHead>
+                  {canViewProfit && <TableHead className="text-right">Profit</TableHead>}
+                  {canViewProfit && <TableHead className="text-right">Profit (Before Tax)</TableHead>}
                   <TableHead className="text-right">Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -533,22 +535,26 @@ const Inventory = () => {
                         </TableCell>
                         <TableCell>{s.purchaseInvoiceNumber || '-'}</TableCell>
                         <TableCell>{s.supplierName || '-'}</TableCell>
-                        <TableCell className="text-right">{purchasePrice > 0 ? `₹${purchasePrice.toFixed(2)}` : '-'}</TableCell>
+                        {canViewProfit && <TableCell className="text-right">{purchasePrice > 0 ? `₹${purchasePrice.toFixed(2)}` : '-'}</TableCell>}
                         <TableCell className="text-right">{s.status === 'SOLD' && salePrice > 0 ? `₹${salePrice.toFixed(2)}` : '-'}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {profit !== null ? (
-                            <span className={profit > 0 ? 'text-green-600' : profit < 0 ? 'text-red-600' : ''}>
-                              {profit > 0 ? '+₹' : profit < 0 ? '-₹' : '₹'}{Math.abs(profit).toFixed(2)}
-                            </span>
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {profitBeforeTax !== null ? (
-                            <span className={profitBeforeTax > 0 ? 'text-green-600' : profitBeforeTax < 0 ? 'text-red-600' : ''}>
-                              {profitBeforeTax > 0 ? '+₹' : profitBeforeTax < 0 ? '-₹' : '₹'}{Math.abs(profitBeforeTax).toFixed(2)}
-                            </span>
-                          ) : '-'}
-                        </TableCell>
+                        {canViewProfit && (
+                          <TableCell className="text-right font-medium">
+                            {profit !== null ? (
+                              <span className={profit > 0 ? 'text-green-600' : profit < 0 ? 'text-red-600' : ''}>
+                                {profit > 0 ? '+₹' : profit < 0 ? '-₹' : '₹'}{Math.abs(profit).toFixed(2)}
+                              </span>
+                            ) : '-'}
+                          </TableCell>
+                        )}
+                        {canViewProfit && (
+                          <TableCell className="text-right font-medium">
+                            {profitBeforeTax !== null ? (
+                              <span className={profitBeforeTax > 0 ? 'text-green-600' : profitBeforeTax < 0 ? 'text-red-600' : ''}>
+                                {profitBeforeTax > 0 ? '+₹' : profitBeforeTax < 0 ? '-₹' : '₹'}{Math.abs(profitBeforeTax).toFixed(2)}
+                              </span>
+                            ) : '-'}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right">{new Date(s.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right flex justify-end gap-2">
                           <Button variant="ghost" size="icon" onClick={() => handleEditSerial(s)}>
@@ -584,15 +590,17 @@ const Inventory = () => {
                   onChange={e => setEditSerialForm({...editSerialForm, serialNumber: e.target.value})} 
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Purchase Price (₹)</label>
-                <Input 
-                  type="number" 
-                  step="0.01" 
-                  value={editSerialForm.purchasePrice} 
-                  onChange={e => setEditSerialForm({...editSerialForm, purchasePrice: e.target.value})} 
-                />
-              </div>
+              {canViewProfit && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Purchase Price (₹)</label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    value={editSerialForm.purchasePrice} 
+                    onChange={e => setEditSerialForm({...editSerialForm, purchasePrice: e.target.value})} 
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status</label>
                 <Select value={editSerialForm.status} onValueChange={(val) => setEditSerialForm({...editSerialForm, status: val})}>

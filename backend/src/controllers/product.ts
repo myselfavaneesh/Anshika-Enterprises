@@ -64,10 +64,15 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       take: limit,
     });
 
+    const isStaff = (req as any).user?.role === 'staff';
     const mappedProducts = products.map(p => {
       const { category, inventories, _count, ...rest } = p as any;
       const stock = p.trackSerials ? (_count?.productUnits || 0) : (inventories?.quantity || 0);
-      return mapEntityId({ ...rest, stock, categoryId: category });
+      const mapped = mapEntityId({ ...rest, stock, categoryId: category });
+      if (isStaff) {
+        mapped.purchasePrice = 0;
+      }
+      return mapped;
     });
 
     res.json({

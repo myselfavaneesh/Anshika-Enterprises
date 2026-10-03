@@ -168,7 +168,18 @@ export const getSerials = async (req: Request, res: Response): Promise<void> => 
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(mapEntityId(serials));
+    const isStaff = (req as any).user?.role === 'staff';
+    const mapped = serials.map(s => {
+      const entity: any = mapEntityId(s);
+      if (isStaff) {
+        delete entity.purchasePrice;
+        if (entity.product) {
+          delete entity.product.purchasePrice;
+        }
+      }
+      return entity;
+    });
+    res.json(mapped);
   } catch (error: any) {
     logger.error('Error fetching serials', { productId: req.params.productId, error: error.message });
     res.status(500).json({ error: 'Server error' });
@@ -349,6 +360,12 @@ export const serialLookup = async (req: Request, res: Response): Promise<void> =
           address: unit.sale.customer.address
         } : null
       };
+    }
+
+    const isStaff = (req as any).user?.role === 'staff';
+    if (isStaff) {
+      delete result.purchasePrice;
+      delete result.purchaseInfo;
     }
 
     res.json(result);

@@ -26,6 +26,7 @@ import {
   Sun,
   Moon,
   ScanBarcode,
+  BarChart3,
 } from 'lucide-react';
 
 const Layout = () => {
@@ -70,6 +71,7 @@ const Layout = () => {
     { name: 'Sales', href: '/sales', icon: ShoppingCart, permission: 'sales:view' },
     { name: 'Quotations', href: '/quotations', icon: FileText, permission: 'quotations:view' },
     { name: 'Expenses', href: '/expenses', icon: Receipt, permission: 'expenses:view' },
+    { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports:view' },
     // Staff Management — admin only
     ...(isAdmin ? [{ name: 'Staff', href: '/staff', icon: Shield, permission: 'staff:view' }] : []),
   ];

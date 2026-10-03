@@ -16,6 +16,8 @@ export const ALL_PERMISSIONS = [
   'quotations:view', 'quotations:create', 'quotations:edit', 'quotations:delete',
   'parties:view', 'parties:create', 'parties:edit', 'parties:delete',
   'payments:view', 'payments:create',
+  'expenses:view',
+  'reports:view',
   'staff:view', 'staff:create', 'staff:edit', 'staff:delete',
 ];
 
@@ -32,6 +34,8 @@ export const ROLE_PRESETS: Record<string, string[]> = {
     'quotations:view', 'quotations:create', 'quotations:edit',
     'parties:view', 'parties:create', 'parties:edit',
     'payments:view', 'payments:create',
+    'expenses:view',
+    'reports:view',
   ],
   staff: [
     'dashboard:view',
@@ -39,8 +43,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
     'categories:view',
     'inventory:view',
     'sales:view', 'sales:create',
-    'purchases:view',
-    'quotations:view',
+    'quotations:view', 'quotations:create',
     'parties:view',
     'payments:view',
   ],

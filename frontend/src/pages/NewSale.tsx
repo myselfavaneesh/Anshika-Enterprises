@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -13,6 +14,7 @@ import { BarcodeScanner } from '../components/BarcodeScanner';
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
 export default function NewSale() {
+  const { canViewProfit } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('quotationId');
@@ -250,7 +252,7 @@ export default function NewSale() {
       setAvailableSerials(prev => [...newItems, ...prev]);
       setSelectedSerials(prev => Array.from(new Set([...prev, ...cleanSerials])));
       setQuickSerialInput('');
-      toast.success(`Inwarded & selected ${cleanSerials.length} serial(s) @ ₹${purchasePrice}!`);
+      toast.success(`Inwarded & selected ${cleanSerials.length} serial(s)${canViewProfit ? ` @ ₹${purchasePrice}` : ''}!`);
       refreshProducts();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to inward serials');
@@ -278,7 +280,7 @@ export default function NewSale() {
         });
         setAvailableSerials(prev => [{ _id: 'scanned-' + Date.now(), serialNumber: clean }, ...prev]);
         setSelectedSerials(prev => Array.from(new Set([...prev, clean])));
-        toast.success(`Scanned & inwarded new serial: ${clean} (Cost: ₹${purchasePrice})`);
+        toast.success(`Scanned & inwarded new serial: ${clean}${canViewProfit ? ` (Cost: ₹${purchasePrice})` : ''}`);
         refreshProducts();
       } catch (err: any) {
         toast.error(err.response?.data?.error || `Failed to inward serial ${clean}`);
@@ -299,7 +301,7 @@ export default function NewSale() {
         purchasePrice,
         supplierName: 'POS Quick Inward'
       });
-      toast.success(`Added ${qty} units to stock @ ₹${purchasePrice}!`);
+      toast.success(`Added ${qty} units to stock${canViewProfit ? ` @ ₹${purchasePrice}` : ''}!`);
       setSelectedQuantity(String(qty));
       setQuickQtyInput('');
       refreshProducts();
@@ -1401,7 +1403,7 @@ export default function NewSale() {
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-              <div className="sm:col-span-6">
+              <div className={canViewProfit ? "sm:col-span-6" : "sm:col-span-9"}>
                 <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
                   Serial Number(s)
                 </label>
@@ -1418,20 +1420,22 @@ export default function NewSale() {
                   className="text-xs bg-white dark:bg-slate-900 font-mono h-9"
                 />
               </div>
-              <div className="sm:col-span-3">
-                <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                  Purchase Price (₹)
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  placeholder={products.find(p => p._id === selectedProductId)?.purchasePrice ? `₹${products.find(p => p._id === selectedProductId)?.purchasePrice}` : '0.00'}
-                  value={quickSerialCost}
-                  onChange={e => setQuickSerialCost(e.target.value)}
-                  className="text-xs bg-white dark:bg-slate-900 font-mono h-9"
-                />
-              </div>
+              {canViewProfit && (
+                <div className="sm:col-span-3">
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    Purchase Price (₹)
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder={products.find(p => p._id === selectedProductId)?.purchasePrice ? `₹${products.find(p => p._id === selectedProductId)?.purchasePrice}` : '0.00'}
+                    value={quickSerialCost}
+                    onChange={e => setQuickSerialCost(e.target.value)}
+                    className="text-xs bg-white dark:bg-slate-900 font-mono h-9"
+                  />
+                </div>
+              )}
               <div className="sm:col-span-3 flex items-end">
                 <Button
                   type="button"
@@ -1445,10 +1449,12 @@ export default function NewSale() {
                 </Button>
               </div>
             </div>
-            <div className="text-[10px] text-slate-500 flex items-center justify-between">
-              <span>Cost defaults to catalog purchase price if left blank.</span>
-              <span>Barcodes scanned below will also use this purchase price.</span>
-            </div>
+            {canViewProfit && (
+              <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                <span>Cost defaults to catalog purchase price if left blank.</span>
+                <span>Barcodes scanned below will also use this purchase price.</span>
+              </div>
+            )}
           </div>
 
           <div className="mb-4">
@@ -1529,7 +1535,7 @@ export default function NewSale() {
                 <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Quick Inward</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                <div className="sm:col-span-6">
+                <div className={canViewProfit ? "sm:col-span-6" : "sm:col-span-9"}>
                   <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
                     Quantity to Add
                   </label>
@@ -1542,20 +1548,22 @@ export default function NewSale() {
                     className="text-xs bg-white dark:bg-slate-950 font-mono h-9"
                   />
                 </div>
-                <div className="sm:col-span-3">
-                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                    Purchase Price (₹)
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder={products.find(p => p._id === selectedProductId)?.purchasePrice ? `₹${products.find(p => p._id === selectedProductId)?.purchasePrice}` : '0.00'}
-                    value={quickQtyCost}
-                    onChange={e => setQuickQtyCost(e.target.value)}
-                    className="text-xs bg-white dark:bg-slate-950 font-mono h-9"
-                  />
-                </div>
+                {canViewProfit && (
+                  <div className="sm:col-span-3">
+                    <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                      Purchase Price (₹)
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder={products.find(p => p._id === selectedProductId)?.purchasePrice ? `₹${products.find(p => p._id === selectedProductId)?.purchasePrice}` : '0.00'}
+                      value={quickQtyCost}
+                      onChange={e => setQuickQtyCost(e.target.value)}
+                      className="text-xs bg-white dark:bg-slate-950 font-mono h-9"
+                    />
+                  </div>
+                )}
                 <div className="sm:col-span-3 flex items-end">
                   <Button
                     type="button"
@@ -1720,21 +1728,23 @@ export default function NewSale() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Purchase / Cost Price (₹)
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={quickModalCost}
-                        onChange={e => setQuickModalCost(e.target.value)}
-                        placeholder={selectedP?.purchasePrice ? `Default: ₹${selectedP.purchasePrice}` : '0.00'}
-                      />
-                      <p className="text-[10px] text-slate-400">Leave blank to use catalog purchase price</p>
-                    </div>
+                  <div className={`grid grid-cols-1 ${canViewProfit ? 'sm:grid-cols-2' : ''} gap-3 pt-1`}>
+                    {canViewProfit && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Purchase / Cost Price (₹)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={quickModalCost}
+                          onChange={e => setQuickModalCost(e.target.value)}
+                          placeholder={selectedP?.purchasePrice ? `Default: ₹${selectedP.purchasePrice}` : '0.00'}
+                        />
+                        <p className="text-[10px] text-slate-400">Leave blank to use catalog purchase price</p>
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Supplier / Reference Note

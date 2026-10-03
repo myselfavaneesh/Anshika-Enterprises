@@ -229,27 +229,29 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       };
     });
 
+    const isStaff = (req as any).user?.role === 'staff';
+
     res.json({
       totalProducts,
       totalUnitsInStock,
       totalUnitsSold,
-      totalInventoryValue: Number(totalInventoryValue || 0),
+      totalInventoryValue: isStaff ? 0 : Number(totalInventoryValue || 0),
       totalSales: Number(totalGrossSales || 0),
       totalTaxableSales: Number(totalTaxableSales || 0),
       todaysSales: Number(todaysGrossSales || 0),
       monthlySales: Number(monthlyGrossSales || 0),
       totalCustomerOutstanding: Number(totalCustomerOutstanding || 0),
       filteredRevenue: Number(filteredTotalRevenue || 0),
-      filteredProfit: Number(filteredTotalProfit || 0),
-      filteredPurchases: Number(filteredTotalPurchases || 0),
+      filteredProfit: isStaff ? 0 : Number(filteredTotalProfit || 0),
+      filteredPurchases: isStaff ? 0 : Number(filteredTotalPurchases || 0),
       yoyGrowth: Number(yoyGrowth || 0),
-      chartData: finalChartData,
+      chartData: isStaff ? finalChartData.map(d => ({ ...d, profit: 0, purchases: 0 })) : finalChartData,
       isFiltered,
       lowStockProducts,
       trendingProducts,
       recentSales: recentSales.map((sale: any) => {
         const { customer, productUnits, saleItems, ...rest } = sale;
-        const profit = calculateSaleProfit(sale);
+        const profit = isStaff ? 0 : calculateSaleProfit(sale);
         return mapEntityId({
           ...rest,
           profit,

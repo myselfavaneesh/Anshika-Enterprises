@@ -99,3 +99,22 @@ export const requirePermission = (...permissions: string[]) => {
     next();
   };
 };
+
+/**
+ * Role-based restriction middleware.
+ * Blocks specific roles (e.g. 'staff') from sensitive endpoints like profit & loss and valuation reports.
+ */
+export const forbidRole = (...roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Not authenticated.' });
+      return;
+    }
+    if (roles.includes(req.user.role)) {
+      res.status(403).json({ error: 'Access denied. Staff members cannot view profit and cost valuation reports.' });
+      return;
+    }
+    next();
+  };
+};
+

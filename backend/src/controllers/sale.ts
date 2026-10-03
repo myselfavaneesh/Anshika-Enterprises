@@ -212,9 +212,10 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
       take: limit,
     });
 
+    const isStaff = (req as any).user?.role === 'staff';
     const mappedSales = sales.map(s => {
       const { customer, productUnits, saleItems, ...rest } = s as any;
-      const profit = calculateSaleProfit(s);
+      const profit = isStaff ? 0 : calculateSaleProfit(s);
       return mapEntityId({
         ...rest,
         profit,
@@ -317,7 +318,8 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
       where: { saleId: id as string }
     });
 
-    const profit = calculateSaleProfit({
+    const isStaff = (req as any).user?.role === 'staff';
+    const profit = isStaff ? 0 : calculateSaleProfit({
       ...sale,
       productUnits,
       saleItems: rawItems

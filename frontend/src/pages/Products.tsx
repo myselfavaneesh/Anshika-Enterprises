@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 const Products = () => {
+  const { canViewProfit } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -228,10 +230,12 @@ const Products = () => {
                   <label className="text-sm font-medium">Low Stock Threshold</label>
                   <Input type="number" required value={formData.lowStockThreshold} onChange={e => setFormData({...formData, lowStockThreshold: e.target.value})} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Purchase Price</label>
-                  <Input type="number" min="0" step="0.01" required value={formData.purchasePrice} onChange={e => setFormData({...formData, purchasePrice: e.target.value})} />
-                </div>
+                {canViewProfit && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Purchase Price</label>
+                    <Input type="number" min="0" step="0.01" required value={formData.purchasePrice} onChange={e => setFormData({...formData, purchasePrice: e.target.value})} />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Selling Price</label>
                   <Input type="number" min="0" step="0.01" required value={formData.sellingPrice} onChange={e => setFormData({...formData, sellingPrice: e.target.value})} />
@@ -310,7 +314,7 @@ const Products = () => {
               <TableHead>SKU</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Purch. Price</TableHead>
+              {canViewProfit && <TableHead>Purch. Price</TableHead>}
               <TableHead>Sell Price</TableHead>
               <TableHead>HSN Code</TableHead>
               <TableHead>Unit</TableHead>
@@ -345,7 +349,7 @@ const Products = () => {
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.categoryId?.name || 'Unknown'}</TableCell>
-                  <TableCell>₹{product.purchasePrice || 0}</TableCell>
+                  {canViewProfit && <TableCell>₹{product.purchasePrice || 0}</TableCell>}
                   <TableCell>₹{product.sellingPrice || 0}</TableCell>
                   <TableCell>{product.hsnCode || '-'}</TableCell>
                   <TableCell>{product.unit || 'PC'}</TableCell>

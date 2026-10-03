@@ -18,6 +18,8 @@ interface AuthContextType {
   loading: boolean;
   hasPermission: (...permissions: string[]) => boolean;
   isAdmin: boolean;
+  isStaff: boolean;
+  canViewProfit: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,9 +88,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   const isAdmin = user?.role === 'admin';
+  const isStaff = user?.role === 'staff';
+  const canViewProfit = Boolean(user && user.role !== 'staff');
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading, hasPermission, isAdmin }}>
+    <AuthContext.Provider value={{ user, token, login, logout, loading, hasPermission, isAdmin, isStaff, canViewProfit }}>
       {children}
     </AuthContext.Provider>
   );

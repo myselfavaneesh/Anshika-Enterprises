@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -71,6 +72,7 @@ const SkeletonCard = () => (
 );
 
 const Dashboard = () => {
+  const { canViewProfit } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -171,19 +173,21 @@ const Dashboard = () => {
       
       {/* Filtered Active Banner */}
       {stats?.isFiltered && (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className={`grid gap-4 ${canViewProfit ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
           <StatCard
             title="Filtered Sales Revenue"
             value={`₹${Number(stats.filteredRevenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={TrendingUp}
             badgeText="Period revenue"
           />
-          <StatCard
-            title="Filtered Gross Profit"
-            value={`₹${Number(stats.filteredProfit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            icon={TrendingUp}
-            badgeText="Period estimated profit"
-          />
+          {canViewProfit && (
+            <StatCard
+              title="Filtered Gross Profit"
+              value={`₹${Number(stats.filteredProfit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              icon={TrendingUp}
+              badgeText="Period estimated profit"
+            />
+          )}
         </div>
       )}
 
@@ -232,7 +236,7 @@ const Dashboard = () => {
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-indigo-500" />
-            <span>Revenue & Profit Performance</span>
+            <span>{canViewProfit ? 'Revenue & Profit Performance' : 'Revenue Performance'}</span>
             {dateRangeType !== 'all' && (
               <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md">
                 Filtered
@@ -276,7 +280,9 @@ const Dashboard = () => {
                   />
                   <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                   <Line type="monotone" dataKey="sales" name="Sales" stroke="#6366f1" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="profit" name="Gross Profit" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+                  {canViewProfit && (
+                    <Line type="monotone" dataKey="profit" name="Gross Profit" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -422,7 +428,7 @@ const Dashboard = () => {
                       <TableHead className="text-[11px] font-bold uppercase text-slate-400">Invoice</TableHead>
                       <TableHead className="text-[11px] font-bold uppercase text-slate-400">Customer</TableHead>
                       <TableHead className="text-right text-[11px] font-bold uppercase text-slate-400">Amount</TableHead>
-                      <TableHead className="text-right text-[11px] font-bold uppercase text-slate-400">Profit</TableHead>
+                      {canViewProfit && <TableHead className="text-right text-[11px] font-bold uppercase text-slate-400">Profit</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -434,9 +440,11 @@ const Dashboard = () => {
                           <TableCell className="font-semibold text-indigo-600 dark:text-indigo-400 text-xs py-2.5 font-mono">{sale.invoiceNumber}</TableCell>
                           <TableCell className="text-xs py-2.5 text-slate-700 dark:text-slate-300 font-medium truncate max-w-[120px]">{sale.customerId?.name || 'Walk-in'}</TableCell>
                           <TableCell className="text-right text-xs py-2.5 font-semibold font-mono tabular-nums">₹{grandTotalNum.toFixed(2)}</TableCell>
-                          <TableCell className={`text-right font-bold text-xs py-2.5 font-mono tabular-nums ${profitNum > 0 ? 'text-emerald-600 dark:text-emerald-400' : profitNum < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
-                            {profitNum >= 0 ? '+' : ''}₹{profitNum.toFixed(2)}
-                          </TableCell>
+                          {canViewProfit && (
+                            <TableCell className={`text-right font-bold text-xs py-2.5 font-mono tabular-nums ${profitNum > 0 ? 'text-emerald-600 dark:text-emerald-400' : profitNum < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
+                              {profitNum >= 0 ? '+' : ''}₹{profitNum.toFixed(2)}
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}

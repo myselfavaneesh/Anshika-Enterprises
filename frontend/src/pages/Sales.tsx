@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Plus, Download, Trash2, Search, X, ChevronLeft, ChevronRight, MessageCircle, Edit, Mail } from 'lucide-react';
 
 const Sales = () => {
+  const { canViewProfit } = useAuth();
   const [sales, setSales] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -136,7 +138,9 @@ const Sales = () => {
               <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-20">Discount</TableHead>
               <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-20">Tax</TableHead>
               <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 w-28">Grand Total</TableHead>
-              <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-24">Profit</TableHead>
+              {canViewProfit && (
+                <TableHead className="h-9 py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-24">Profit</TableHead>
+              )}
               <TableHead className="h-9 py-2 px-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 w-36">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -151,13 +155,15 @@ const Sales = () => {
                   <TableCell className="py-2 px-3"><div className="h-4 w-12 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                   <TableCell className="py-2 px-3"><div className="h-4 w-12 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
                   <TableCell className="py-2 px-3"><div className="h-4 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
-                  <TableCell className="py-2 px-3"><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
+                  {canViewProfit && (
+                    <TableCell className="py-2 px-3"><div className="h-4 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800 ml-auto"></div></TableCell>
+                  )}
                   <TableCell className="py-2 px-3"><div className="h-7 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-800 mx-auto"></div></TableCell>
                 </TableRow>
               ))
             ) : sales.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-slate-400 text-xs">No sales recorded yet.</TableCell>
+                <TableCell colSpan={canViewProfit ? 9 : 8} className="text-center py-10 text-slate-400 text-xs">No sales recorded yet.</TableCell>
               </TableRow>
             ) : (
               sales.map((sale) => (
@@ -206,17 +212,19 @@ const Sales = () => {
                   <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-bold text-slate-900 dark:text-white">
                     ₹{Number(sale.grandTotal || 0).toFixed(2)}
                   </TableCell>
-                  <TableCell className="py-2 px-3 text-right whitespace-nowrap">
-                    <span className={`inline-block font-mono tabular-nums text-[11px] font-semibold px-1.5 py-0.5 rounded ${
-                      Number(sale.profit || 0) > 0 
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40' 
-                        : Number(sale.profit || 0) < 0 
-                        ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200/50 dark:border-red-800/40' 
-                        : 'text-slate-400'
-                    }`}>
-                      {Number(sale.profit || 0) >= 0 ? '+' : ''}₹{Number(sale.profit || 0).toFixed(2)}
-                    </span>
-                  </TableCell>
+                  {canViewProfit && (
+                    <TableCell className="py-2 px-3 text-right whitespace-nowrap">
+                      <span className={`inline-block font-mono tabular-nums text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                        Number(sale.profit || 0) > 0 
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40' 
+                          : Number(sale.profit || 0) < 0 
+                          ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200/50 dark:border-red-800/40' 
+                          : 'text-slate-400'
+                      }`}>
+                        {Number(sale.profit || 0) >= 0 ? '+' : ''}₹{Number(sale.profit || 0).toFixed(2)}
+                      </span>
+                    </TableCell>
+                  )}
                   <TableCell className="py-2 px-3 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity duration-150">
                       <Button 
