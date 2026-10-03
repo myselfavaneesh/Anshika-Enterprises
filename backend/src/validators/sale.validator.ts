@@ -68,6 +68,7 @@ export const CreateSaleSchema = z.object({
   eInvoiceAckNo: z.string().optional().nullable(),
   eWayBillNo: z.string().optional().nullable(),
   customerSignatureUrl: z.string().optional().nullable(),
+  allowQuickInward: z.boolean().optional().default(true),
 });
 
 export type CreateSaleInput = z.infer<typeof CreateSaleSchema>;

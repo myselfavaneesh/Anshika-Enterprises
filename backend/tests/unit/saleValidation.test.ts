@@ -111,4 +111,67 @@ describe('Sale Zod Validation & Composition Scheme (Unit Tests)', () => {
     const parsed = CreateSaleSchema.safeParse(payload);
     expect(parsed.success).toBe(false);
   });
+
+  describe('allowQuickInward flag for on-the-fly POS inventory inwarding', () => {
+    it('defaults allowQuickInward to true when omitted', () => {
+      const payload = {
+        customerId: 'cust-123',
+        items: [
+          {
+            productId: 'prod-battery-1',
+            quantity: 1,
+            unitPrice: 5000,
+            taxableUnitPrice: 5000,
+            taxableTotalPrice: 5000,
+            totalPrice: 5000,
+            wattage: 0,
+            serialNumbers: ['EXIDE-TEST-12345'],
+          },
+        ],
+        subtotal: 5000,
+        taxableAmount: 5000,
+        grandTotal: 5000,
+      };
+
+      const parsed = CreateSaleSchema.safeParse(payload);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.allowQuickInward).toBe(true);
+        expect(parsed.data.items[0].serialNumbers).toEqual(['EXIDE-TEST-12345']);
+      }
+    });
+
+    it('preserves allowQuickInward when explicitly passed as false or true', () => {
+      const basePayload = {
+        customerId: 'cust-123',
+        items: [
+          {
+            productId: 'prod-wire-1',
+            quantity: 10,
+            unitPrice: 50,
+            taxableUnitPrice: 50,
+            taxableTotalPrice: 500,
+            totalPrice: 500,
+            wattage: 0,
+          },
+        ],
+        subtotal: 500,
+        taxableAmount: 500,
+        grandTotal: 500,
+      };
+
+      const parsedFalse = CreateSaleSchema.safeParse({ ...basePayload, allowQuickInward: false });
+      expect(parsedFalse.success).toBe(true);
+      if (parsedFalse.success) {
+        expect(parsedFalse.data.allowQuickInward).toBe(false);
+      }
+
+      const parsedTrue = CreateSaleSchema.safeParse({ ...basePayload, allowQuickInward: true });
+      expect(parsedTrue.success).toBe(true);
+      if (parsedTrue.success) {
+        expect(parsedTrue.data.allowQuickInward).toBe(true);
+      }
+    });
+  });
 });
+

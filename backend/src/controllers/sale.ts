@@ -44,10 +44,11 @@ const SalePaymentSchema = z.object({
 
 const SaleInputSchema = z.object({
   customerId: z.string(),
-  invoiceType: z.enum(['GST', 'NON_GST']).default('GST'),
+  invoiceType: z.enum(['GST', 'NON_GST', 'COMPOSITION']).default('COMPOSITION'),
   documentType: z.string().optional(),
   items: z.array(SaleItemSchema).min(1),
   services: z.array(SaleServiceSchema).optional(),
+  comboGroups: z.array(z.any()).optional(),
   subtotal: z.number().min(0),
   discount: z.number().min(0).default(0),
   taxableAmount: z.number().min(0),
@@ -66,6 +67,7 @@ const SaleInputSchema = z.object({
   eInvoiceAckNo: z.string().optional(),
   eWayBillNo: z.string().optional(),
   customerSignatureUrl: z.string().optional(),
+  allowQuickInward: z.boolean().optional().default(true),
 });
 
 export const createSale = async (req: Request, res: Response): Promise<void> => {

@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { Trash2, Receipt, Loader2, Search, X, ChevronDown, Plus } from 'lucide-react';
+import { Trash2, Receipt, Loader2, Search, X, ChevronDown, Plus, PackagePlus, AlertCircle } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
@@ -37,10 +37,26 @@ export default function NewSale() {
   
   const [isQuantityDialogOpen, setIsQuantityDialogOpen] = useState(false);
   const [selectedQuantity, setSelectedQuantity] = useState('1');
+
+  // Quick Inward inside Serials & Quantity Dialogs
+  const [quickSerialInput, setQuickSerialInput] = useState('');
+  const [isQuickInwardingSerial, setIsQuickInwardingSerial] = useState(false);
+  const [quickQtyInput, setQuickQtyInput] = useState('');
+  const [isQuickInwardingQty, setIsQuickInwardingQty] = useState(false);
+
+  // Dedicated Quick Inward Modal
+  const [isQuickInwardModalOpen, setIsQuickInwardModalOpen] = useState(false);
+  const [quickModalProductId, setQuickModalProductId] = useState('');
+  const [quickModalSerialsText, setQuickModalSerialsText] = useState('');
+  const [quickModalQuantity, setQuickModalQuantity] = useState('1');
+  const [quickModalCost, setQuickModalCost] = useState('');
+  const [quickModalSupplier, setQuickModalSupplier] = useState('');
+  const [isQuickModalSubmitting, setIsQuickModalSubmitting] = useState(false);
   
   const [discount, setDiscount] = useState('0');
   const [invoiceType, setInvoiceType] = useState<'GST' | 'NON_GST' | 'COMPOSITION'>('COMPOSITION');
   const [documentType, setDocumentType] = useState('BILL_OF_SUPPLY');
+
   
   // Dynamic Services selected
   const [selectedServices, setSelectedServices] = useState<{name: string, amount: string, gstRate: string, isGstInclusive: boolean}[]>([]);
@@ -181,15 +197,175 @@ export default function NewSale() {
     }
   }, [productSearch, products]);
 
+  const refreshProducts = async () => {
+    try {
+      const prodRes = await api.get('/products?limit=10000');
+      setProducts(prodRes.data.data || prodRes.data);
+    } catch (err) {
+      console.error('Failed to refresh products', err);
+    }
+  };
+
   const fetchSerials = async (productId: string) => {
     try {
       const res = await api.get(`/inventory/serials/${productId}?status=IN_STOCK`);
       setAvailableSerials(res.data);
-      if (res.data.length > 0) {
-        setIsSerialsDialogOpen(true);
-      }
+      setIsSerialsDialogOpen(true);
     } catch (error) {
       console.error('Error fetching serials', error);
+      setIsSerialsDialogOpen(true);
+    }
+  };
+
+  const handleQuickInwardSerials = async () => {
+    if (!selectedProductId || !quickSerialInput.trim()) return;
+    const cleanSerials = quickSerialInput
+      .split(/[\n,;\s]+/)
+      .map(s => s.trim().toUpperCase())
+      .filter(s => s.length > 0);
+
+    if (cleanSerials.length === 0) return;
+
+    const prod = products.find(p => p._id === selectedProductId);
+    setIsQuickInwardingSerial(true);
+    try {
+      await api.post('/inventory/stock-in', {
+        productId: selectedProductId,
+        serialNumbers: cleanSerials,
+        purchasePrice: Number(prod?.purchasePrice || 0),
+        supplierName: 'POS Quick Inward'
+      });
+
+      const newItems = cleanSerials.map((s, idx) => ({ _id: `temp-${Date.now()}-${idx}`, serialNumber: s }));
+      setAvailableSerials(prev => [...newItems, ...prev]);
+      setSelectedSerials(prev => Array.from(new Set([...prev, ...cleanSerials])));
+      setQuickSerialInput('');
+      toast.success(`Inwarded & selected ${cleanSerials.length} serial(s)!`);
+      refreshProducts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to inward serials');
+    } finally {
+      setIsQuickInwardingSerial(false);
+    }
+  };
+
+  const handleBarcodeScanInDialog = async (decodedText: string) => {
+    const clean = decodedText.trim().toUpperCase();
+    if (!clean) return;
+    const found = availableSerials.find(s => s.serialNumber === clean);
+    if (found) {
+      toggleSerialSelection(clean);
+      toast.success(`Selected serial: ${clean}`);
+    } else {
+      const prod = products.find(p => p._id === selectedProductId);
+      try {
+        await api.post('/inventory/stock-in', {
+          productId: selectedProductId,
+          serialNumbers: [clean],
+          purchasePrice: Number(prod?.purchasePrice || 0),
+          supplierName: 'Scanned at POS'
+        });
+        setAvailableSerials(prev => [{ _id: 'scanned-' + Date.now(), serialNumber: clean }, ...prev]);
+        setSelectedSerials(prev => Array.from(new Set([...prev, clean])));
+        toast.success(`Scanned & inwarded new serial: ${clean}`);
+        refreshProducts();
+      } catch (err: any) {
+        toast.error(err.response?.data?.error || `Failed to inward serial ${clean}`);
+      }
+    }
+  };
+
+  const handleQuickInwardQuantity = async () => {
+    const qty = Number(quickQtyInput);
+    if (!selectedProductId || !qty || qty <= 0) return;
+    const prod = products.find(p => p._id === selectedProductId);
+    setIsQuickInwardingQty(true);
+    try {
+      await api.post('/inventory/stock-in', {
+        productId: selectedProductId,
+        quantity: qty,
+        purchasePrice: Number(prod?.purchasePrice || 0),
+        supplierName: 'POS Quick Inward'
+      });
+      toast.success(`Added ${qty} units to stock!`);
+      setSelectedQuantity(String(qty));
+      setQuickQtyInput('');
+      refreshProducts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to inward quantity');
+    } finally {
+      setIsQuickInwardingQty(false);
+    }
+  };
+
+  const handleQuickModalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickModalProductId) {
+      toast.error('Please select a product');
+      return;
+    }
+    const targetProduct = products.find(p => p._id === quickModalProductId);
+    if (!targetProduct) return;
+
+    setIsQuickModalSubmitting(true);
+    try {
+      if (targetProduct.trackSerials !== false) {
+        const serials = quickModalSerialsText
+          .split(/[\n,;\s]+/)
+          .map(s => s.trim().toUpperCase())
+          .filter(s => s.length > 0);
+
+        if (serials.length === 0) {
+          toast.error('Please enter at least one serial number');
+          setIsQuickModalSubmitting(false);
+          return;
+        }
+
+        await api.post('/inventory/stock-in', {
+          productId: quickModalProductId,
+          serialNumbers: serials,
+          purchasePrice: quickModalCost ? Number(quickModalCost) : Number(targetProduct.purchasePrice || 0),
+          supplierName: quickModalSupplier || 'POS Quick Inward'
+        });
+
+        toast.success(`Inwarded ${serials.length} serials for ${targetProduct.name}!`);
+        
+        if (selectedProductId === quickModalProductId) {
+          const newUnits = serials.map((s, idx) => ({ _id: `temp-${Date.now()}-${idx}`, serialNumber: s }));
+          setAvailableSerials(prev => [...newUnits, ...prev]);
+          setSelectedSerials(prev => Array.from(new Set([...prev, ...serials])));
+        }
+      } else {
+        const qty = Number(quickModalQuantity);
+        if (!qty || qty <= 0) {
+          toast.error('Please enter a valid quantity');
+          setIsQuickModalSubmitting(false);
+          return;
+        }
+
+        await api.post('/inventory/stock-in', {
+          productId: quickModalProductId,
+          quantity: qty,
+          purchasePrice: quickModalCost ? Number(quickModalCost) : Number(targetProduct.purchasePrice || 0),
+          supplierName: quickModalSupplier || 'POS Quick Inward'
+        });
+
+        toast.success(`Inwarded ${qty} units of ${targetProduct.name}!`);
+        if (selectedProductId === quickModalProductId) {
+          setSelectedQuantity(String(qty));
+        }
+      }
+
+      setIsQuickInwardModalOpen(false);
+      setQuickModalSerialsText('');
+      setQuickModalQuantity('1');
+      setQuickModalCost('');
+      setQuickModalSupplier('');
+      refreshProducts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to inward stock');
+    } finally {
+      setIsQuickModalSubmitting(false);
     }
   };
 
@@ -465,6 +641,7 @@ export default function NewSale() {
       const payload = {
         customerId: selectedCustomerId,
         invoiceType,
+        allowQuickInward: true,
         items: processedCart.map((item: any) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -767,6 +944,9 @@ export default function NewSale() {
                             </div>
                             <div className="text-right flex-shrink-0">
                               <div className="text-xs font-semibold text-primary">₹{p.sellingPrice?.toFixed(2) || '0.00'}</div>
+                              <div className={`text-[10px] font-medium ${(p.stock || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                {(p.stock || 0) > 0 ? `Stock: ${p.stock}` : 'Out of stock'}
+                              </div>
                             </div>
                           </button>
                         ));
@@ -775,6 +955,7 @@ export default function NewSale() {
                   )}
                 </div>
                 <Button
+                  type="button"
                   onClick={() => {
                     const p = products.find(prod => prod._id === selectedProductId);
                     if (p?.trackSerials === false) {
@@ -783,11 +964,27 @@ export default function NewSale() {
                       setIsSerialsDialogOpen(true);
                     }
                   }}
-                  disabled={!selectedProductId || (products.find(p => p._id === selectedProductId)?.trackSerials !== false && availableSerials.length === 0)}
+                  disabled={!selectedProductId}
                   variant="secondary"
-                  className="h-10 w-full sm:w-auto"
+                  className="h-10 w-full sm:w-auto font-semibold"
                 >
                   {products.find(p => p._id === selectedProductId)?.trackSerials === false ? `Quantity (${selectedQuantity})` : `Serials (${selectedSerials.length})`}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const activeP = selectedProductId || (products[0]?._id || '');
+                    setQuickModalProductId(activeP);
+                    const prod = products.find(p => p._id === activeP);
+                    setQuickModalCost(prod?.purchasePrice ? String(prod.purchasePrice) : '');
+                    setIsQuickInwardModalOpen(true);
+                  }}
+                  className="h-10 px-3 whitespace-nowrap text-xs font-semibold border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                  title="Quick Inward stock on the fly"
+                >
+                  <PackagePlus className="h-4 w-4 mr-1.5 text-indigo-600 dark:text-indigo-400" />
+                  Quick Inward
                 </Button>
               </div>
 
@@ -1165,20 +1362,64 @@ export default function NewSale() {
       <Dialog open={isSerialsDialogOpen} onOpenChange={setIsSerialsDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Select Serial Numbers</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Select Serial Numbers</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Product: <strong className="text-slate-800 dark:text-slate-200">{products.find(p => p._id === selectedProductId)?.name || 'Selected'}</strong>
+              </span>
+            </DialogTitle>
           </DialogHeader>
+
+          {/* Quick Inward Bar */}
+          <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/60 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-indigo-900 dark:text-indigo-200">
+              <span className="flex items-center gap-1.5">
+                <PackagePlus className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                Quick Inward New Serial Numbers on the Fly
+              </span>
+              <span className="text-[11px] font-normal text-indigo-700/80 dark:text-indigo-300/80">
+                Type or scan serials to inward & auto-select
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter new serial number(s) (comma or space separated) & click Inward..."
+                value={quickSerialInput}
+                onChange={e => setQuickSerialInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleQuickInwardSerials();
+                  }
+                }}
+                className="text-xs bg-white dark:bg-slate-900 font-mono"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleQuickInwardSerials}
+                disabled={isQuickInwardingSerial || !quickSerialInput.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 text-xs font-semibold px-3"
+              >
+                {isQuickInwardingSerial ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                Inward & Select
+              </Button>
+            </div>
+          </div>
+
           <div className="mb-4">
             <BarcodeScanner 
-              onScan={(decodedText) => {
-                const found = availableSerials.find(s => s.serialNumber === decodedText);
-                if (found) toggleSerialSelection(decodedText);
-              }}
+              onScan={handleBarcodeScanInDialog}
               buttonText="Scan Serial Number (Camera)"
             />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-4 max-h-[60vh] overflow-y-auto p-2">
             {availableSerials.length === 0 ? (
-              <p className="col-span-full text-center text-muted-foreground py-8">No serial numbers in stock</p>
+              <div className="col-span-full text-center py-6 px-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                <AlertCircle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No serial numbers currently in stock</p>
+                <p className="text-xs text-slate-500 mt-1">Use the quick inward box above or scan the barcode to inward and sell right now!</p>
+              </div>
             ) : (
               availableSerials.map(s => {
                 const inCart = cart.find(c => c.productId === selectedProductId)?.serialNumbers.includes(s.serialNumber);
@@ -1211,30 +1452,67 @@ export default function NewSale() {
       <Dialog open={isQuantityDialogOpen} onOpenChange={setIsQuantityDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Enter Quantity</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Enter Quantity</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                In Stock: <strong className="text-slate-800 dark:text-slate-200">{products.find(p => p._id === selectedProductId)?.stock ?? 0}</strong>
+              </span>
+            </DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <label className="text-sm font-medium mb-2 block">Quantity</label>
-            <Input 
-              type="number" 
-              min="1"
-              value={selectedQuantity}
-              onChange={e => setSelectedQuantity(e.target.value)}
-              className="text-lg"
-              autoFocus
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addToCart();
-                }
-              }}
-            />
+          <div className="py-2 space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">Quantity for Sale</label>
+              <Input 
+                type="number" 
+                min="1"
+                value={selectedQuantity}
+                onChange={e => setSelectedQuantity(e.target.value)}
+                className="text-lg font-bold font-mono"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addToCart();
+                  }
+                }}
+              />
+            </div>
+
+            {/* Quick Inward Quantity Section */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between">
+                <span>Need more inventory stock right now?</span>
+                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Quick Inward</span>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Qty to add (e.g. 10)"
+                  value={quickQtyInput}
+                  onChange={e => setQuickQtyInput(e.target.value)}
+                  className="text-xs bg-white dark:bg-slate-950 font-mono"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleQuickInwardQuantity}
+                  disabled={isQuickInwardingQty || !quickQtyInput || Number(quickQtyInput) <= 0}
+                  className="shrink-0 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                >
+                  {isQuickInwardingQty ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                  + Inward Stock
+                </Button>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={addToCart} size="lg" className="w-full">Confirm & Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <Dialog open={isComboDialogOpen} onOpenChange={setIsComboDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1297,6 +1575,147 @@ export default function NewSale() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Quick Inward Modal */}
+      <Dialog open={isQuickInwardModalOpen} onOpenChange={setIsQuickInwardModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
+              <PackagePlus className="h-5 w-5" />
+              Quick Inward Inventory (At POS)
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleQuickModalSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Select Product</label>
+              <select
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={quickModalProductId}
+                onChange={e => {
+                  const pid = e.target.value;
+                  setQuickModalProductId(pid);
+                  const p = products.find(prod => prod._id === pid);
+                  if (p?.purchasePrice) setQuickModalCost(String(p.purchasePrice));
+                }}
+                required
+              >
+                <option value="">-- Choose Product to Inward --</option>
+                {products.map(p => (
+                  <option key={p._id} value={p._id}>
+                    {p.name} {p.sku ? `(${p.sku})` : ''} - [{p.trackSerials !== false ? 'Serialized' : `Stock: ${p.stock || 0}`}]
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(() => {
+              const selectedP = products.find(p => p._id === quickModalProductId);
+              const isSerialized = selectedP?.trackSerials !== false;
+              return (
+                <>
+                  {isSerialized ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Serial Numbers (One per line or comma separated)
+                        </label>
+                        <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">
+                          Serialized Battery/Inverter
+                        </span>
+                      </div>
+                      <textarea
+                        rows={4}
+                        placeholder={"e.g.\nEXIDE-BT-9821\nEXIDE-BT-9822\nEXIDE-BT-9823"}
+                        value={quickModalSerialsText}
+                        onChange={e => setQuickModalSerialsText(e.target.value)}
+                        className="w-full rounded-md border border-input bg-background p-2.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                        required
+                      />
+                      <p className="text-[11px] text-slate-500">
+                        Total serials detected: {quickModalSerialsText.split(/[\n,;\s]+/).map(s => s.trim()).filter(Boolean).length}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Quantity to Add
+                        </label>
+                        <span className="text-[11px] font-medium text-slate-500">
+                          Current Stock: {selectedP?.stock || 0}
+                        </span>
+                      </div>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={quickModalQuantity}
+                        onChange={e => setQuickModalQuantity(e.target.value)}
+                        placeholder="Quantity to add"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Purchase / Cost Price (₹)
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={quickModalCost}
+                        onChange={e => setQuickModalCost(e.target.value)}
+                        placeholder={selectedP?.purchasePrice ? `Default: ₹${selectedP.purchasePrice}` : '0.00'}
+                      />
+                      <p className="text-[10px] text-slate-400">Leave blank to use catalog purchase price</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Supplier / Reference Note
+                      </label>
+                      <Input
+                        type="text"
+                        value={quickModalSupplier}
+                        onChange={e => setQuickModalSupplier(e.target.value)}
+                        placeholder="e.g. Local Delivery / Urgent Inward"
+                      />
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+
+            <DialogFooter className="pt-3 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsQuickInwardModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isQuickModalSubmitting || !quickModalProductId}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+              >
+                {isQuickModalSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    Inwarding...
+                  </>
+                ) : (
+                  <>
+                    <PackagePlus className="h-4 w-4 mr-1.5" />
+                    Inward & Make Available
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Customer Modal */}
       <Dialog open={isAddCustomerModalOpen} onOpenChange={setIsAddCustomerModalOpen}>
         <DialogContent>

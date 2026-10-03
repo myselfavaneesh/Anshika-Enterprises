@@ -52,15 +52,22 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     const total = await prisma.product.count({ where });
     const products = await prisma.product.findMany({
       where,
-      include: { category: true },
+      include: { 
+        category: true,
+        inventories: true,
+        _count: {
+          select: { productUnits: { where: { status: 'IN_STOCK' } } }
+        }
+      },
       orderBy: { [sort]: order },
       skip,
       take: limit,
     });
 
     const mappedProducts = products.map(p => {
-      const { category, ...rest } = p as any;
-      return mapEntityId({ ...rest, categoryId: category });
+      const { category, inventories, _count, ...rest } = p as any;
+      const stock = p.trackSerials ? (_count?.productUnits || 0) : (inventories?.quantity || 0);
+      return mapEntityId({ ...rest, stock, categoryId: category });
     });
 
     res.json({

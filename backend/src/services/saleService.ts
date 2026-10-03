@@ -73,6 +73,7 @@ export interface SaleInput {
   eInvoiceAckNo?: string;
   eWayBillNo?: string;
   customerSignatureUrl?: string;
+  allowQuickInward?: boolean;
 }
 
 export class SaleService {
@@ -83,7 +84,7 @@ export class SaleService {
           customerId, invoiceType, documentType = 'TAX_INVOICE', 
           items, services = [], discount, grandTotal, 
           payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl,
-          placeOfSupply, placeOfSupplyCode
+          placeOfSupply, placeOfSupplyCode, allowQuickInward = true
         } = data;
 
         const isBillOfSupply = documentType === 'BILL_OF_SUPPLY' || invoiceType === 'COMPOSITION';
@@ -324,7 +325,35 @@ export class SaleService {
               });
 
               if (!existingUnit) {
-                throw new Error(`Serial number ${serial} does not exist in inventory.`);
+                if (allowQuickInward) {
+                  // Automatic on-the-fly inventory inward during sale
+                  const catalogCost = product ? Number(product.purchasePrice || 0) : 0;
+                  await tx.productUnit.create({
+                    data: {
+                      productId: item.productId,
+                      serialNumber: serial,
+                      status: 'SOLD',
+                      purchasePrice: catalogCost,
+                      saleId: newSale.id,
+                      saleItemId: saleItem.id,
+                      supplierName: 'Direct Inward on Sale'
+                    }
+                  });
+                  await tx.inventoryTransaction.create({
+                    data: {
+                      productId: item.productId,
+                      transactionType: 'IN',
+                      quantity: 1,
+                      referenceType: 'SALE_QUICK_INWARD',
+                      referenceId: newSale.id,
+                      note: `Quick Inward on Sale ${invoiceNumber} for serial ${serial}`
+                    }
+                  });
+                  logger.info('Auto-inwarded missing serial unit during sale', { productId: item.productId, serial, invoiceNumber });
+                  continue;
+                } else {
+                  throw new Error(`Serial number ${serial} does not exist in inventory.`);
+                }
               }
               if (existingUnit.status !== 'IN_STOCK') {
                 if (existingUnit.sale) {
@@ -344,13 +373,36 @@ export class SaleService {
             }
           } else {
             const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
-            if (!inventory || inventory.quantity < item.quantity) {
-              throw new Error(`Insufficient stock for product ID: ${item.productId}`);
+            const currentQty = inventory ? inventory.quantity : 0;
+            if (currentQty < item.quantity) {
+              if (allowQuickInward) {
+                // Automatic on-the-fly stock replenishment during sale
+                const shortage = item.quantity - currentQty;
+                await tx.inventory.upsert({
+                  where: { productId: item.productId },
+                  create: { productId: item.productId, quantity: 0 },
+                  update: { quantity: 0 }
+                });
+                await tx.inventoryTransaction.create({
+                  data: {
+                    productId: item.productId,
+                    transactionType: 'IN',
+                    quantity: shortage,
+                    referenceType: 'SALE_QUICK_INWARD',
+                    referenceId: newSale.id,
+                    note: `Quick Inward on Sale ${invoiceNumber} for shortage of ${shortage} units`
+                  }
+                });
+                logger.info('Auto-replenished non-serialized stock shortage during sale', { productId: item.productId, shortage, invoiceNumber });
+              } else {
+                throw new Error(`Insufficient stock for product ID: ${item.productId}`);
+              }
+            } else {
+              await tx.inventory.update({
+                where: { productId: item.productId },
+                data: { quantity: { decrement: item.quantity } }
+              });
             }
-            await tx.inventory.update({
-              where: { productId: item.productId },
-              data: { quantity: { decrement: item.quantity } }
-            });
           }
         }
 
@@ -426,7 +478,7 @@ export class SaleService {
           customerId, invoiceType, documentType = 'TAX_INVOICE', 
           items, services = [], discount, grandTotal, 
           payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl,
-          placeOfSupply, placeOfSupplyCode
+          placeOfSupply, placeOfSupplyCode, allowQuickInward = true
         } = data;
         
         const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -714,7 +766,33 @@ export class SaleService {
               });
 
               if (!existingUnit) {
-                throw new Error(`Serial number ${serial} does not exist in inventory.`);
+                if (allowQuickInward) {
+                  const catalogCost = product ? Number(product.purchasePrice || 0) : 0;
+                  await tx.productUnit.create({
+                    data: {
+                      productId: item.productId,
+                      serialNumber: serial,
+                      status: 'SOLD',
+                      purchasePrice: catalogCost,
+                      saleId: sale.id,
+                      saleItemId: saleItem.id,
+                      supplierName: 'Direct Inward on Sale'
+                    }
+                  });
+                  await tx.inventoryTransaction.create({
+                    data: {
+                      productId: item.productId,
+                      transactionType: 'IN',
+                      quantity: 1,
+                      referenceType: 'SALE_QUICK_INWARD',
+                      referenceId: sale.id,
+                      note: `Quick Inward on Update Sale for serial ${serial}`
+                    }
+                  });
+                  continue;
+                } else {
+                  throw new Error(`Serial number ${serial} does not exist in inventory.`);
+                }
               }
               if (existingUnit.status !== 'IN_STOCK' && existingUnit.saleId !== sale.id) {
                 if (existingUnit.sale) {
@@ -733,13 +811,34 @@ export class SaleService {
             }
           } else {
             const inventory = await tx.inventory.findUnique({ where: { productId: item.productId } });
-            if (!inventory || inventory.quantity < item.quantity) {
-              throw new Error(`Insufficient stock for product ID: ${item.productId}`);
+            const currentQty = inventory ? inventory.quantity : 0;
+            if (currentQty < item.quantity) {
+              if (allowQuickInward) {
+                const shortage = item.quantity - currentQty;
+                await tx.inventory.upsert({
+                  where: { productId: item.productId },
+                  create: { productId: item.productId, quantity: 0 },
+                  update: { quantity: 0 }
+                });
+                await tx.inventoryTransaction.create({
+                  data: {
+                    productId: item.productId,
+                    transactionType: 'IN',
+                    quantity: shortage,
+                    referenceType: 'SALE_QUICK_INWARD',
+                    referenceId: sale.id,
+                    note: `Quick Inward on Update Sale for shortage of ${shortage} units`
+                  }
+                });
+              } else {
+                throw new Error(`Insufficient stock for product ID: ${item.productId}`);
+              }
+            } else {
+              await tx.inventory.update({
+                where: { productId: item.productId },
+                data: { quantity: { decrement: item.quantity } }
+              });
             }
-            await tx.inventory.update({
-              where: { productId: item.productId },
-              data: { quantity: { decrement: item.quantity } }
-            });
           }
         }
 
