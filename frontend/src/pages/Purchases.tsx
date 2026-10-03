@@ -119,10 +119,10 @@ const Purchases = () => {
                   <TableCell className="font-medium">{purchase.purchaseInvoiceNumber}</TableCell>
                   <TableCell>{new Date(purchase.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>{purchase.supplierId ? `${purchase.supplierId.name} (${purchase.supplierId.phone || 'No Phone'})` : 'Unknown'}</TableCell>
-                  <TableCell className="text-right">₹{purchase.subtotal.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">₹{purchase.discount.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">₹{((purchase.cgstAmount || 0) + (purchase.sgstAmount || 0) + (purchase.igstAmount || 0) || purchase.taxAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-bold text-primary">₹{purchase.grandTotal.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">₹{Number(purchase.subtotal || 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">₹{Number(purchase.discount || 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">₹{(Number(purchase.cgstAmount || 0) + Number(purchase.sgstAmount || 0) + Number(purchase.igstAmount || 0) || Number(purchase.taxAmount || 0)).toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-bold text-primary">₹{Number(purchase.grandTotal || 0).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" asChild title="Edit Purchase" className="text-slate-500 hover:text-slate-700">

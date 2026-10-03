@@ -174,13 +174,13 @@ const Dashboard = () => {
         <div className="grid gap-4 sm:grid-cols-2">
           <StatCard
             title="Filtered Sales Revenue"
-            value={`₹${stats.filteredRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            value={`₹${Number(stats.filteredRevenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={TrendingUp}
             badgeText="Period revenue"
           />
           <StatCard
             title="Filtered Gross Profit"
-            value={`₹${stats.filteredProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            value={`₹${Number(stats.filteredProfit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={TrendingUp}
             badgeText="Period estimated profit"
           />
@@ -196,19 +196,19 @@ const Dashboard = () => {
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <StatCard
             title="Total Revenue"
-            value={`₹${stats.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            value={`₹${Number(stats.totalSales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={TrendingUp}
             badgeText="All-time gross sales"
           />
           <StatCard
             title="Taxable Sales"
-            value={`₹${(stats.totalTaxableSales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            value={`₹${Number(stats.totalTaxableSales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={ShieldCheck}
             badgeText="GST eligible volume"
           />
           <StatCard
             title="Today's Sales"
-            value={`₹${stats.todaysSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            value={`₹${Number(stats.todaysSales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={ShoppingCart}
             badgeText="Real-time daily tracker"
           />
@@ -220,7 +220,7 @@ const Dashboard = () => {
           />
           <StatCard
             title="Khata Balance Due"
-            value={`₹${(stats.totalCustomerOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            value={`₹${Number(stats.totalCustomerOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             icon={Users}
             badgeText="Customer receivables"
           />
@@ -426,16 +426,20 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stats.recentSales.map((sale) => (
-                      <TableRow key={sale._id} className="border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                        <TableCell className="font-semibold text-indigo-600 dark:text-indigo-400 text-xs py-2.5 font-mono">{sale.invoiceNumber}</TableCell>
-                        <TableCell className="text-xs py-2.5 text-slate-700 dark:text-slate-300 font-medium truncate max-w-[120px]">{sale.customerId?.name || 'Walk-in'}</TableCell>
-                        <TableCell className="text-right text-xs py-2.5 font-semibold font-mono tabular-nums">₹{sale.grandTotal.toFixed(2)}</TableCell>
-                        <TableCell className={`text-right font-bold text-xs py-2.5 font-mono tabular-nums ${(sale.profit || 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : (sale.profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
-                          {(sale.profit || 0) >= 0 ? '+' : ''}₹{(sale.profit || 0).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {stats.recentSales.map((sale) => {
+                      const grandTotalNum = Number(sale.grandTotal || 0);
+                      const profitNum = Number(sale.profit || 0);
+                      return (
+                        <TableRow key={sale._id} className="border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                          <TableCell className="font-semibold text-indigo-600 dark:text-indigo-400 text-xs py-2.5 font-mono">{sale.invoiceNumber}</TableCell>
+                          <TableCell className="text-xs py-2.5 text-slate-700 dark:text-slate-300 font-medium truncate max-w-[120px]">{sale.customerId?.name || 'Walk-in'}</TableCell>
+                          <TableCell className="text-right text-xs py-2.5 font-semibold font-mono tabular-nums">₹{grandTotalNum.toFixed(2)}</TableCell>
+                          <TableCell className={`text-right font-bold text-xs py-2.5 font-mono tabular-nums ${profitNum > 0 ? 'text-emerald-600 dark:text-emerald-400' : profitNum < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
+                            {profitNum >= 0 ? '+' : ''}₹{profitNum.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

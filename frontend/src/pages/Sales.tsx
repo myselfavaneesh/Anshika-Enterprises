@@ -53,7 +53,7 @@ const Sales = () => {
     }
     const isBillOfSupply = sale.documentType === 'BILL_OF_SUPPLY' || sale.invoiceType === 'COMPOSITION';
     const docType = isBillOfSupply ? 'Bill of Supply' : (sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Invoice');
-    const message = `Hello ${sale.customerId.name},\n\nAapka ${docType} *${sale.invoiceNumber}* generate ho gaya hai.\nKul Raqam: *₹${sale.grandTotal.toFixed(2)}*\n\n- Anshika Enterprises`;
+    const message = `Hello ${sale.customerId.name},\n\nAapka ${docType} *${sale.invoiceNumber}* generate ho gaya hai.\nKul Raqam: *₹${Number(sale.grandTotal || 0).toFixed(2)}*\n\n- Anshika Enterprises`;
 
     if (navigator.share) {
       navigator.share({
@@ -195,26 +195,26 @@ const Sales = () => {
                     </div>
                   </TableCell>
                   <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs text-slate-600 dark:text-slate-400">
-                    ₹{sale.subtotal.toFixed(2)}
+                    ₹{Number(sale.subtotal || 0).toFixed(2)}
                   </TableCell>
                   <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs text-slate-500">
-                    {sale.discount > 0 ? `₹${sale.discount.toFixed(2)}` : '-'}
+                    {Number(sale.discount || 0) > 0 ? `₹${Number(sale.discount || 0).toFixed(2)}` : '-'}
                   </TableCell>
                   <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs text-slate-500">
-                    ₹{((sale.cgstAmount || 0) + (sale.sgstAmount || 0) + (sale.igstAmount || 0) || sale.taxAmount || 0).toFixed(2)}
+                    ₹{(Number(sale.cgstAmount || 0) + Number(sale.sgstAmount || 0) + Number(sale.igstAmount || 0) || Number(sale.taxAmount || 0)).toFixed(2)}
                   </TableCell>
                   <TableCell className="py-2 px-3 text-right font-mono tabular-nums text-xs font-bold text-slate-900 dark:text-white">
-                    ₹{sale.grandTotal.toFixed(2)}
+                    ₹{Number(sale.grandTotal || 0).toFixed(2)}
                   </TableCell>
                   <TableCell className="py-2 px-3 text-right whitespace-nowrap">
                     <span className={`inline-block font-mono tabular-nums text-[11px] font-semibold px-1.5 py-0.5 rounded ${
-                      (sale.profit || 0) > 0 
+                      Number(sale.profit || 0) > 0 
                         ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40' 
-                        : (sale.profit || 0) < 0 
+                        : Number(sale.profit || 0) < 0 
                         ? 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200/50 dark:border-red-800/40' 
                         : 'text-slate-400'
                     }`}>
-                      {(sale.profit || 0) >= 0 ? '+' : ''}₹{(sale.profit || 0).toFixed(2)}
+                      {Number(sale.profit || 0) >= 0 ? '+' : ''}₹{Number(sale.profit || 0).toFixed(2)}
                     </span>
                   </TableCell>
                   <TableCell className="py-2 px-3 text-center whitespace-nowrap">

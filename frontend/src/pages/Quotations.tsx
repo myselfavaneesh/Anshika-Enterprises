@@ -64,7 +64,7 @@ const Quotations = () => {
       return;
     }
     const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
-    const message = `Hello ${quotation.customerId.name},\n\nAapka ${docType} *${quotation.quotationNumber}* generate ho gaya hai.\nKul Raqam: *₹${quotation.grandTotal.toFixed(2)}*\n\n- Anshika Enterprises`;
+    const message = `Hello ${quotation.customerId.name},\n\nAapka ${docType} *${quotation.quotationNumber}* generate ho gaya hai.\nKul Raqam: *₹${Number(quotation.grandTotal || 0).toFixed(2)}*\n\n- Anshika Enterprises`;
 
     if (navigator.share) {
       navigator.share({
@@ -220,10 +220,10 @@ const Quotations = () => {
                       <option value="REJECTED">REJECTED</option>
                     </select>
                   </TableCell>
-                  <TableCell className="text-right">₹{quotation.subtotal.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">₹{quotation.discount.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">₹{((quotation.cgstAmount || 0) + (quotation.sgstAmount || 0) + (quotation.igstAmount || 0) || quotation.taxAmount || 0).toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-bold text-primary">₹{quotation.grandTotal.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">₹{Number(quotation.subtotal || 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">₹{Number(quotation.discount || 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-right">₹{(Number(quotation.cgstAmount || 0) + Number(quotation.sgstAmount || 0) + Number(quotation.igstAmount || 0) || Number(quotation.taxAmount || 0)).toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-bold text-primary">₹{Number(quotation.grandTotal || 0).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title="Print Quotation" onClick={() => handlePrintQuotation(quotation._id)}>

@@ -83,12 +83,12 @@ export default function Reports() {
       Customer: s.customerName,
       GSTIN: s.gstin,
       'Payment Mode': s.paymentMode,
-      'Taxable Amt': s.taxableAmount.toFixed(2),
-      CGST: s.cgst.toFixed(2),
-      SGST: s.sgst.toFixed(2),
-      IGST: s.igst.toFixed(2),
-      Discount: s.discount.toFixed(2),
-      'Grand Total': s.grandTotal.toFixed(2)
+      'Taxable Amt': Number(s.taxableAmount || 0).toFixed(2),
+      CGST: Number(s.cgst || 0).toFixed(2),
+      SGST: Number(s.sgst || 0).toFixed(2),
+      IGST: Number(s.igst || 0).toFixed(2),
+      Discount: Number(s.discount || 0).toFixed(2),
+      'Grand Total': Number(s.grandTotal || 0).toFixed(2)
     }));
     exportCSV(data, 'Sales_Register');
   };
@@ -98,7 +98,7 @@ export default function Reports() {
       SKU: p.sku,
       Product: p.name,
       'Qty Sold': p.quantity,
-      Revenue: p.revenue.toFixed(2)
+      Revenue: Number(p.revenue || 0).toFixed(2)
     })), 'Product_Sales');
   };
 
@@ -152,24 +152,24 @@ export default function Reports() {
                   <>
                     <div className="flex justify-between border-b pb-2">
                       <span className="text-slate-600">Total Sales Revenue</span>
-                      <span className="font-semibold">₹{pnl.totalRevenue.toFixed(2)}</span>
+                      <span className="font-semibold">₹{Number(pnl.totalRevenue || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b pb-2 text-red-600">
                       <span>Less: Cost of Goods Sold</span>
-                      <span>- ₹{pnl.totalCOGS.toFixed(2)}</span>
+                      <span>- ₹{Number(pnl.totalCOGS || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b pb-2 font-bold text-lg">
                       <span>Gross Profit</span>
-                      <span className="text-emerald-600">₹{pnl.grossProfit.toFixed(2)}</span>
+                      <span className="text-emerald-600">₹{Number(pnl.grossProfit || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b pb-2 text-red-600">
                       <span>Less: Operational Expenses</span>
-                      <span>- ₹{pnl.totalExpenses.toFixed(2)}</span>
+                      <span>- ₹{Number(pnl.totalExpenses || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between pt-2 font-bold text-xl">
                       <span>NET PROFIT</span>
-                      <span className={pnl.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}>
-                        ₹{pnl.netProfit.toFixed(2)}
+                      <span className={Number(pnl.netProfit || 0) >= 0 ? "text-emerald-600" : "text-red-600"}>
+                        ₹{Number(pnl.netProfit || 0).toFixed(2)}
                       </span>
                     </div>
                   </>
@@ -191,33 +191,33 @@ export default function Reports() {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="bg-slate-50 p-3 rounded border">
                         <p className="text-sm text-slate-500">B2B Sales (Registered)</p>
-                        <p className="font-bold text-lg">₹{gstSummary.b2bSales.toFixed(2)}</p>
+                        <p className="font-bold text-lg">₹{Number(gstSummary.b2bSales || 0).toFixed(2)}</p>
                       </div>
                       <div className="bg-slate-50 p-3 rounded border">
                         <p className="text-sm text-slate-500">B2C Sales (Unregistered)</p>
-                        <p className="font-bold text-lg">₹{gstSummary.b2cSales.toFixed(2)}</p>
+                        <p className="font-bold text-lg">₹{Number(gstSummary.b2cSales || 0).toFixed(2)}</p>
                       </div>
                     </div>
                     
                     <div className="flex justify-between border-b pb-2">
                       <span className="text-slate-600">Total Taxable Value</span>
-                      <span className="font-semibold">₹{gstSummary.totalTaxable.toFixed(2)}</span>
+                      <span className="font-semibold">₹{Number(gstSummary.totalTaxable || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b pb-2">
                       <span className="text-slate-600">CGST</span>
-                      <span>₹{gstSummary.totalCGST.toFixed(2)}</span>
+                      <span>₹{Number(gstSummary.totalCGST || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b pb-2">
                       <span className="text-slate-600">SGST</span>
-                      <span>₹{gstSummary.totalSGST.toFixed(2)}</span>
+                      <span>₹{Number(gstSummary.totalSGST || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b pb-2">
                       <span className="text-slate-600">IGST</span>
-                      <span>₹{gstSummary.totalIGST.toFixed(2)}</span>
+                      <span>₹{Number(gstSummary.totalIGST || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between pt-2 font-bold text-lg">
                       <span>Total Output Tax Liability</span>
-                      <span className="text-blue-600">₹{gstSummary.totalTax.toFixed(2)}</span>
+                      <span className="text-blue-600">₹{Number(gstSummary.totalTax || 0).toFixed(2)}</span>
                     </div>
                   </>
                 ) : <p>Loading...</p>}
@@ -253,7 +253,7 @@ export default function Reports() {
                             <p className="text-xs text-slate-500">{p.sku}</p>
                           </TableCell>
                           <TableCell className="text-right">{p.quantity}</TableCell>
-                          <TableCell className="text-right font-semibold">₹{p.revenue.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-semibold">₹{Number(p.revenue || 0).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -278,7 +278,7 @@ export default function Reports() {
                     {salesByCategory.map(c => (
                       <TableRow key={c.id}>
                         <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell className="text-right font-semibold">₹{c.revenue.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-semibold">₹{Number(c.revenue || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -321,12 +321,12 @@ export default function Reports() {
                         <TableCell>{s.invoiceNumber}</TableCell>
                         <TableCell>{s.customerName}</TableCell>
                         <TableCell className="text-xs">{s.gstin || '-'}</TableCell>
-                        <TableCell className="text-right">₹{s.taxableAmount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{Number(s.taxableAmount || 0).toFixed(2)}</TableCell>
                         <TableCell className="text-right text-xs">
-                          C: {s.cgst.toFixed(2)}<br/>
-                          S: {s.sgst.toFixed(2)}
+                          C: {Number(s.cgst || 0).toFixed(2)}<br/>
+                          S: {Number(s.sgst || 0).toFixed(2)}
                         </TableCell>
-                        <TableCell className="text-right font-bold">₹{s.grandTotal.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-bold">₹{Number(s.grandTotal || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                     {salesRegister.length === 0 && (
@@ -353,7 +353,7 @@ export default function Reports() {
                 <div className="space-y-4">
                   <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
                     <p className="text-sm text-emerald-800">Total Inventory Value (FIFO / Purchase Price)</p>
-                    <p className="text-2xl font-bold text-emerald-900">₹{valuation.totalValuation.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-emerald-900">₹{Number(valuation.totalValuation || 0).toFixed(2)}</p>
                   </div>
                   <Table>
                     <TableHeader>
@@ -370,7 +370,7 @@ export default function Reports() {
                           <TableCell className="font-medium">{item.productName}</TableCell>
                           <TableCell>{item.sku}</TableCell>
                           <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right font-semibold">₹{item.totalValue.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-semibold">₹{Number(item.totalValue || 0).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -399,7 +399,7 @@ export default function Reports() {
                     }`}>
                       <p className="font-semibold">{data.label}</p>
                       <p className="text-2xl font-bold my-2">{data.count} items</p>
-                      <p className="text-sm text-slate-600">Value: ₹{data.value.toFixed(2)}</p>
+                      <p className="text-sm text-slate-600">Value: ₹{Number(data.value || 0).toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
@@ -420,8 +420,8 @@ export default function Reports() {
                 Phone: p.phone,
                 Group: p.group,
                 Orders: p.orderCount,
-                Revenue: p.revenue.toFixed(2),
-                Profit: p.profit.toFixed(2)
+                Revenue: Number(p.revenue || 0).toFixed(2),
+                Profit: Number(p.profit || 0).toFixed(2)
               })), 'Party_Profitability')} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                 <Download className="w-4 h-4 mr-2" />
                 Export to CSV
@@ -447,8 +447,8 @@ export default function Reports() {
                         <TableCell>{p.phone}</TableCell>
                         <TableCell>{p.group}</TableCell>
                         <TableCell className="text-right">{p.orderCount}</TableCell>
-                        <TableCell className="text-right font-medium text-slate-700">₹{p.revenue.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-bold text-emerald-600">₹{p.profit.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-medium text-slate-700">₹{Number(p.revenue || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600">₹{Number(p.profit || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                     {partyProfitability.length === 0 && (
