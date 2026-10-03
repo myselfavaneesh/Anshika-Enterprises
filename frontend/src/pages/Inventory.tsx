@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Search, X, List, Plus, Minus, Edit, Trash2 } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { BarcodeScanner } from '../components/BarcodeScanner';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { EmptyState } from '../components/ui/empty-state';
+import { TablePagination } from '../components/ui/pagination';
 
 const Inventory = () => {
   const { canViewProfit } = useAuth();
@@ -44,6 +45,7 @@ const Inventory = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchInventory = async () => {
@@ -61,8 +63,10 @@ const Inventory = () => {
       setInventory(response.data.data || response.data);
       if (response.data.pagination) {
         setTotalPages(response.data.pagination.pages);
+        setTotalRecords(response.data.pagination.total || 0);
       } else {
         setTotalPages(1);
+        setTotalRecords(0);
       }
     } catch (error) {
       console.error('Error fetching inventory', error);
@@ -264,7 +268,7 @@ const Inventory = () => {
 
       <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
         <Table className="min-w-[800px]">
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur z-10 border-b border-slate-200 dark:border-slate-800">
             <TableRow>
               <TableHead>SKU</TableHead>
               <TableHead>Product Name</TableHead>
@@ -285,7 +289,18 @@ const Inventory = () => {
                 </TableRow>
               ))
             ) : inventory.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center">No inventory found.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="p-0">
+                  <EmptyState 
+                    title="No inventory records found"
+                    hinglish="Koi inventory record nahi mila"
+                    subtitle="Inward stock via purchases or quick inventory stock-in."
+                    actionLabel="+ Stock In"
+                    onAction={() => setIsOpenStockIn(true)}
+                    className="border-0 bg-transparent py-12"
+                  />
+                </TableCell>
+              </TableRow>
             ) : (
               inventory.map((inv) => (
                 <TableRow key={inv._id}>
@@ -317,48 +332,14 @@ const Inventory = () => {
         </Table>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <span>Show</span>
-          <select 
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm"
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          <span>entries | Page {page} of {totalPages}</span>
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        )}
-      </div>
+      <TablePagination 
+        currentPage={page}
+        totalPages={totalPages}
+        totalRecords={totalRecords}
+        limit={limit}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => { setLimit(l); setPage(1); }}
+      />
 
       {/* Stock In Dialog */}
       <Dialog open={isOpenStockIn} onOpenChange={setIsOpenStockIn}>

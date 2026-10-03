@@ -21,8 +21,8 @@ const ProductSchema = z.object({
 
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 10, 1), 2500);
     const skip = (page - 1) * limit;
 
     const ALLOWED_SORT_FIELDS = ['createdAt', 'name', 'sku', 'sellingPrice', 'purchasePrice', 'updatedAt'] as const;

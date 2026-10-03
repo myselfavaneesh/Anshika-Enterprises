@@ -50,11 +50,25 @@ const numberToWords = (num: number): string => {
   return `${result}Only`.replace(/\s+/g, ' ');
 };
 
-export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, items: any[], customer: any): string => {
+export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, items: any[], customer: any, companyInfo?: any): string => {
   const isBillOfSupply = data?.documentType === 'BILL_OF_SUPPLY' || data?.invoiceType === 'COMPOSITION';
   const isNonGst = data?.invoiceType === 'NON_GST' || isBillOfSupply;
-  const customerStateCode = customer?.stateCode || data?.placeOfSupplyCode || SHOP_STATE_CODE;
-  const isInterState = customerStateCode !== SHOP_STATE_CODE;
+
+  const compName = companyInfo?.businessName || companyInfo?.legalName || 'ANSHIKA ENTERPRISES';
+  const compAddress = [companyInfo?.addressLine1, companyInfo?.addressLine2, companyInfo?.city, companyInfo?.district, companyInfo?.state, companyInfo?.pincode ? '-' + companyInfo.pincode : ''].filter(Boolean).join(', ') || 'Phoolpur, Azamgarh, Uttar Pradesh - 276304';
+  const compState = companyInfo?.state || 'Uttar Pradesh';
+  const compStateCode = companyInfo?.gstStateCode || SHOP_STATE_CODE;
+  const compPhone = companyInfo?.primaryPhone || '8840527476';
+  const compGstin = companyInfo?.gstin || '09BZOPK7723E1Z1';
+  const compBank = companyInfo?.bankName || 'Union Bank of India';
+  const compAcc = companyInfo?.accountNumber || '359701010036291';
+  const compIfsc = companyInfo?.ifscCode || 'UBIN0535974';
+  const compUpi = companyInfo?.upiId || '';
+  const compTerms = companyInfo?.invoiceFooterTerms || `We declare that this ${type === 'QUOTATION' ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.`;
+  const showBank = companyInfo?.showBankOnInvoice !== false;
+
+  const customerStateCode = customer?.stateCode || data?.placeOfSupplyCode || compStateCode;
+  const isInterState = customerStateCode !== compStateCode;
   
   let docTitle = 'TAX INVOICE';
   if (type === 'QUOTATION') {
@@ -196,10 +210,10 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
         <td style="width: 50%; vertical-align: top; border-right: 1px solid #000; padding: 0;">
           <div style="padding: 6px; border-bottom: 1px solid #000;">
             <div style="font-weight: 600; color: #555; font-size: 10px; margin-bottom: 1px;">Company</div>
-            <div style="font-weight: bold; font-size: 13px;">ANSHIKA ENTERPRISES</div>
-            <div>Phoolpur, Azamgarh, Uttar Pradesh - 276304</div>
-            <div>State Name: Uttar Pradesh, Code: 09</div>
-            <div>Contact: 8840527476</div>
+            <div style="font-weight: bold; font-size: 13px;">${compName}</div>
+            <div>${compAddress}</div>
+            <div>State Name: ${compState}, Code: ${compStateCode}</div>
+            <div>Contact: ${compPhone}</div>
           </div>
           <div style="padding: 6px;">
             <div style="font-weight: 600; color: #555; font-size: 10px; margin-bottom: 1px;">Buyer (Bill to)</div>
@@ -431,20 +445,25 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
       <tr>
         <!-- Left: Declaration -->
         <td style="width: 50%; padding: 6px; vertical-align: top; border-right: 1px solid #000;">
-          <div>Company's GSTIN/UIN : <span style="font-weight: bold;">09BZOPK7723E1Z1</span></div>
+          <div>Company's GSTIN/UIN : <span style="font-weight: bold;">${compGstin}</span></div>
           <div style="margin-top: 4px;">
             <div style="font-weight: bold; text-decoration: underline; margin-bottom: 1px;">Declaration</div>
-            <div style="font-size: 9px; color: #333; line-height: 1.3;">We declare that this ${type === 'QUOTATION' ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.</div>
+            <div style="font-size: 9px; color: #333; line-height: 1.3;">${compTerms}</div>
           </div>
         </td>
         <!-- Right: Bank Details -->
         <td style="width: 50%; padding: 6px; vertical-align: top;">
-          <div style="font-weight: bold; text-decoration: underline; margin-bottom: 3px;">Company's Bank Details</div>
-          <table style="width: 100%; font-size: 10px;">
-            <tr><td style="width: 70px; padding: 1px 0;">Bank Name</td><td style="font-weight: 600; padding: 1px 0;">: Union Bank of India</td></tr>
-            <tr><td style="padding: 1px 0;">A/c No.</td><td style="font-weight: 600; padding: 1px 0;">: 359701010036291</td></tr>
-            <tr><td style="padding: 1px 0;">IFSC Code</td><td style="font-weight: 600; padding: 1px 0;">: UBIN0535974</td></tr>
-          </table>
+          ${showBank ? `
+            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 3px;">Company's Bank Details</div>
+            <table style="width: 100%; font-size: 10px;">
+              <tr><td style="width: 70px; padding: 1px 0;">Bank Name</td><td style="font-weight: 600; padding: 1px 0;">: ${compBank}</td></tr>
+              <tr><td style="padding: 1px 0;">A/c No.</td><td style="font-weight: 600; padding: 1px 0;">: ${compAcc}</td></tr>
+              <tr><td style="padding: 1px 0;">IFSC Code</td><td style="font-weight: 600; padding: 1px 0;">: ${compIfsc}</td></tr>
+              ${compUpi ? `<tr><td style="padding: 1px 0;">UPI ID</td><td style="font-weight: 600; padding: 1px 0;">: ${compUpi}</td></tr>` : ''}
+            </table>
+          ` : `
+            <div style="font-style: italic; color: #666; font-size: 10px; padding-top: 8px;">Direct UPI & Digital Payments Accepted</div>
+          `}
         </td>
       </tr>
     </table>
@@ -456,7 +475,7 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
           <div style="margin-top: 30px;">Customer's Signature</div>
         </td>
         <td style="width: 50%; padding: 6px; text-align: right; vertical-align: bottom;">
-          <div style="font-weight: bold; margin-bottom: 30px;">for ANSHIKA ENTERPRISES</div>
+          <div style="font-weight: bold; margin-bottom: 30px;">for ${compName.toUpperCase()}</div>
           <div style="font-weight: 600;">Authorised Signatory</div>
         </td>
       </tr>
@@ -473,22 +492,22 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
   `;
 };
 
-export const getInvoiceHTML = (sale: any, items: any[], customer: any): string => {
-  return getTemplateHTML('TAX INVOICE', sale, items, customer);
+export const getInvoiceHTML = (sale: any, items: any[], customer: any, companyInfo?: any): string => {
+  return getTemplateHTML('TAX INVOICE', sale, items, customer, companyInfo);
 };
 
-export const getQuotationHTML = (quotation: any, items: any[], customer: any): string => {
-  return getTemplateHTML('QUOTATION', quotation, items, customer);
+export const getQuotationHTML = (quotation: any, items: any[], customer: any, companyInfo?: any): string => {
+  return getTemplateHTML('QUOTATION', quotation, items, customer, companyInfo);
 };
 
-export const generateInvoicePDF = async (sale: any, items: any[], customer: any): Promise<Buffer> => {
+export const generateInvoicePDF = async (sale: any, items: any[], customer: any, companyInfo?: any): Promise<Buffer> => {
   const puppeteer = await getPuppeteer();
   const browser = await puppeteer.launch({ 
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   });
   const page = await browser.newPage();
-  const html = getInvoiceHTML(sale, items, customer);
+  const html = getInvoiceHTML(sale, items, customer, companyInfo);
 
   await page.setContent(html, { waitUntil: 'networkidle0' as any });
   const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
@@ -497,14 +516,14 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any)
   return Buffer.from(pdfBuffer);
 };
 
-export const generateQuotationPDF = async (quotation: any, items: any[], customer: any): Promise<Buffer> => {
+export const generateQuotationPDF = async (quotation: any, items: any[], customer: any, companyInfo?: any): Promise<Buffer> => {
   const puppeteer = await getPuppeteer();
   const browser = await puppeteer.launch({ 
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   });
   const page = await browser.newPage();
-  const html = getQuotationHTML(quotation, items, customer);
+  const html = getQuotationHTML(quotation, items, customer, companyInfo);
 
   await page.setContent(html, { waitUntil: 'networkidle0' as any });
   const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });

@@ -1,12 +1,14 @@
 import toast from 'react-hot-toast';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, X, Loader2 } from 'lucide-react';
+import { EmptyState } from '../components/ui/empty-state';
+import { TablePagination } from '../components/ui/pagination';
 
 const Products = () => {
   const { canViewProfit } = useAuth();
@@ -25,6 +27,7 @@ const Products = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProducts = async () => {
@@ -41,6 +44,7 @@ const Products = () => {
       setProducts(res.data.data || res.data);
       if (res.data.pagination) {
         setTotalPages(res.data.pagination.pages);
+        setTotalRecords(res.data.pagination.total || 0);
       }
     } catch (error) {
       console.error('Error fetching products', error);
@@ -309,7 +313,7 @@ const Products = () => {
 
       <div className="rounded-md border bg-white dark:bg-slate-950 shadow-sm overflow-x-auto">
         <Table className="min-w-[800px]">
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur z-10 border-b border-slate-200 dark:border-slate-800">
             <TableRow>
               <TableHead>SKU</TableHead>
               <TableHead>Name</TableHead>
@@ -342,7 +346,18 @@ const Products = () => {
                 </TableRow>
               ))
             ) : filteredProducts.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center">No products found.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={canViewProfit ? 11 : 10} className="p-0">
+                  <EmptyState 
+                    title="No products found"
+                    hinglish="Koi product nahi mila"
+                    subtitle="Add items to catalog with SKU, HSN, and GST rates for instant POS billing."
+                    actionLabel="+ Add First Product"
+                    onAction={() => setIsOpen(true)}
+                    className="border-0 bg-transparent py-12"
+                  />
+                </TableCell>
+              </TableRow>
             ) : (
               filteredProducts.map((product) => (
                 <TableRow key={product._id}>
@@ -373,48 +388,14 @@ const Products = () => {
         </Table>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <span>Show</span>
-          <select 
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm"
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          <span>entries | Page {page} of {totalPages}</span>
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        )}
-      </div>
+      <TablePagination 
+        currentPage={page}
+        totalPages={totalPages}
+        totalRecords={totalRecords}
+        limit={limit}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => { setLimit(l); setPage(1); }}
+      />
     </div>
   );
 };

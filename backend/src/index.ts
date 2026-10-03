@@ -22,6 +22,8 @@ import warehouseRoutes from './routes/warehouse';
 import purchaseOrderRoutes from './routes/purchaseOrder';
 import inventoryAuditRoutes from './routes/inventoryAudit';
 import subscriptionRoutes from './routes/subscription';
+import settingsRoutes from './routes/settings';
+import publicRoutes from './routes/public';
 
 import morgan from 'morgan';
 import { logger } from './utils/logger';
@@ -56,6 +58,16 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please slow down.' }
 });
 app.use('/api/', apiLimiter);
+
+// Dedicated Brute-force Login Rate Limiter (10 attempts per 15 minutes per IP)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts from this IP. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth/login', loginLimiter);
 
 // HTTP Request Logging
 app.use(morgan('combined', {
@@ -94,6 +106,8 @@ app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/inventory-audits', inventoryAuditRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/public', publicRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

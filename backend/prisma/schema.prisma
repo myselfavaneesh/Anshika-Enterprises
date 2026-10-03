@@ -65,6 +65,8 @@ model Product {
 
   @@index([categoryId])
   @@index([hsnCode])
+  @@index([sku])
+  @@index([name])
 }
 
 model Inventory {
@@ -89,6 +91,7 @@ model InventoryTransaction {
   updatedAt       DateTime @updatedAt
 
   @@index([productId])
+  @@index([createdAt])
 }
 
 model Customer {
@@ -245,6 +248,7 @@ model PurchaseItem {
   productUnits      ProductUnit[]
 
   @@index([purchaseId])
+  @@index([productId])
 }
 
 model Quotation {
@@ -296,6 +300,7 @@ model QuotationItem {
   updatedAt         DateTime @updatedAt
 
   @@index([quotationId])
+  @@index([productId])
 }
 
 model Sale {
@@ -339,6 +344,7 @@ model Sale {
   @@index([createdAt])
   @@index([status])
   @@index([deletedAt])
+  @@index([invoiceNumber])
 }
 
 model SalePayment {
@@ -399,6 +405,7 @@ model SaleItem {
   productUnits      ProductUnit[]
 
   @@index([saleId])
+  @@index([productId])
 }
 
 model SaleReturn {
@@ -624,3 +631,69 @@ model InvoiceSequence {
   lastValue Int      @default(0)
   updatedAt DateTime @updatedAt
 }
+
+model BusinessProfile {
+  id                      String   @id @default(uuid())
+  tenantId                String   @unique @default("default-tenant")
+
+  // Basic Information
+  businessName            String   @default("Anshika Enterprises")
+  legalName               String?
+  businessType            String   @default("BOTH") // RETAIL, WHOLESALE, BOTH, SERVICE
+  businessCategory        String?  @default("Power & Solar Appliances") // batteries, inverters, solar, electrical, etc.
+  logoUrl                 String?  @db.Text
+  ownerName               String?
+
+  // Contact Information
+  phone                   String?
+  alternatePhone          String?
+  email                   String?
+  website                 String?
+
+  // Address Details
+  addressLine1            String?
+  addressLine2            String?
+  city                    String?
+  district                String?
+  state                   String   @default("Uttar Pradesh")
+  stateCode               String   @default("09")
+  pincode                 String?
+  country                 String   @default("India")
+
+  // Tax & Compliance Details
+  gstin                   String?
+  pan                     String?
+  gstType                 String   @default("REGULAR") // REGULAR, COMPOSITION, UNREGISTERED
+  defaultGstRate          Decimal  @default(18) @db.Decimal(5, 2)
+  defaultHsn              String?
+
+  // Bank & UPI Details
+  accountHolderName       String?
+  bankName                String?
+  encryptedAccountNumber  String?  @db.Text // AES-256-GCM encrypted
+  accountNumberLast4      String?  // Stored for fast masked display (XXXX1234)
+  ifscCode                String?
+  bankBranch              String?
+  upiId                   String?
+  qrCodeUrl               String?  @db.Text
+
+  // Invoice & Print Settings
+  invoicePrefix           String   @default("INV")
+  startingNumber          Int      @default(1)
+  termsAndConditions      String?  @db.Text
+  signatureUrl            String?  @db.Text
+  defaultPrintSize        String   @default("A4") // A4, 80MM, 58MM
+  showBankDetails         Boolean  @default(true)
+
+  // Multi-Branch Integration
+  branches                Json     @default("[]") // Array of { id, name, address, phone, gstin }
+
+  // Audit & Verification
+  needsReverification     Boolean  @default(false)
+  updatedBy               String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([tenantId])
+}
+

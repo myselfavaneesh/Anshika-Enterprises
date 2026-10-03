@@ -1,19 +1,24 @@
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Download, Trash2, Search, X, ChevronLeft, ChevronRight, MessageCircle, Edit, Mail } from 'lucide-react';
+import { Plus, Download, Trash2, Search, X, MessageCircle, Edit, Mail } from 'lucide-react';
+import { EmptyState } from '../components/ui/empty-state';
+import { TablePagination } from '../components/ui/pagination';
+import WhatsAppShareModal from '../components/WhatsAppShareModal';
 
 const Sales = () => {
   const { canViewProfit } = useAuth();
+  const navigate = useNavigate();
   const [sales, setSales] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchSales = async () => {
@@ -25,6 +30,7 @@ const Sales = () => {
       setSales(response.data.data || response.data);
       if (response.data.pagination) {
         setTotalPages(response.data.pagination.pages);
+        setTotalRecords(response.data.pagination.total || 0);
       }
     } catch (error) {
       console.error('Error fetching sales', error);
@@ -44,33 +50,14 @@ const Sales = () => {
     if (page !== 1) setPage(1);
   }, [searchTerm, limit]);
 
+  const [selectedSaleForWhatsApp, setSelectedSaleForWhatsApp] = useState<any>(null);
+
   const handlePrintInvoice = (saleId: string) => {
     window.open(`/sales/${saleId}/print`, '_blank');
   };
 
   const handleSendWhatsapp = (sale: any) => {
-    if (!sale.customerId?.phone) {
-      toast.error('No phone number found for this customer.');
-      return;
-    }
-    const isBillOfSupply = sale.documentType === 'BILL_OF_SUPPLY' || sale.invoiceType === 'COMPOSITION';
-    const docType = isBillOfSupply ? 'Bill of Supply' : (sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Invoice');
-    const message = `Hello ${sale.customerId.name},\n\nAapka ${docType} *${sale.invoiceNumber}* generate ho gaya hai.\nKul Raqam: *₹${Number(sale.grandTotal || 0).toFixed(2)}*\n\n- Anshika Enterprises`;
-
-    if (navigator.share) {
-      navigator.share({
-        title: `${docType} ${sale.invoiceNumber}`,
-        text: message,
-      }).catch(() => {
-        const encodedMessage = encodeURIComponent(message);
-        const phone = sale.customerId.phone.replace(/\D/g, '');
-        window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
-      });
-    } else {
-      const encodedMessage = encodeURIComponent(message);
-      const phone = sale.customerId.phone.replace(/\D/g, '');
-      window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
-    }
+    setSelectedSaleForWhatsApp(sale);
   };
 
   const handleSendEmail = async (sale: any) => {
@@ -163,7 +150,16 @@ const Sales = () => {
               ))
             ) : sales.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canViewProfit ? 9 : 8} className="text-center py-10 text-slate-400 text-xs">No sales recorded yet.</TableCell>
+                <TableCell colSpan={canViewProfit ? 9 : 8} className="p-0">
+                  <EmptyState 
+                    title="No sales transactions found"
+                    hinglish="Koi bikri record nahi mila"
+                    subtitle="Create your first sale to start tracking invoices, GST, and customer credit ledger."
+                    actionLabel="+ New Sale / POS"
+                    onAction={() => navigate('/sales/new')}
+                    className="border-0 bg-transparent py-12"
+                  />
+                </TableCell>
               </TableRow>
             ) : (
               sales.map((sale) => (
@@ -283,48 +279,21 @@ const Sales = () => {
         </Table>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <span>Show</span>
-          <select 
-            className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm"
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          <span>entries | Page {page} of {totalPages}</span>
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        )}
-      </div>
+      <TablePagination 
+        currentPage={page}
+        totalPages={totalPages}
+        totalRecords={totalRecords}
+        limit={limit}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => { setLimit(l); setPage(1); }}
+      />
+
+      <WhatsAppShareModal
+        isOpen={!!selectedSaleForWhatsApp}
+        onClose={() => setSelectedSaleForWhatsApp(null)}
+        data={selectedSaleForWhatsApp}
+        type="sale"
+      />
     </div>
   );
 };

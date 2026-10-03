@@ -562,6 +562,11 @@ export const downloadQuotationPDF = async (req: Request, res: Response): Promise
     });
 
     const customer = await prisma.customer.findUnique({ where: { id: quotation.customerId } });
+    const tenantId = (quotation as any).tenantId || (req as any).user?.tenantId;
+    let companyInfo = null;
+    if (tenantId) {
+      companyInfo = await prisma.businessProfile.findUnique({ where: { tenantId } });
+    }
 
     const items = rawItems.map((item: any) => ({
       ...mapEntityId(item),
@@ -569,7 +574,7 @@ export const downloadQuotationPDF = async (req: Request, res: Response): Promise
       serialNumbers: []
     }));
 
-    const pdfBuffer = await generateQuotationPDF(mapEntityId(quotation), items, mapEntityId(customer));
+    const pdfBuffer = await generateQuotationPDF(mapEntityId(quotation), items, mapEntityId(customer), companyInfo);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="quotation-${quotation.quotationNumber.replace(/\//g, '-')}.pdf"`);

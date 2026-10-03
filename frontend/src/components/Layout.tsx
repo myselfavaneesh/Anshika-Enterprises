@@ -27,6 +27,7 @@ import {
   Moon,
   ScanBarcode,
   BarChart3,
+  Settings,
 } from 'lucide-react';
 
 const Layout = () => {
@@ -72,6 +73,8 @@ const Layout = () => {
     { name: 'Quotations', href: '/quotations', icon: FileText, permission: 'quotations:view' },
     { name: 'Expenses', href: '/expenses', icon: Receipt, permission: 'expenses:view' },
     { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports:view' },
+    // Business Settings — accessible to admin & manager
+    ...(isAdmin || user?.role === 'manager' ? [{ name: 'Business Settings', href: '/settings/business-profile', icon: Settings, permission: 'dashboard:view' }] : []),
     // Staff Management — admin only
     ...(isAdmin ? [{ name: 'Staff', href: '/staff', icon: Shield, permission: 'staff:view' }] : []),
   ];

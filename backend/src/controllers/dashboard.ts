@@ -3,10 +3,20 @@ import prisma from '../prisma';
 import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
 import { calculateSaleProfit } from './sale';
+import cacheService from '../services/cacheService';
 
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const { startDate, endDate } = req.query;
+    const tenantId = (req as any).user?.tenantId || 'default-tenant';
+    const isStaff = (req as any).user?.role === 'staff';
+    const cacheKey = `dashboard:${isStaff ? 'staff' : 'admin'}:${startDate || ''}:${endDate || ''}`;
+
+    const cached = await cacheService.get(tenantId, cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -29,11 +39,11 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       where: { status: 'SOLD' }
     });
 
-    const inStockUnits = await prisma.productUnit.findMany({
+    const inStockAgg = await prisma.productUnit.aggregate({
       where: { status: 'IN_STOCK' },
-      include: { product: true }
+      _sum: { purchasePrice: true }
     });
-    const totalInventoryValue = inStockUnits.reduce((acc, unit) => acc + Number(unit.purchasePrice || 0), 0);
+    const totalInventoryValue = Number(inStockAgg._sum.purchasePrice || 0);
 
     const totalUnitsInStock = inStockCount;
     const totalUnitsSold = soldCount;
@@ -229,9 +239,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       };
     });
 
-    const isStaff = (req as any).user?.role === 'staff';
-
-    res.json({
+    const result = {
       totalProducts,
       totalUnitsInStock,
       totalUnitsSold,
@@ -258,7 +266,12 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
           customerId: customer ? mapEntityId(customer) : null
         });
       })
-    });
+    };
+
+    // Cache dashboard aggregate for 30s
+    await cacheService.set(tenantId, cacheKey, result, 30);
+
+    res.json(result);
   } catch (error: any) {
     logger.error('Error fetching dashboard stats via Prisma pipelines', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Server error fetching dashboard stats' });

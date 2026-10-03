@@ -164,8 +164,8 @@ export const calculateSaleProfit = (sale: any): number => {
 
 export const getSales = async (req: Request, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 10, 1), 100);
     const skip = (page - 1) * limit;
 
     const search = typeof req.query.q === 'string' ? req.query.q : undefined;
@@ -249,25 +249,29 @@ export const downloadInvoice = async (req: Request, res: Response): Promise<void
 
     const rawItems = await prisma.saleItem.findMany({
       where: { saleId: id as string },
-      include: { product: true }
+      include: { 
+        product: true,
+        productUnits: {
+          select: { serialNumber: true }
+        }
+      }
     });
     
     const customer = await prisma.customer.findUnique({ where: { id: sale.customerId } });
+    const tenantId = (sale as any).tenantId || (req as any).user?.tenantId;
+    let companyInfo = null;
+    if (tenantId) {
+      companyInfo = await prisma.businessProfile.findUnique({ where: { tenantId } });
+    }
 
-    const items = await Promise.all(rawItems.map(async (item) => {
-      const units = await prisma.productUnit.findMany({
-        where: { saleItemId: item.id },
-        select: { serialNumber: true }
-      });
-      return {
-        ...mapEntityId(item),
-        productId: item.product ? mapEntityId(item.product) : null,
-        product: item.product ? mapEntityId(item.product) : null,
-        serialNumbers: units.map(u => u.serialNumber)
-      };
+    const items = rawItems.map((item) => ({
+      ...mapEntityId(item),
+      productId: item.product ? mapEntityId(item.product) : null,
+      product: item.product ? mapEntityId(item.product) : null,
+      serialNumbers: item.productUnits.map(u => u.serialNumber)
     }));
 
-    const pdfBuffer = await generateInvoicePDF(mapEntityId(sale), items, mapEntityId(customer));
+    const pdfBuffer = await generateInvoicePDF(mapEntityId(sale), items, mapEntityId(customer), companyInfo);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="invoice-${sale.invoiceNumber}.pdf"`);
@@ -289,21 +293,20 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
 
     const rawItems = await prisma.saleItem.findMany({
       where: { saleId: id as string },
-      include: { product: true }
+      include: { 
+        product: true,
+        productUnits: {
+          select: { serialNumber: true }
+        }
+      }
     });
     const customer = await prisma.customer.findUnique({ where: { id: sale.customerId } });
 
-    const items = await Promise.all(rawItems.map(async (item) => {
-      const units = await prisma.productUnit.findMany({
-        where: { saleItemId: item.id },
-        select: { serialNumber: true }
-      });
-      return {
-        ...mapEntityId(item),
-        productId: mapEntityId((item as any).product),
-        product: mapEntityId((item as any).product),
-        serialNumbers: units.map(u => u.serialNumber)
-      };
+    const items = rawItems.map((item) => ({
+      ...mapEntityId(item),
+      productId: mapEntityId((item as any).product),
+      product: mapEntityId((item as any).product),
+      serialNumbers: item.productUnits.map(u => u.serialNumber)
     }));
 
     const services = await prisma.saleService.findMany({
@@ -366,25 +369,32 @@ export const sendSaleEmailController = async (req: Request, res: Response): Prom
 
     const rawItems = await prisma.saleItem.findMany({
       where: { saleId: id as string },
-      include: { product: true }
+      include: { 
+        product: true,
+        productUnits: {
+          select: { serialNumber: true }
+        }
+      }
     });
-    const items = await Promise.all(rawItems.map(async (item) => {
-      const units = await prisma.productUnit.findMany({
-        where: { saleItemId: item.id },
-        select: { serialNumber: true }
-      });
-      return {
-        ...mapEntityId(item),
-        productId: item.product ? mapEntityId(item.product) : null,
-        product: item.product ? mapEntityId(item.product) : null,
-        serialNumbers: units.map(u => u.serialNumber)
-      };
+
+    const tenantId = (sale as any).tenantId || (req as any).user?.tenantId;
+    let companyInfo = null;
+    if (tenantId) {
+      companyInfo = await prisma.businessProfile.findUnique({ where: { tenantId } });
+    }
+
+    const items = rawItems.map((item) => ({
+      ...mapEntityId(item),
+      productId: item.product ? mapEntityId(item.product) : null,
+      product: item.product ? mapEntityId(item.product) : null,
+      serialNumbers: item.productUnits.map(u => u.serialNumber)
     }));
 
-    const htmlContent = getInvoiceHTML(mapEntityId(sale), items, mapEntityId(customer));
+    const compName = companyInfo?.businessName || companyInfo?.legalName || 'Anshika Enterprises';
+    const htmlContent = getInvoiceHTML(mapEntityId(sale), items, mapEntityId(customer), companyInfo);
     await sendInvoiceEmail(
       customer.email,
-      `Invoice ${sale.invoiceNumber} from Anshika Enterprises`,
+      `Invoice ${sale.invoiceNumber} from ${compName}`,
       htmlContent
     );
 

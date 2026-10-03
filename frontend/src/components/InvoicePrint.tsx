@@ -8,7 +8,25 @@ interface InvoicePrintProps {
 
 const SHOP_STATE_CODE = '09';
 
-const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
+const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) => {
+  const compName = companyInfo?.businessName || 'ANSHIKA ENTERPRISES';
+  const compAddress = companyInfo?.addressLine1 
+    ? `${companyInfo.addressLine1}${companyInfo.addressLine2 ? `, ${companyInfo.addressLine2}` : ''}, ${companyInfo.city || ''}, ${companyInfo.state || 'Uttar Pradesh'}${companyInfo.pincode ? ` - ${companyInfo.pincode}` : ''}`
+    : 'Phoolpur, Azamgarh, Uttar Pradesh - 276304';
+  const compState = companyInfo?.state || 'Uttar Pradesh';
+  const compStateCode = companyInfo?.stateCode || SHOP_STATE_CODE;
+  const compPhone = companyInfo?.phone || '8840527476';
+  const compGstin = companyInfo?.gstin || '09BZOPK7723E1Z1';
+  const compBankName = companyInfo?.bankName || 'Union Bank of India';
+  const compAccountNo = companyInfo?.accountNumber || (companyInfo?.accountNumberLast4 ? `••••••••${companyInfo.accountNumberLast4}` : '359701010036291');
+  const compIfsc = companyInfo?.ifscCode || 'UBIN0535974';
+  const compUpi = companyInfo?.upiId || '';
+  const compTerms = companyInfo?.termsAndConditions || `We declare that this ${type === 'QUOTATION' ? 'quotation' : 'invoice'} shows the actual price of the goods described and that all particulars are true and correct.`;
+  const compSignature = companyInfo?.signatureUrl || null;
+  const compLogo = companyInfo?.logoUrl || null;
+  const compQr = companyInfo?.qrCodeUrl || null;
+  const showBank = companyInfo?.showBankDetails !== false;
+
   const numberToWords = (num: number): string => {
     if (num === 0) return 'Rupees Zero Only';
     const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
@@ -170,11 +188,16 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
         {/* Left Column */}
         <div className="border-r border-black flex flex-col">
           <div className="p-2 border-b border-black flex-1">
-            <h3 className="font-semibold mb-1 text-gray-600">Company</h3>
-            <p className="font-bold text-sm">ANSHIKA ENTERPRISES</p>
-            <p>Phoolpur, Azamgarh, Uttar Pradesh - 276304</p>
-            <p>State Name: Uttar Pradesh, Code: 09</p>
-            <p>Contact: 8840527476</p>
+            <div className="flex items-center gap-2 mb-1">
+              {compLogo && <img src={compLogo} alt="Logo" className="w-8 h-8 object-contain" />}
+              <div>
+                <h3 className="font-semibold text-gray-600 text-xs">Company</h3>
+                <p className="font-bold text-sm uppercase">{compName}</p>
+              </div>
+            </div>
+            <p className="text-xs">{compAddress}</p>
+            <p className="text-xs">State Name: {compState}, Code: {compStateCode}</p>
+            <p className="text-xs">Contact: {compPhone}</p>
           </div>
           <div className="p-2 flex-1">
             <h3 className="font-semibold mb-1 text-gray-600">Buyer (Bill to)</h3>
@@ -546,32 +569,52 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data }) => {
       <div className="border border-t-0 border-black flex">
         <div className="w-1/2 p-2 border-r border-black flex flex-col justify-between">
           <div>
-            <p>Company's GSTIN/UIN : <span className="font-bold">09BZOPK7723E1Z1</span></p>
+            <p className="text-xs">Company's GSTIN/UIN : <span className="font-bold">{compGstin}</span></p>
             <div className="mt-2 text-[10px]">
               <p className="font-bold underline mb-1">Declaration</p>
-              <p>We declare that this {type === 'QUOTATION' ? 'quotation' : (isBillOfSupply ? 'bill of supply' : 'invoice')} shows the actual price of the goods described and that all particulars are true and correct.</p>
+              <p className="whitespace-pre-line">{compTerms}</p>
             </div>
           </div>
         </div>
         <div className="w-1/2 p-2">
-          <p className="font-bold mb-2 underline">Company's Bank Details</p>
-          <table className="w-full border-none">
-            <tbody>
-              <tr><td className="border-none py-0.5 px-0 w-24">Bank Name</td><td className="border-none py-0.5 px-0 font-semibold">: Union Bank of India</td></tr>
-              <tr><td className="border-none py-0.5 px-0 w-24">A/c No.</td><td className="border-none py-0.5 px-0 font-semibold">: 359701010036291</td></tr>
-              <tr><td className="border-none py-0.5 px-0 w-24">IFSC Code</td><td className="border-none py-0.5 px-0 font-semibold">: UBIN0535974</td></tr>
-            </tbody>
-          </table>
+          {showBank && (
+            <>
+              <p className="font-bold mb-2 underline text-xs">Company's Bank Details</p>
+              <div className="flex items-start justify-between">
+                <table className="w-full border-none text-xs">
+                  <tbody>
+                    <tr><td className="border-none py-0.5 px-0 w-24 text-gray-600">Bank Name</td><td className="border-none py-0.5 px-0 font-semibold">: {compBankName}</td></tr>
+                    <tr><td className="border-none py-0.5 px-0 w-24 text-gray-600">A/c No.</td><td className="border-none py-0.5 px-0 font-semibold font-mono">: {compAccountNo}</td></tr>
+                    <tr><td className="border-none py-0.5 px-0 w-24 text-gray-600">IFSC Code</td><td className="border-none py-0.5 px-0 font-semibold font-mono">: {compIfsc}</td></tr>
+                    {compUpi && (
+                      <tr><td className="border-none py-0.5 px-0 w-24 text-gray-600">UPI ID</td><td className="border-none py-0.5 px-0 font-semibold">: {compUpi}</td></tr>
+                    )}
+                  </tbody>
+                </table>
+                {compQr && (
+                  <div className="ml-2 flex flex-col items-center">
+                    <img src={compQr} alt="UPI QR" className="w-16 h-16 object-contain border border-slate-200" />
+                    <span className="text-[8px] text-gray-500 font-semibold mt-0.5">Scan to Pay</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="border border-t-0 border-black flex min-h-[100px]">
-        <div className="w-1/2 p-2 border-r border-black">
-          <p className="mb-4">Customer's Signature</p>
+      <div className="border border-t-0 border-black flex min-h-[90px]">
+        <div className="w-1/2 p-2 border-r border-black flex flex-col justify-end">
+          <p className="text-xs">Customer's Signature</p>
         </div>
-        <div className="w-1/2 p-2 relative">
-          <p className="font-bold text-right">for ANSHIKA ENTERPRISES</p>
-          <p className="absolute bottom-2 right-2">Authorised Signatory</p>
+        <div className="w-1/2 p-2 relative flex flex-col justify-between">
+          <p className="font-bold text-right text-xs uppercase">for {compName}</p>
+          <div className="flex flex-col items-end">
+            {compSignature && (
+              <img src={compSignature} alt="Authorized Signature" className="h-10 object-contain mb-1" />
+            )}
+            <p className="text-[11px] text-right font-medium">Authorised Signatory</p>
+          </div>
         </div>
       </div>
 

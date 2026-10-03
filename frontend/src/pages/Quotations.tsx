@@ -5,6 +5,7 @@ import api from '../services/api';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Plus, Download, Trash2, Edit, Search, X, ChevronLeft, ChevronRight, MessageCircle, FileOutput, Mail } from 'lucide-react';
+import WhatsAppShareModal from '../components/WhatsAppShareModal';
 
 const Quotations = () => {
   const navigate = useNavigate();
@@ -54,32 +55,14 @@ const Quotations = () => {
     }
   };
 
+  const [selectedQuotationForWhatsApp, setSelectedQuotationForWhatsApp] = useState<any>(null);
+
   const handlePrintQuotation = (quotationId: string) => {
     window.open(`/quotations/${quotationId}/print`, '_blank');
   };
 
   const handleSendWhatsapp = (quotation: any) => {
-    if (!quotation.customerId?.phone) {
-      toast.error('No phone number found for this customer.');
-      return;
-    }
-    const docType = quotation.invoiceType === 'NON_GST' ? 'Estimate' : 'Quotation';
-    const message = `Hello ${quotation.customerId.name},\n\nAapka ${docType} *${quotation.quotationNumber}* generate ho gaya hai.\nKul Raqam: *₹${Number(quotation.grandTotal || 0).toFixed(2)}*\n\n- Anshika Enterprises`;
-
-    if (navigator.share) {
-      navigator.share({
-        title: `${docType} ${quotation.quotationNumber}`,
-        text: message,
-      }).catch(() => {
-        const encodedMessage = encodeURIComponent(message);
-        const phone = quotation.customerId.phone.replace(/\D/g, '');
-        window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
-      });
-    } else {
-      const encodedMessage = encodeURIComponent(message);
-      const phone = quotation.customerId.phone.replace(/\D/g, '');
-      window.open(`https://wa.me/91${phone}?text=${encodedMessage}`, '_blank');
-    }
+    setSelectedQuotationForWhatsApp(quotation);
   };
 
   const handleSendEmail = async (quotation: any) => {
@@ -297,6 +280,13 @@ const Quotations = () => {
           </div>
         )}
       </div>
+
+      <WhatsAppShareModal
+        isOpen={!!selectedQuotationForWhatsApp}
+        onClose={() => setSelectedQuotationForWhatsApp(null)}
+        data={selectedQuotationForWhatsApp}
+        type="quotation"
+      />
     </div>
   );
 };

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Trash2, Receipt, Loader2, Search, X, ChevronDown, Plus, PackagePlus, AlertCircle } from 'lucide-react';
 import { BarcodeScanner } from '../components/BarcodeScanner';
+import WhatsAppShareModal from '../components/WhatsAppShareModal';
 
 const SHOP_STATE_CODE = '09'; // Uttar Pradesh
 
@@ -78,6 +79,8 @@ export default function NewSale() {
   const [eWayBillNo, setEWayBillNo] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completedSale, setCompletedSale] = useState<any>(null);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
 
   // Add Customer State
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
@@ -104,9 +107,40 @@ export default function NewSale() {
   };
 
   // Refs for keyboard navigation
+  const customerInputRef = useRef<HTMLInputElement>(null);
   const productInputRef = useRef<HTMLInputElement>(null);
   const amountPaidRef = useRef<HTMLInputElement>(null);
   const submitBtnRef = useRef<HTMLButtonElement>(null);
+
+  // POS Keyboard Shortcuts (F1: Customer, F2: Barcode/Search, F4: Payment, F7: Quick Inward, Esc: Close)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        customerInputRef.current?.focus();
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        productInputRef.current?.focus();
+        setShowProductDropdown(true);
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        amountPaidRef.current?.focus();
+      } else if (e.key === 'F7') {
+        e.preventDefault();
+        setIsQuickInwardModalOpen(true);
+      } else if (e.key === 'Escape') {
+        setIsSerialsDialogOpen(false);
+        setIsQuantityDialogOpen(false);
+        setIsAddCustomerModalOpen(false);
+        setIsQuickInwardModalOpen(false);
+        setIsComboDialogOpen(false);
+        setShowProductDropdown(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -391,6 +425,113 @@ export default function NewSale() {
     }
   };
 
+  const handleProductInputKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = productSearch.trim();
+      if (!query) return;
+
+      // 1. Direct SKU or exact Name match
+      const exactProd = products.find(p => 
+        p.sku?.toLowerCase() === query.toLowerCase() || 
+        p.name?.toLowerCase() === query.toLowerCase()
+      );
+
+      if (exactProd) {
+        setSelectedProductId(exactProd._id);
+        setShowProductDropdown(false);
+        if (exactProd.trackSerials === false) {
+          // Non-serialized item: automatically add 1 to cart
+          const existingIdx = cart.findIndex(c => c.productId === exactProd._id);
+          if (existingIdx >= 0) {
+            const newCart = [...cart];
+            newCart[existingIdx].quantity += 1;
+            const calcQty = (newCart[existingIdx].wattage || 0) > 0 ? newCart[existingIdx].quantity * newCart[existingIdx].wattage : newCart[existingIdx].quantity;
+            newCart[existingIdx].totalPrice = calcQty * newCart[existingIdx].unitPrice;
+            setCart(newCart);
+          } else {
+            const wattage = exactProd.wattage || 0;
+            setCart([...cart, {
+              productId: exactProd._id,
+              name: exactProd.name,
+              sku: exactProd.sku,
+              quantity: 1,
+              unitPrice: exactProd.sellingPrice || 0,
+              totalPrice: (wattage > 0 ? wattage : 1) * (exactProd.sellingPrice || 0),
+              serialNumbers: [],
+              gstRate: exactProd.gstRate || 0,
+              isGstInclusive: exactProd.isGstInclusive !== undefined ? exactProd.isGstInclusive : true,
+              wattage: wattage,
+              hsnCode: exactProd.hsnCode || '',
+              unit: exactProd.unit || 'PC',
+              purchasePrice: exactProd.purchasePrice || 0
+            }]);
+          }
+          setProductSearch('');
+          setSelectedProductId('');
+          toast.success(`Added 1x ${exactProd.name} to cart`);
+          setTimeout(() => productInputRef.current?.focus(), 50);
+          return;
+        } else {
+          // Serialized product: open serials selection
+          fetchSerials(exactProd._id);
+          return;
+        }
+      }
+
+      // 2. Try Serial Number Lookup
+      try {
+        const serialRes = await api.get(`/inventory/serial-lookup?q=${encodeURIComponent(query)}`);
+        if (serialRes.data && serialRes.data.productId) {
+          const prodId = serialRes.data.productId._id || serialRes.data.productId;
+          const prod = products.find(p => p._id === prodId);
+          if (prod) {
+            const serialNum = serialRes.data.serialNumber;
+            const existingInCart = cart.some(item => item.serialNumbers?.includes(serialNum));
+            if (existingInCart) {
+              toast.error(`Serial ${serialNum} is already in cart!`);
+              return;
+            }
+            const existingItemIndex = cart.findIndex(item => item.productId === prod._id);
+            if (existingItemIndex >= 0) {
+              const newCart = [...cart];
+              newCart[existingItemIndex].quantity += 1;
+              const calcQty = (newCart[existingItemIndex].wattage || 0) > 0 ? newCart[existingItemIndex].quantity * newCart[existingItemIndex].wattage : newCart[existingItemIndex].quantity;
+              newCart[existingItemIndex].totalPrice = calcQty * newCart[existingItemIndex].unitPrice;
+              newCart[existingItemIndex].serialNumbers = Array.from(new Set([...newCart[existingItemIndex].serialNumbers, serialNum]));
+              setCart(newCart);
+            } else {
+              const wattage = prod.wattage || 0;
+              setCart([...cart, {
+                productId: prod._id,
+                name: prod.name,
+                sku: prod.sku,
+                quantity: 1,
+                unitPrice: prod.sellingPrice || 0,
+                totalPrice: (wattage > 0 ? wattage : 1) * (prod.sellingPrice || 0),
+                serialNumbers: [serialNum],
+                gstRate: prod.gstRate || 0,
+                isGstInclusive: prod.isGstInclusive !== undefined ? prod.isGstInclusive : true,
+                wattage: wattage,
+                hsnCode: prod.hsnCode || '',
+                unit: prod.unit || 'PC',
+                purchasePrice: serialRes.data.purchasePrice || prod.purchasePrice || 0
+              }]);
+            }
+            setProductSearch('');
+            setSelectedProductId('');
+            setShowProductDropdown(false);
+            toast.success(`Scanned serial ${serialNum} (${prod.name})`);
+            setTimeout(() => productInputRef.current?.focus(), 50);
+            return;
+          }
+        }
+      } catch (err) {
+        // Not a direct match or serial
+      }
+    }
+  };
+
   const addToCart = () => {
     if (!selectedProductId) return;
     
@@ -440,6 +581,7 @@ export default function NewSale() {
     setSelectedQuantity('1');
     setQuickSerialCost('');
     setQuickQtyCost('');
+    setShowProductDropdown(false);
     
     // Focus back to product search for next item
     setTimeout(() => productInputRef.current?.focus(), 100);
@@ -716,34 +858,28 @@ export default function NewSale() {
         }))
       };
 
+      let resSale: any = null;
       if (quotationId) {
-        await api.post(`/quotations/${quotationId}/convert`, payload);
+        const res = await api.post(`/quotations/${quotationId}/convert`, payload);
+        resSale = res.data;
       } else {
-        await api.post('/sales', payload);
+        const res = await api.post('/sales', payload);
+        resSale = res.data;
       }
       
-      navigate('/sales');
+      toast.success('Sale created successfully!');
+      const customerObj = customers.find(c => c._id === selectedCustomerId);
+      if (resSale && !resSale.customerId && customerObj) {
+        resSale.customerId = customerObj;
+      }
+      setCompletedSale(resSale);
+      setShowWhatsAppModal(true);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error creating sale');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F8') {
-        e.preventDefault();
-        amountPaidRef.current?.focus();
-      } else if (e.key === 'F9') {
-        e.preventDefault();
-        submitBtnRef.current?.click();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
@@ -807,11 +943,39 @@ export default function NewSale() {
               Non-GST
             </Button>
           </div>
-          
-          <div className="text-xs text-slate-500 dark:text-slate-400 hidden lg:flex items-center gap-2">
-            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F8</kbd> Payment</div>
-            <div><kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-md font-mono text-[11px]">F9</kbd> Submit</div>
-          </div>
+        </div>
+      </div>
+
+      {/* POS Quick Shortcuts Bar */}
+      <div className="bg-slate-900 text-slate-100 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs font-medium shadow-sm border border-slate-800">
+        <div className="flex items-center gap-3 overflow-x-auto py-0.5">
+          <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            POS Shortcuts:
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded text-[11px] font-mono border border-slate-700">F1</kbd>
+            <span className="text-slate-300">Customer</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded text-[11px] font-mono border border-slate-700">F2</kbd>
+            <span className="text-slate-300">Barcode/Product</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded text-[11px] font-mono border border-slate-700">F4</kbd>
+            <span className="text-slate-300">Payment</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded text-[11px] font-mono border border-slate-700">F7</kbd>
+            <span className="text-slate-300">Quick Inward</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded text-[11px] font-mono border border-slate-700">Esc</kbd>
+            <span className="text-slate-300">Close</span>
+          </span>
+        </div>
+        <div className="hidden md:flex items-center gap-2 text-indigo-300 font-mono text-[11px]">
+          Enter to add barcode / serial
         </div>
       </div>
 
@@ -834,8 +998,9 @@ export default function NewSale() {
             <CardContent>
               <div className="flex gap-2">
                 <Input 
+                  ref={customerInputRef}
                   list="customers-list"
-                  placeholder="Search Customer by Name or Phone... (Press Tab to move)"
+                  placeholder="Search Customer by Name or Phone... (Press F1 or Tab)"
                   value={customerSearch}
                   onChange={e => setCustomerSearch(e.target.value)}
                   className="text-base py-5 shadow-inner bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 flex-1"
@@ -898,7 +1063,7 @@ export default function NewSale() {
                     <input
                       ref={productInputRef}
                       type="text"
-                      placeholder="Search Product by Name or SKU..."
+                      placeholder="Search Product by Name, SKU, or Scan Barcode... (Press F2)"
                       className="flex h-11 w-full rounded-md border border-input bg-background pl-9 pr-9 py-2 text-sm font-medium ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
                       value={productSearch}
                       onChange={e => {
@@ -906,6 +1071,7 @@ export default function NewSale() {
                         setSelectedProductId('');
                         setShowProductDropdown(true);
                       }}
+                      onKeyDown={handleProductInputKeyDown}
                       onFocus={() => setShowProductDropdown(true)}
                       onBlur={() => setTimeout(() => setShowProductDropdown(false), 150)}
                       autoComplete="off"
@@ -1276,6 +1442,7 @@ export default function NewSale() {
                       <div className="relative flex-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-xs">₹</span>
                         <Input 
+                          ref={idx === 0 ? amountPaidRef : undefined}
                           type="number" 
                           min="0" 
                           className="pl-7 h-9 text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800" 
@@ -1836,6 +2003,16 @@ export default function NewSale() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <WhatsAppShareModal
+        isOpen={showWhatsAppModal}
+        onClose={() => {
+          setShowWhatsAppModal(false);
+          navigate('/sales');
+        }}
+        data={completedSale}
+        type="sale"
+      />
     </div>
   );
 }
