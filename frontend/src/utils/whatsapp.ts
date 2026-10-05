@@ -157,54 +157,64 @@ export const sharePdfOnWhatsApp = async (params: {
   invoiceNumber: string;
   phoneRaw: string;
   message: string;
-}): Promise<{ success: boolean; mode: 'web_share' | 'download_and_web'; error?: string }> => {
+}): Promise<{ success: boolean; mode: 'web_share' | 'download_and_web' | 'web_only'; error?: string; noPdf?: boolean }> => {
   const { id, type, invoiceNumber, phoneRaw, message } = params;
   const cleanPhone = normalizeWhatsAppPhone(phoneRaw);
   const cleanDocNumber = (invoiceNumber || 'doc').replace(/[\/\\]/g, '-');
   const filename = `${type === 'sale' ? 'Invoice' : 'Quotation'}-${cleanDocNumber}.pdf`;
 
-  // Fetch PDF blob from backend (tries authenticated endpoint, falls back to public)
-  let pdfBlob: Blob;
+  let pdfBlob: Blob | null = null;
   try {
     const endpoint = type === 'sale' ? `/sales/${id}/invoice` : `/quotations/${id}/pdf`;
     const res = await api.get(endpoint, { responseType: 'blob' });
     pdfBlob = new Blob([res.data], { type: 'application/pdf' });
   } catch {
-    const publicEndpoint = type === 'sale' ? `/public/sales/${id}/invoice` : `/public/quotations/${id}/pdf`;
-    const res = await api.get(publicEndpoint, { responseType: 'blob' });
-    pdfBlob = new Blob([res.data], { type: 'application/pdf' });
-  }
-
-  // Check if Web Share API with files is supported (mobile devices / tablets)
-  const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
-  const canShareFiles = typeof navigator !== 'undefined' && 
-                        typeof navigator.canShare === 'function' && 
-                        navigator.canShare({ files: [pdfFile] });
-
-  if (canShareFiles) {
     try {
-      await navigator.share({
-        files: [pdfFile],
-        title: `${type === 'sale' ? 'Invoice' : 'Quotation'} ${invoiceNumber}`,
-        text: message
-      });
-      return { success: true, mode: 'web_share' };
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        // User cancelled share
-        return { success: false, mode: 'web_share', error: 'Share cancelled' };
-      }
-      // Fallback to desktop flow if share fails
+      const publicEndpoint = type === 'sale' ? `/public/sales/${id}/invoice` : `/public/quotations/${id}/pdf`;
+      const res = await api.get(publicEndpoint, { responseType: 'blob' });
+      pdfBlob = new Blob([res.data], { type: 'application/pdf' });
+    } catch {
+      // Both API calls failed. Fallback to just sharing the web link
+      console.warn("PDF generation failed, falling back to text only share.");
     }
   }
 
-  // PC / Desktop or fallback flow:
-  // 1. Download PDF to computer
-  downloadBlobAsFile(pdfBlob, filename);
+  // Check if Web Share API with files is supported (mobile devices / tablets)
+  if (pdfBlob) {
+    const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+    const canShareFiles = typeof navigator !== 'undefined' && 
+                          typeof navigator.canShare === 'function' && 
+                          navigator.canShare({ files: [pdfFile] });
+
+    if (canShareFiles) {
+      try {
+        await navigator.share({
+          files: [pdfFile],
+          title: `${type === 'sale' ? 'Invoice' : 'Quotation'} ${invoiceNumber}`,
+          text: message
+        });
+        return { success: true, mode: 'web_share' };
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          // User cancelled share
+          return { success: false, mode: 'web_share', error: 'Share cancelled' };
+        }
+        // Fallback to desktop flow if share fails
+      }
+    }
+
+    // PC / Desktop or fallback flow:
+    // 1. Download PDF to computer
+    downloadBlobAsFile(pdfBlob, filename);
+  }
 
   // 2. Open WhatsApp directly to customer's number
   const waUrl = getDirectWhatsAppUrl(cleanPhone, message);
   window.open(waUrl, '_blank');
 
-  return { success: true, mode: 'download_and_web' };
+  return { 
+    success: true, 
+    mode: pdfBlob ? 'download_and_web' : 'web_only', 
+    noPdf: !pdfBlob 
+  };
 };

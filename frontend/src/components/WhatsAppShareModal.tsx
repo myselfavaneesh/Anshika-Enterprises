@@ -96,7 +96,12 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       });
 
       if (res.success) {
-        if (res.mode === 'web_share') {
+        if (res.noPdf) {
+          toast.success('PDF share failed. WhatsApp opened with invoice link instead!', {
+            duration: 5000,
+            icon: '🔗'
+          });
+        } else if (res.mode === 'web_share') {
           toast.success('PDF invoice shared via WhatsApp!');
         } else {
           toast.success('PDF download ho gaya! WhatsApp chat open hai, PDF ko chat me drop karein.', {
