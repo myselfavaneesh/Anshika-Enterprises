@@ -1,6 +1,27 @@
-const getPuppeteer = async () => {
-  const puppeteerModule = await (new Function('return import("puppeteer")')() as Promise<any>);
-  return puppeteerModule.default || puppeteerModule;
+const getBrowser = async () => {
+  if (process.env.NODE_ENV === 'production') {
+    // In production (Render, Vercel, AWS), use sparticuz/chromium to avoid missing OS dependencies
+    const puppeteerCore = await (new Function('return import("puppeteer-core")')() as Promise<any>);
+    const chromium = await (new Function('return import("@sparticuz/chromium")')() as Promise<any>);
+    const pCore = puppeteerCore.default || puppeteerCore;
+    const chrom = chromium.default || chromium;
+
+    return await pCore.launch({
+      args: chrom.args,
+      defaultViewport: chrom.defaultViewport,
+      executablePath: await chrom.executablePath(),
+      headless: chrom.headless,
+      ignoreHTTPSErrors: true,
+    });
+  } else {
+    // Locally, use standard puppeteer
+    const puppeteerModule = await (new Function('return import("puppeteer")')() as Promise<any>);
+    const puppeteer = puppeteerModule.default || puppeteerModule;
+    return await puppeteer.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
+  }
 };
 
 const SHOP_STATE_CODE = '09';
@@ -501,11 +522,7 @@ export const getQuotationHTML = (quotation: any, items: any[], customer: any, co
 };
 
 export const generateInvoicePDF = async (sale: any, items: any[], customer: any, companyInfo?: any): Promise<Buffer> => {
-  const puppeteer = await getPuppeteer();
-  const browser = await puppeteer.launch({ 
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
+  const browser = await getBrowser();
   const page = await browser.newPage();
   const html = getInvoiceHTML(sale, items, customer, companyInfo);
 
@@ -517,11 +534,7 @@ export const generateInvoicePDF = async (sale: any, items: any[], customer: any,
 };
 
 export const generateQuotationPDF = async (quotation: any, items: any[], customer: any, companyInfo?: any): Promise<Buffer> => {
-  const puppeteer = await getPuppeteer();
-  const browser = await puppeteer.launch({ 
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
+  const browser = await getBrowser();
   const page = await browser.newPage();
   const html = getQuotationHTML(quotation, items, customer, companyInfo);
 
