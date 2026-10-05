@@ -72,9 +72,13 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
   }
 
   msg += `💰 *Kul Raqam (Total):* ₹${grandTotal}\n`;
-  msg += `💳 *Bhugtan Kiya (Paid):* ₹${paidAmount}\n`;
+  if (actualPaid > 0) {
+    msg += `💳 *Bhugtan Kiya (Paid):* ₹${paidAmount}\n`;
+  }
   if (actualBalance > 0) {
-    msg += `⚠️ *Baqaya Rashi (Due):* ₹${balance}\n`;
+    if (docType !== 'Estimate' || actualPaid > 0) {
+      msg += `⚠️ *Baqaya Rashi (Due):* ₹${balance}\n`;
+    }
   }
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
   msg += `📄 *Full PDF Invoice Dekhein / Download Karein:*\n${viewUrl}\n\n`;
