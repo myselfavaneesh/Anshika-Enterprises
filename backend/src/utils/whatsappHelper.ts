@@ -28,9 +28,25 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
   const isBillOfSupply = sale.documentType === 'BILL_OF_SUPPLY' || sale.invoiceType === 'COMPOSITION';
   const docType = isBillOfSupply ? 'Bill of Supply' : (sale.invoiceType === 'NON_GST' ? 'Estimate' : 'Tax Invoice');
   const invoiceNum = sale.invoiceNumber || 'INV';
+  let actualPaid = Number(sale.paidAmount);
+  if (isNaN(actualPaid)) {
+    if (sale.status === 'PAID') {
+      actualPaid = Number(sale.grandTotal || 0);
+    } else if (sale.payments && Array.isArray(sale.payments)) {
+      actualPaid = sale.payments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    } else {
+      actualPaid = 0;
+    }
+  }
+
+  let actualBalance = Number(sale.balanceAmount);
+  if (isNaN(actualBalance)) {
+    actualBalance = Math.max(0, Number(sale.grandTotal || 0) - actualPaid);
+  }
+
   const grandTotal = Number(sale.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-  const paidAmount = Number(sale.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-  const balance = Number(sale.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const paidAmount = actualPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const balance = actualBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   const items = sale.items || [];
   let itemsSummary = '';
@@ -57,7 +73,7 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
 
   msg += `💰 *Kul Raqam (Total):* ₹${grandTotal}\n`;
   msg += `💳 *Bhugtan Kiya (Paid):* ₹${paidAmount}\n`;
-  if (Number(sale.balanceAmount) > 0) {
+  if (actualBalance > 0) {
     msg += `⚠️ *Baqaya Rashi (Due):* ₹${balance}\n`;
   }
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;

@@ -45,9 +45,26 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
     year: 'numeric'
   });
 
+  // Calculate Paid Amount and Balance correctly based on Status and Payments
+  let actualPaid = Number(sale.paidAmount);
+  if (isNaN(actualPaid)) {
+    if (sale.status === 'PAID') {
+      actualPaid = Number(sale.grandTotal || 0);
+    } else if (sale.payments && Array.isArray(sale.payments)) {
+      actualPaid = sale.payments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    } else {
+      actualPaid = 0;
+    }
+  }
+
+  let actualBalance = Number(sale.balanceAmount);
+  if (isNaN(actualBalance)) {
+    actualBalance = Math.max(0, Number(sale.grandTotal || 0) - actualPaid);
+  }
+
   const grandTotal = Number(sale.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-  const paidAmount = Number(sale.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-  const balance = Number(sale.balanceAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const paidAmount = actualPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const balance = actualBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   // Format purchased items summary
   const items = sale.items || [];
@@ -83,7 +100,7 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
 
   msg += `💰 *Kul Raqam (Total):* ₹${grandTotal}\n`;
   msg += `💳 *Bhugtan Kiya (Paid):* ₹${paidAmount}\n`;
-  if (Number(sale.balanceAmount) > 0) {
+  if (actualBalance > 0) {
     msg += `⚠️ *Baqaya Rashi (Due):* ₹${balance}\n`;
   }
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
