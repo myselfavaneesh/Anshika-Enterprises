@@ -60,7 +60,6 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
     }).join('\n');
   }
 
-  const viewUrl = `/sales/${sale._id || sale.id}/print`;
 
   let msg = `*${compName.toUpperCase()}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
@@ -81,7 +80,6 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
     }
   }
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `📄 *Full PDF Invoice Dekhein / Download Karein:*\n${viewUrl}\n\n`;
   msg += `Humse judne ke liye bahut-bahut Dhanyawad! 🙏`;
 
   return msg;

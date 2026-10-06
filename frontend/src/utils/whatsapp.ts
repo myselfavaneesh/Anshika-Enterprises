@@ -84,9 +84,6 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
     }
   }
 
-  const origin = window.location.origin;
-  const viewUrl = `${origin}/sales/${sale._id || sale.id}/print`;
-
   let msg = `*${compName.toUpperCase()}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
   msg += `Namaste *${customerName}* ji,\n\n`;
@@ -108,7 +105,6 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
     }
   }
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `📄 *Full PDF Invoice Dekhein / Download Karein:*\n${viewUrl}\n\n`;
   
   if (companyInfo?.upiId) {
     msg += `📲 *UPI Pay:* ${companyInfo.upiId}\n\n`;
@@ -134,9 +130,6 @@ export const formatWhatsAppQuotationMessage = (quotation: any, companyInfo?: any
   });
   const grandTotal = Number(quotation.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
-  const origin = window.location.origin;
-  const viewUrl = `${origin}/quotations/${quotation._id || quotation.id}/print`;
-
   let msg = `*${compName.toUpperCase()}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
   msg += `Namaste *${customerName}* ji,\n\n`;
@@ -144,7 +137,6 @@ export const formatWhatsAppQuotationMessage = (quotation: any, companyInfo?: any
   msg += `📅 *Tareekh:* ${dateStr}\n`;
   msg += `💰 *Anumanit Raqam (Total):* ₹${grandTotal}\n\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `📄 *Quotation Dekhein / Download Karein:*\n${viewUrl}\n\n`;
   msg += `Kripya check karke batayein. Dhanyawad! 🙏`;
 
   return msg;

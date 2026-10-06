@@ -79,14 +79,17 @@ export interface SaleInput {
 
 export class SaleService {
   static async createSale(data: SaleInput): Promise<any> {
-    try {
-      const sale = await prisma.$transaction(async (tx) => {
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        const currentData: SaleInput = JSON.parse(JSON.stringify(data));
+        const sale = await prisma.$transaction(async (tx) => {
         const { 
           customerId, invoiceType, documentType = 'TAX_INVOICE', 
           items, services = [], discount, grandTotal, 
           payments = [], eInvoiceAckNo, eWayBillNo, customerSignatureUrl,
           placeOfSupply, placeOfSupplyCode, allowQuickInward = true
-        } = data;
+        } = currentData;
 
         const isBillOfSupply = documentType === 'BILL_OF_SUPPLY' || invoiceType === 'COMPOSITION';
         const isTaxExempt = invoiceType === 'NON_GST' || isBillOfSupply;
@@ -104,8 +107,8 @@ export class SaleService {
         const invoiceNumber = `${prefix}${nextCount.toString().padStart(4, '0')}`;
 
         // Step 0: Process Combo Groups & Override item prices BEFORE math validation
-        if (data.comboGroups && data.comboGroups.length > 0) {
-          for (const combo of data.comboGroups) {
+        if (currentData.comboGroups && currentData.comboGroups.length > 0) {
+          for (const combo of currentData.comboGroups) {
             const comboItems = items.filter(i => i.comboGroupId === combo.internalId);
             if (comboItems.length === 0) continue;
 
@@ -247,12 +250,12 @@ export class SaleService {
             subtotal: expectedSubtotal,
             discount: discount || 0,
             taxableAmount: expectedTaxableAmount,
-            taxRate: isTaxExempt ? 0 : (data.taxRate || 0),
+            taxRate: isTaxExempt ? 0 : (currentData.taxRate || 0),
             taxAmount: isTaxExempt ? 0 : expectedTaxAmount,
-            cgstAmount: isTaxExempt ? 0 : data.cgstAmount,
-            sgstAmount: isTaxExempt ? 0 : data.sgstAmount,
-            igstAmount: isTaxExempt ? 0 : (data.igstAmount || 0),
-            roundOff: data.roundOff || 0,
+            cgstAmount: isTaxExempt ? 0 : currentData.cgstAmount,
+            sgstAmount: isTaxExempt ? 0 : currentData.sgstAmount,
+            igstAmount: isTaxExempt ? 0 : (currentData.igstAmount || 0),
+            roundOff: currentData.roundOff || 0,
             grandTotal: expectedGrandTotal,
             status: totalAmountPaid >= expectedGrandTotal ? 'PAID' : 'PENDING',
             documentType: finalDocType,
@@ -262,7 +265,7 @@ export class SaleService {
             eWayBillNo,
             customerSignatureUrl,
             comboGroups: {
-              create: data.comboGroups?.map(c => ({
+              create: currentData.comboGroups?.map(c => ({
                 id: c.internalId,
                 name: c.name,
                 totalPrice: c.totalPrice,
@@ -462,8 +465,14 @@ export class SaleService {
       logger.info('Sale completed successfully', { saleId: sale.id, invoiceNumber: sale.invoiceNumber });
       return sale;
     } catch (error: any) {
+      if (error.code === 'P2002' && error.meta?.target?.includes('invoiceNumber') && retries > 1) {
+        logger.warn(`Invoice number collision detected. Retrying... (${retries - 1} retries left)`);
+        retries--;
+        continue;
+      }
       logger.error('Error during createSale', { error: error.message });
       throw error;
+    }
     }
   }
 

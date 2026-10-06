@@ -869,8 +869,11 @@ export default function NewSale() {
       
       toast.success('Sale created successfully!');
       const customerObj = customers.find(c => c._id === selectedCustomerId);
-      if (resSale && !resSale.customerId && customerObj) {
-        resSale.customerId = customerObj;
+      if (resSale) {
+        if (!resSale.customerId || typeof resSale.customerId === 'string') {
+          resSale.customerId = customerObj || resSale.customerId;
+        }
+        resSale.items = cart;
       }
       setCompletedSale(resSale);
       setShowWhatsAppModal(true);

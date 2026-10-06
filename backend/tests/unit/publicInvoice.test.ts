@@ -26,7 +26,7 @@ describe('WhatsApp Direct Sharing & Phone Normalization Unit Tests', () => {
   });
 
   describe('formatWhatsAppSaleMessage', () => {
-    it('formats a professional WhatsApp message with totals and invoice link', () => {
+    it('formats a professional WhatsApp message with totals and items', () => {
       const mockSale = {
         _id: 'sale-123',
         invoiceNumber: 'INV-2026-0099',
@@ -47,8 +47,8 @@ describe('WhatsApp Direct Sharing & Phone Normalization Unit Tests', () => {
       expect(msg).toContain('INV-2026-0099');
       expect(msg).toContain('Ramesh Verma');
       expect(msg).toContain('15,400.00');
-      expect(msg).toContain('/sales/sale-123/print');
       expect(msg).toContain('Exide Inverter 1100VA');
+      expect(msg).not.toContain('/print');
     });
   });
 });
