@@ -78,6 +78,23 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
   const isInterState = customerStateCode !== SHOP_STATE_CODE;
   const isGST = data?.invoiceType !== 'NON_GST' && !isBillOfSupply;
 
+  const formatPaymentMode = (mode: string) => {
+    if (!mode) return 'Payment';
+    if (mode === 'SCRAP') return 'Scrap (Old Battery)';
+    if (mode === 'CASH') return 'Cash';
+    if (mode === 'UPI') return 'UPI';
+    if (mode === 'BANK' || mode === 'BANK_TRANSFER') return 'Bank Transfer';
+    if (mode === 'CHEQUE') return 'Cheque';
+    if (mode === 'CREDIT_CARD' || mode === 'CARD') return 'Credit Card';
+    if (mode === 'BAJAJ_FINANCE') return 'Bajaj Finance';
+    return mode;
+  };
+
+  const rawPayments = (data?.payments || data?.salePayments || []);
+  const paymentsList = Array.isArray(rawPayments) ? rawPayments.filter((p: any) => Number(p.amount || 0) > 0) : [];
+  const totalPaidAmount = paymentsList.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const dueBalance = Math.max(0, Number(data?.grandTotal || 0) - totalPaidAmount);
+
   // Determine document heading
   const getDocumentHeading = (): string => {
     if (type === 'QUOTATION') return 'QUOTATION';
@@ -538,6 +555,17 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
         <div className="space-y-1 text-[11px]">
           <p><span className="font-semibold inline-block w-24">Total Items:</span> {data?.items?.length || 0}</p>
           <p><span className="font-semibold inline-block w-24">Total Qty:</span> {data?.items?.reduce((sum: number, i: any) => sum + i.quantity, 0) || 0}</p>
+          {paymentsList.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-slate-300">
+              <p className="font-bold text-[10px] uppercase text-slate-700">Payment Breakdown:</p>
+              {paymentsList.map((p: any, idx: number) => (
+                <p key={idx} className="text-[10px] text-slate-800">
+                  • <span className="font-semibold">{formatPaymentMode(p.paymentMode)}:</span> ₹{Number(p.amount || 0).toFixed(2)}
+                  {p.referenceNumber ? ` (${p.referenceNumber})` : ''}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
         <div className="space-y-1 text-[11px] text-right">
           {isGST && (
@@ -554,6 +582,14 @@ const InvoicePrint: React.FC<InvoicePrintProps> = ({ type, data, companyInfo }) 
             </>
           )}
           <p className="text-sm mt-1"><span className="font-bold inline-block w-32">Grand Total:</span> <span className="font-bold">₹ {data?.grandTotal?.toFixed(2) || '0.00'}</span></p>
+          {totalPaidAmount > 0 && (
+            <>
+              <p className="text-xs mt-1 text-emerald-800"><span className="font-semibold inline-block w-32">Amount Paid:</span> <span className="font-bold">₹ {totalPaidAmount.toFixed(2)}</span></p>
+              {dueBalance > 0 && (
+                <p className="text-xs text-red-700"><span className="font-semibold inline-block w-32">Balance Due:</span> <span className="font-bold">₹ {dueBalance.toFixed(2)}</span></p>
+              )}
+            </>
+          )}
         </div>
       </div>
 

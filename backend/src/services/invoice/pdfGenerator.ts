@@ -71,9 +71,27 @@ const numberToWords = (num: number): string => {
   return `${result}Only`.replace(/\s+/g, ' ');
 };
 
+export const formatPaymentMode = (mode: string): string => {
+  if (!mode) return 'Payment';
+  if (mode === 'SCRAP') return 'Scrap (Old Battery)';
+  if (mode === 'CASH') return 'Cash';
+  if (mode === 'UPI') return 'UPI';
+  if (mode === 'BANK' || mode === 'BANK_TRANSFER') return 'Bank Transfer';
+  if (mode === 'CHEQUE') return 'Cheque';
+  if (mode === 'CREDIT_CARD' || mode === 'CARD') return 'Credit Card';
+  if (mode === 'BAJAJ_FINANCE') return 'Bajaj Finance';
+  return mode;
+};
+
 export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, items: any[], customer: any, companyInfo?: any): string => {
   const isBillOfSupply = data?.documentType === 'BILL_OF_SUPPLY' || data?.invoiceType === 'COMPOSITION';
   const isNonGst = data?.invoiceType === 'NON_GST' || isBillOfSupply;
+
+  const rawPayments = (data?.payments || data?.salePayments || []);
+  const paymentsList = Array.isArray(rawPayments) ? rawPayments.filter((p: any) => Number(p.amount || 0) > 0) : [];
+  const totalPaid = paymentsList.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const invoiceGrandTotal = Number(data?.grandTotal || 0);
+  const balanceDue = Math.max(0, invoiceGrandTotal - totalPaid);
 
   const compName = companyInfo?.businessName || companyInfo?.legalName || 'ANSHIKA ENTERPRISES';
   const compAddress = [companyInfo?.addressLine1, companyInfo?.addressLine2, companyInfo?.city, companyInfo?.district, companyInfo?.state, companyInfo?.pincode ? '-' + companyInfo.pincode : ''].filter(Boolean).join(', ') || 'Phoolpur, Azamgarh, Uttar Pradesh - 276304';
@@ -432,6 +450,14 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
         <td style="width: 50%; padding: 6px; vertical-align: top; border-right: 1px solid #000;">
           <div><span style="font-weight: 600; display: inline-block; width: 80px;">Total Items:</span> ${totalItemsCount}</div>
           <div><span style="font-weight: 600; display: inline-block; width: 80px;">Total Qty:</span> ${totalQty}</div>
+          ${paymentsList.length > 0 ? `
+            <div style="margin-top: 6px; padding-top: 4px; border-top: 1px dashed #777;">
+              <div style="font-weight: bold; font-size: 9px; text-transform: uppercase; color: #333;">Payment Breakdown:</div>
+              ${paymentsList.map((p: any) => `
+                <div style="font-size: 9px; margin-top: 1px;">• <b>${formatPaymentMode(p.paymentMode)}:</b> ₹${Number(p.amount || 0).toFixed(2)}${p.referenceNumber ? ` (${p.referenceNumber})` : ''}</div>
+              `).join('')}
+            </div>
+          ` : ''}
         </td>
         <td style="width: 50%; padding: 6px; text-align: right; vertical-align: top;">
           ${!isNonGst ? `
@@ -443,7 +469,13 @@ export const getTemplateHTML = (type: 'TAX INVOICE' | 'QUOTATION', data: any, it
               <div><span style="font-weight: 600;">SGST:</span> ₹ ${(data?.sgstAmount || 0).toFixed(2)}</div>
             `}
           ` : ''}
-          <div style="font-size: 12px; font-weight: bold; margin-top: 2px;"><span>Grand Total:</span> ₹ ${(data?.grandTotal || 0).toFixed(2)}</div>
+          <div style="font-size: 12px; font-weight: bold; margin-top: 2px;"><span>Grand Total:</span> ₹ ${invoiceGrandTotal.toFixed(2)}</div>
+          ${totalPaid > 0 ? `
+            <div style="font-size: 10px; color: #166534; margin-top: 3px; font-weight: 600;"><span>Amount Paid:</span> ₹ ${totalPaid.toFixed(2)}</div>
+            ${balanceDue > 0 ? `
+              <div style="font-size: 10px; color: #991b1b; margin-top: 1px; font-weight: 600;"><span>Balance Due:</span> ₹ ${balanceDue.toFixed(2)}</div>
+            ` : ''}
+          ` : ''}
         </td>
       </tr>
     </table>

@@ -145,7 +145,8 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
 export const getCustomerLedger = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const result = await LedgerService.getCustomerLedger(id as string);
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    const result = await LedgerService.getCustomerLedger(id as string, startDate, endDate);
     
     if (!result) {
       res.status(404).json({ error: 'Customer not found' });

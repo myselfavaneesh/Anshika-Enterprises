@@ -89,8 +89,15 @@ export const getPublicSale = async (req: Request, res: Response): Promise<void> 
       showBankOnInvoice: profile.showBankDetails
     } : null;
 
+    const salePayments = await prisma.salePayment.findMany({
+      where: { saleId: id as string }
+    });
+
     res.json({
-      sale: mapEntityId(sale),
+      sale: {
+        ...mapEntityId(sale),
+        payments: salePayments.map(mapEntityId)
+      },
       items,
       customer: customer ? mapEntityId(customer) : null,
       company: cleanCompany
@@ -121,6 +128,10 @@ export const getPublicSalePDF = async (req: Request, res: Response): Promise<voi
       }
     });
 
+    const salePayments = await prisma.salePayment.findMany({
+      where: { saleId: id as string }
+    });
+
     const customer = await prisma.customer.findUnique({
       where: { id: sale.customerId }
     });
@@ -146,7 +157,12 @@ export const getPublicSalePDF = async (req: Request, res: Response): Promise<voi
       showBankOnInvoice: profile.showBankDetails
     } : null;
 
-    const pdfBuffer = await generateInvoicePDF(mapEntityId(sale), items, customer ? mapEntityId(customer) : null, cleanCompany);
+    const saleWithPayments = {
+      ...mapEntityId(sale),
+      payments: salePayments.map(mapEntityId)
+    };
+
+    const pdfBuffer = await generateInvoicePDF(saleWithPayments, items, customer ? mapEntityId(customer) : null, cleanCompany);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="invoice-${sale.invoiceNumber}.pdf"`);

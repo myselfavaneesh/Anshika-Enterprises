@@ -95,7 +95,14 @@ export const formatWhatsAppSaleMessage = (sale: any, companyInfo?: any): string 
     msg += `*Items Kharide:*\n${itemsSummary}\n\n`;
   }
 
+  const rawPayments = sale.payments || sale.salePayments || [];
+  const scrapPayment = Array.isArray(rawPayments) ? rawPayments.find((p: any) => p.paymentMode === 'SCRAP' && Number(p.amount) > 0) : null;
+
   msg += `💰 *Kul Raqam (Total):* ₹${grandTotal}\n`;
+  if (scrapPayment) {
+    const scrapAmt = Number(scrapPayment.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    msg += `♻️ *Old Battery Scrap:* ₹${scrapAmt}${scrapPayment.referenceNumber ? ` (${scrapPayment.referenceNumber})` : ''}\n`;
+  }
   if (actualPaid > 0) {
     msg += `💳 *Bhugtan Kiya (Paid):* ₹${paidAmount}\n`;
   }

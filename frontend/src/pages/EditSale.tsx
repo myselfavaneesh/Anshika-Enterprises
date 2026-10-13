@@ -791,16 +791,28 @@ export default function EditSale() {
               </div>
 
               <div className="border-t border-slate-200/80 dark:border-slate-800 pt-4 space-y-3">
-                <div className="flex justify-between items-center mb-1">
+                <div className="flex justify-between items-center mb-1 flex-wrap gap-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Payment(s) Received</label>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-7 text-[11px] rounded-lg"
-                    onClick={() => setPayments([...payments, { paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }])}
-                  >
-                    + Add Payment
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm" 
+                      className="h-7 text-[11px] rounded-lg border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                      onClick={() => setPayments([...payments, { paymentMode: 'SCRAP', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }])}
+                    >
+                      ♻️ + Add Scrap (कबाड़)
+                    </Button>
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm" 
+                      className="h-7 text-[11px] rounded-lg"
+                      onClick={() => setPayments([...payments, { paymentMode: 'CASH', amount: '', emiProvider: '', emiReferenceNumber: '', referenceNumber: '' }])}
+                    >
+                      + Add Payment
+                    </Button>
+                  </div>
                 </div>
                 
                 {payments.map((p, idx) => (
@@ -834,7 +846,7 @@ export default function EditSale() {
                         />
                       </div>
                       <select 
-                        className="w-32 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-2 font-medium text-xs"
+                        className="w-36 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white px-2 font-medium text-xs"
                         value={p.paymentMode}
                         onChange={e => {
                           const newP = [...payments];
@@ -845,6 +857,7 @@ export default function EditSale() {
                         <option value="CASH">CASH</option>
                         <option value="UPI">UPI</option>
                         <option value="BANK">BANK</option>
+                        <option value="SCRAP">SCRAP (पुराना बैटरी)</option>
                         <option value="CHEQUE">CHEQUE</option>
                         <option value="CREDIT_CARD">CREDIT CARD</option>
                         <option value="BAJAJ_FINANCE">BAJAJ FINANCE</option>
@@ -873,6 +886,18 @@ export default function EditSale() {
                           }}
                         />
                       </div>
+                    )}
+                    {p.paymentMode === 'SCRAP' && (
+                      <Input 
+                        placeholder="Scrap Details (e.g. Purani Battery 150Ah / Exide / Weight)" 
+                        className="h-8 bg-amber-50/50 dark:bg-amber-950/20 text-xs w-full border-amber-300/70 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 placeholder:text-amber-600/60 dark:placeholder:text-amber-400/60"
+                        value={p.referenceNumber}
+                        onChange={e => {
+                          const newP = [...payments];
+                          newP[idx].referenceNumber = e.target.value;
+                          setPayments(newP);
+                        }}
+                      />
                     )}
                     {['UPI', 'BANK', 'CHEQUE', 'CREDIT_CARD'].includes(p.paymentMode) && (
                        <Input 

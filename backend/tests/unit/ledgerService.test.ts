@@ -123,5 +123,44 @@ describe('Khata Ledger Service (Unit Tests)', () => {
       // Step 3: Supplier refund 2000 -> we owe 12000
       expect(result[2].runningBalance).toBe(12000);
     });
+
+    it('supports starting from an opening balance correctly', () => {
+      const entries: SupplierLedgerEntry[] = [
+        {
+          _id: 'pur-1',
+          date: new Date('2026-09-01T10:00:00Z'),
+          type: 'PURCHASE',
+          invoiceNumber: 'PUR-001',
+          grandTotal: 5000,
+        },
+      ];
+
+      const result = computeSupplierRunningBalances(entries, 10000);
+      expect(result[0].runningBalance).toBe(15000);
+    });
+  });
+
+  describe('Opening Balance Computation', () => {
+    it('customer running balance incorporates opening balance correctly', () => {
+      const entries: CustomerLedgerEntry[] = [
+        {
+          _id: 'sale-1',
+          date: new Date('2026-09-10T10:00:00Z'),
+          type: 'SALE',
+          grandTotal: 3000,
+        },
+        {
+          _id: 'pay-1',
+          date: new Date('2026-09-11T10:00:00Z'),
+          type: 'PAYMENT',
+          paymentType: 'MONEY_IN',
+          amount: 2000,
+        },
+      ];
+
+      const result = computeCustomerRunningBalances(entries, 5000);
+      expect(result[0].runningBalance).toBe(8000);
+      expect(result[1].runningBalance).toBe(6000);
+    });
   });
 });

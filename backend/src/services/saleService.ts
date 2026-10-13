@@ -431,7 +431,9 @@ export class SaleService {
                   referenceNumber: p.referenceNumber,
                   emiProvider: p.emiProvider,
                   emiReferenceNumber: p.emiReferenceNumber,
-                  notes: `Payment for Sale ${invoiceNumber}`,
+                  notes: p.paymentMode === 'SCRAP' 
+                    ? `Battery Scrap: ${p.referenceNumber || 'Old battery exchange'}` 
+                    : `Payment for Sale ${invoiceNumber}`,
                 }
               });
 
@@ -444,7 +446,9 @@ export class SaleService {
                   amount: p.amount,
                   paymentMode: p.paymentMode,
                   referenceId: `${invoiceNumber}-${p.paymentMode}-${Date.now()}`, // Unique ref for ledger
-                  notes: `Payment for Sale ${invoiceNumber} via ${p.paymentMode}`,
+                  notes: p.paymentMode === 'SCRAP'
+                    ? `Battery Scrap exchange for Sale ${invoiceNumber}${p.referenceNumber ? ` (${p.referenceNumber})` : ''}`
+                    : `Payment for Sale ${invoiceNumber} via ${p.paymentMode}`,
                 }
               });
             }
@@ -875,7 +879,9 @@ export class SaleService {
                   referenceNumber: p.referenceNumber,
                   emiProvider: p.emiProvider,
                   emiReferenceNumber: p.emiReferenceNumber,
-                  notes: `Payment for Sale ${sale.invoiceNumber}`,
+                  notes: p.paymentMode === 'SCRAP'
+                    ? `Battery Scrap: ${p.referenceNumber || 'Old battery exchange'}`
+                    : `Payment for Sale ${sale.invoiceNumber}`,
                 }
               });
 
@@ -887,7 +893,9 @@ export class SaleService {
                   amount: p.amount,
                   paymentMode: p.paymentMode,
                   referenceId: `${sale.invoiceNumber}-${p.paymentMode}-${Date.now()}`,
-                  notes: `Payment for Sale ${sale.invoiceNumber} via ${p.paymentMode}`,
+                  notes: p.paymentMode === 'SCRAP'
+                    ? `Battery Scrap exchange for Sale ${sale.invoiceNumber}${p.referenceNumber ? ` (${p.referenceNumber})` : ''}`
+                    : `Payment for Sale ${sale.invoiceNumber} via ${p.paymentMode}`,
                 }
               });
             }

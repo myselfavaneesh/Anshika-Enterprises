@@ -258,6 +258,7 @@ export const downloadInvoice = async (req: Request, res: Response): Promise<void
     });
     
     const customer = await prisma.customer.findUnique({ where: { id: sale.customerId } });
+    const salePayments = await prisma.salePayment.findMany({ where: { saleId: id as string } });
     const tenantId = (sale as any).tenantId || (req as any).user?.tenantId;
     let companyInfo = null;
     if (tenantId) {
@@ -271,7 +272,12 @@ export const downloadInvoice = async (req: Request, res: Response): Promise<void
       serialNumbers: item.productUnits.map(u => u.serialNumber)
     }));
 
-    const pdfBuffer = await generateInvoicePDF(mapEntityId(sale), items, mapEntityId(customer), companyInfo);
+    const saleWithPayments = {
+      ...mapEntityId(sale),
+      payments: salePayments.map(mapEntityId)
+    };
+
+    const pdfBuffer = await generateInvoicePDF(saleWithPayments, items, mapEntityId(customer), companyInfo);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="invoice-${sale.invoiceNumber}.pdf"`);

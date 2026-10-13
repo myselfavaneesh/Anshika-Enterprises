@@ -50,5 +50,63 @@ describe('WhatsApp Direct Sharing & Phone Normalization Unit Tests', () => {
       expect(msg).toContain('Exide Inverter 1100VA');
       expect(msg).not.toContain('/print');
     });
+
+    it('highlights Old Battery Scrap payment trade-in when present in sale payments', () => {
+      const mockSaleWithScrap = {
+        _id: 'sale-456',
+        invoiceNumber: 'INV-2026-0105',
+        documentType: 'BILL_OF_SUPPLY',
+        invoiceType: 'COMPOSITION',
+        customerId: { name: 'Suresh Kumar', phone: '9876543210' },
+        grandTotal: 14000,
+        paidAmount: 14000,
+        balanceAmount: 0,
+        payments: [
+          { paymentMode: 'SCRAP', amount: 2000, referenceNumber: 'Exide 150Ah Old Battery' },
+          { paymentMode: 'CASH', amount: 12000 }
+        ],
+        items: [
+          { product: { name: 'Luminous 150Ah Battery' }, quantity: 1, totalPrice: 14000 }
+        ]
+      };
+
+      const msg = formatWhatsAppSaleMessage(mockSaleWithScrap, { businessName: 'Anshika Enterprises' });
+
+      expect(msg).toContain('Old Battery Scrap');
+      expect(msg).toContain('2,000.00');
+      expect(msg).toContain('Exide 150Ah Old Battery');
+      expect(msg).toContain('14,000.00');
+    });
+  });
+
+  describe('formatPaymentMode and PDF Payment Breakdown', () => {
+    it('properly formats SCRAP and other payment modes', () => {
+      const { formatPaymentMode } = require('../../src/services/invoice/pdfGenerator');
+      expect(formatPaymentMode('SCRAP')).toBe('Scrap (Old Battery)');
+      expect(formatPaymentMode('CASH')).toBe('Cash');
+      expect(formatPaymentMode('UPI')).toBe('UPI');
+      expect(formatPaymentMode('BANK')).toBe('Bank Transfer');
+    });
+
+    it('renders payment breakdown with Scrap in PDF template HTML', () => {
+      const { getTemplateHTML } = require('../../src/services/invoice/pdfGenerator');
+      const mockSale = {
+        invoiceNumber: 'INV-2026-9999',
+        documentType: 'TAX_INVOICE',
+        invoiceType: 'GST',
+        grandTotal: 15000,
+        payments: [
+          { paymentMode: 'SCRAP', amount: 3000, referenceNumber: 'Old Amaron 150Ah' },
+          { paymentMode: 'CASH', amount: 12000 }
+        ]
+      };
+
+      const html = getTemplateHTML('TAX INVOICE', mockSale, [], { name: 'Sunil Kumar' }, { businessName: 'Anshika Enterprises' });
+      expect(html).toContain('Payment Breakdown');
+      expect(html).toContain('Scrap (Old Battery)');
+      expect(html).toContain('3000.00');
+      expect(html).toContain('Old Amaron 150Ah');
+      expect(html).toContain('Amount Paid');
+    });
   });
 });

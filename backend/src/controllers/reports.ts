@@ -270,6 +270,7 @@ export const getSalesRegister = async (req: Request, res: Response): Promise<voi
       where: dateFilter,
       include: {
         customer: true,
+        salePayments: true,
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -279,7 +280,7 @@ export const getSalesRegister = async (req: Request, res: Response): Promise<voi
       invoiceNumber: sale.invoiceNumber,
       customerName: sale.customer?.name || 'Walk-in',
       gstin: sale.customer?.gstNumber || '',
-      paymentMode: 'N/A',
+      paymentMode: sale.salePayments?.map(p => p.paymentMode).join(', ') || 'N/A',
       taxableAmount: sale.taxableAmount || 0,
       cgst: sale.cgstAmount || 0,
       sgst: sale.sgstAmount || 0,
