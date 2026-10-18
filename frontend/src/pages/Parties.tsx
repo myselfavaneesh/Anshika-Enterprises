@@ -84,23 +84,43 @@ export default function Parties() {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name?.trim()) {
+      toast.error('Party name is required');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const payload: any = {
+        name: formData.name.trim(),
+        phone: formData.phone?.trim() || null,
+        email: formData.email?.trim() || null,
+        address: formData.address?.trim() || null,
+        gstNumber: formData.gstNumber?.trim() || null,
+        state: formData.state || 'Uttar Pradesh',
+        stateCode: formData.stateCode || '09',
+        group: formData.group?.trim() || null,
+        creditLimit: formData.creditLimit !== '' && formData.creditLimit !== null && formData.creditLimit !== undefined
+          ? Number(formData.creditLimit)
+          : null,
+        outstandingBalance: Number(formData.outstandingBalance) || 0
+      };
+
       if (editingId) {
         if (activeTab === 'customers') {
-          await api.put(`/customers/${editingId}`, formData);
+          await api.put(`/customers/${editingId}`, payload);
           mutateCustomers();
         } else {
-          await api.put(`/suppliers/${editingId}`, formData);
+          await api.put(`/suppliers/${editingId}`, payload);
           mutateSuppliers();
         }
         toast.success(activeTab === 'customers' ? 'Customer updated successfully' : 'Supplier updated successfully');
       } else {
         if (activeTab === 'customers') {
-          await api.post('/customers', formData);
+          await api.post('/customers', payload);
           mutateCustomers();
         } else {
-          await api.post('/suppliers', formData);
+          await api.post('/suppliers', payload);
           mutateSuppliers();
         }
         toast.success(activeTab === 'customers' ? 'Customer added successfully' : 'Supplier added successfully');
@@ -109,7 +129,10 @@ export default function Parties() {
       resetForm();
     } catch (error: any) {
       console.error('Error saving party', error);
-      toast.error(error.response?.data?.error || 'Failed to save party');
+      const detailsMsg = error.response?.data?.details
+        ?.map((d: any) => `${d.field ? d.field + ': ' : ''}${d.message}`)
+        .join(', ');
+      toast.error(detailsMsg || error.response?.data?.error || 'Failed to save party');
     } finally {
       setIsSubmitting(false);
     }
@@ -117,7 +140,7 @@ export default function Parties() {
 
   const handleEdit = (party: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingId(party._id);
+    setEditingId(party.id || party._id);
     setFormData({
       name: party.name,
       phone: party.phone || '',
@@ -127,7 +150,7 @@ export default function Parties() {
       state: party.state || 'Uttar Pradesh',
       stateCode: party.stateCode || '09',
       group: party.group || '',
-      creditLimit: party.creditLimit || '',
+      creditLimit: party.creditLimit !== undefined && party.creditLimit !== null ? party.creditLimit : '',
       outstandingBalance: party.outstandingBalance || 0
     });
     setIsAddModalOpen(true);

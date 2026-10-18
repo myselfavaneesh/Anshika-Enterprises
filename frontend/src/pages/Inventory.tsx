@@ -166,9 +166,12 @@ const Inventory = () => {
   };
 
   const openSerials = async (inv: any) => {
+    if (!inv) return;
     setSelectedProduct(inv);
+    const productId = inv.productId?._id || inv.productId?.id || (typeof inv.productId === 'string' ? inv.productId : (inv._id || inv.id));
+    if (!productId) return;
     try {
-      const res = await api.get(`/inventory/serials/${inv.productId._id}`);
+      const res = await api.get(`/inventory/serials/${productId}`);
       setSelectedProductSerials(res.data);
       setIsOpenSerials(true);
     } catch (error) {
@@ -178,24 +181,39 @@ const Inventory = () => {
 
   const handleEditSerial = (s: any) => {
     setEditSerialForm({
-      id: s._id,
-      serialNumber: s.serialNumber,
-      purchasePrice: s.purchasePrice || '',
-      status: s.status
+      id: s.id || s._id,
+      serialNumber: s.serialNumber || '',
+      purchasePrice: s.purchasePrice !== undefined && s.purchasePrice !== null ? String(s.purchasePrice) : '',
+      status: s.status || 'IN_STOCK'
     });
     setIsOpenEditSerial(true);
   };
 
   const handleUpdateSerial = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editSerialForm?.serialNumber?.trim()) {
+      toast.error('Serial number is required');
+      return;
+    }
     try {
-      await api.put(`/inventory/serial/${editSerialForm.id}`, {
-        serialNumber: editSerialForm.serialNumber,
-        purchasePrice: editSerialForm.purchasePrice,
+      const payload: any = {
+        serialNumber: editSerialForm.serialNumber.trim(),
         status: editSerialForm.status
-      });
+      };
+      if (canViewProfit) {
+        if (editSerialForm.purchasePrice !== '' && editSerialForm.purchasePrice !== null && editSerialForm.purchasePrice !== undefined) {
+          payload.purchasePrice = Number(editSerialForm.purchasePrice);
+        } else {
+          payload.purchasePrice = null;
+        }
+      }
+
+      await api.put(`/inventory/serial/${editSerialForm.id}`, payload);
+      toast.success('Serial updated successfully');
       setIsOpenEditSerial(false);
-      openSerials(selectedProduct); 
+      if (selectedProduct) {
+        openSerials(selectedProduct); 
+      }
       fetchInventory();
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error updating serial');
@@ -210,7 +228,10 @@ const Inventory = () => {
     if (!confirm('Are you sure you want to delete this serial number? This action cannot be undone.')) return;
     try {
       await api.delete(`/inventory/serial/${id}`);
-      openSerials(selectedProduct);
+      toast.success('Serial number deleted successfully');
+      if (selectedProduct) {
+        openSerials(selectedProduct);
+      }
       fetchInventory();
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Error deleting serial');
@@ -592,6 +613,8 @@ const Inventory = () => {
                     <SelectItem value="IN_STOCK">IN_STOCK</SelectItem>
                     <SelectItem value="DEFECTIVE">DEFECTIVE</SelectItem>
                     <SelectItem value="SOLD">SOLD</SelectItem>
+                    <SelectItem value="RETURNED">RETURNED</SelectItem>
+                    <SelectItem value="DAMAGED">DAMAGED</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -5,18 +5,7 @@ import { logger } from '../utils/logger';
 import { mapEntityId } from '../utils/mapper';
 import { LedgerService } from '../services/ledgerService';
 
-const CustomerSchema = z.object({
-  name: z.string().min(1).max(255),
-  phone: z.string().max(20).optional().nullable(),
-  email: z.preprocess((val) => (val === '' ? null : val), z.string().email().max(255).optional().nullable()),
-  address: z.string().max(500).optional().nullable(),
-  gstNumber: z.string().max(20).optional().nullable(),
-  state: z.string().max(100).optional().nullable(),
-  stateCode: z.string().max(10).optional().nullable(),
-  group: z.string().max(50).optional().nullable(),
-  creditLimit: z.preprocess((val) => (val === '' || val === null || val === undefined ? null : Number(val)), z.number().nonnegative().optional().nullable()),
-  outstandingBalance: z.number().default(0),
-});
+import { CustomerSchema } from '../validators';
 
 export const getCustomers = async (req: Request, res: Response) => {
   try {
@@ -43,7 +32,10 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
       if (trimmedEmail) orConditions.push({ email: trimmedEmail });
 
       const existingCustomer = await prisma.customer.findFirst({
-        where: { OR: orConditions }
+        where: {
+          deletedAt: null,
+          OR: orConditions
+        }
       });
 
       if (existingCustomer) {
@@ -99,6 +91,7 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
       const existingCustomer = await prisma.customer.findFirst({
         where: {
           NOT: { id: id as string },
+          deletedAt: null,
           OR: orConditions
         }
       });

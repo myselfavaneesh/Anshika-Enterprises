@@ -35,18 +35,35 @@ const Customers = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name?.trim()) {
+      toast.error('Customer name is required');
+      return;
+    }
     try {
+      const payload: any = {
+        name: formData.name.trim(),
+        phone: formData.phone?.trim() || null,
+        email: formData.email?.trim() || null,
+        address: formData.address?.trim() || null,
+        gstNumber: formData.gstNumber?.trim() || null,
+        state: formData.state?.trim() || null,
+        stateCode: formData.stateCode?.trim() || null,
+      };
+
       if (editingId) {
-        await api.put(`/customers/${editingId}`, formData);
+        await api.put(`/customers/${editingId}`, payload);
       } else {
-        await api.post('/customers', formData);
+        await api.post('/customers', payload);
       }
       setIsOpen(false);
       fetchCustomers();
       resetForm();
     } catch (error: any) {
       console.error('Error saving customer', error);
-      toast.error(error.response?.data?.error || 'Failed to save customer');
+      const detailsMsg = error.response?.data?.details
+        ?.map((d: any) => `${d.field ? d.field + ': ' : ''}${d.message}`)
+        .join(', ');
+      toast.error(detailsMsg || error.response?.data?.error || 'Failed to save customer');
     }
   };
 

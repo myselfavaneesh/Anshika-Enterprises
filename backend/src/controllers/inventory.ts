@@ -21,9 +21,14 @@ const StockOutSchema = z.object({
 });
 
 const UpdateSerialSchema = z.object({
-  serialNumber: z.string().min(1).optional(),
-  purchasePrice: z.number().min(0).optional(),
-  status: z.enum(['IN_STOCK', 'SOLD', 'RETURNED', 'DAMAGED']).optional(),
+  serialNumber: z.string().trim().min(1, 'Serial number cannot be empty').optional(),
+  purchasePrice: z.preprocess((val) => {
+    if (val === undefined) return undefined;
+    if (val === '' || val === null) return null;
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  }, z.union([z.number().min(0, 'Purchase price must be non-negative'), z.null()]).optional()),
+  status: z.enum(['IN_STOCK', 'SOLD', 'DEFECTIVE', 'RETURNED', 'DAMAGED']).optional(),
 });
 
 export const getInventory = async (req: Request, res: Response): Promise<void> => {
@@ -219,21 +224,64 @@ export const searchSerials = async (req: Request, res: Response): Promise<void> 
 export const updateSerial = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { serialNumber, purchasePrice, status } = UpdateSerialSchema.parse(req.body);
+    if (!id) {
+      res.status(400).json({ error: 'Serial ID is required' });
+      return;
+    }
+
+    const isStaff = (req as any).user?.role === 'staff';
+    const parsed = UpdateSerialSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const messages = parsed.error.issues?.map((i: any) => i.message).join(', ') || 'Validation error';
+      res.status(400).json({ error: messages });
+      return;
+    }
+
+    const { serialNumber, purchasePrice, status } = parsed.data;
+
+    // Verify serial unit exists
+    const existing = await prisma.productUnit.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: 'Serial number record not found' });
+      return;
+    }
+
+    // Build update data
+    const updateData: any = {};
+    if (serialNumber !== undefined) {
+      updateData.serialNumber = serialNumber;
+    }
+    if (status !== undefined) {
+      updateData.status = status;
+    }
+    // Zero-Leak Staff Shielding: Staff cannot alter purchasePrice
+    if (!isStaff && purchasePrice !== undefined) {
+      updateData.purchasePrice = purchasePrice;
+    }
 
     const updated = await prisma.productUnit.update({
       where: { id },
-      data: {
-        serialNumber,
-        purchasePrice: purchasePrice !== undefined ? Number(purchasePrice) : undefined,
-        status
-      }
+      data: updateData
     });
 
-    res.json(mapEntityId(updated));
+    const result: any = mapEntityId(updated);
+    // Zero-Leak Staff Shielding: Staff must never see purchasePrice in the response
+    if (isStaff) {
+      delete result.purchasePrice;
+    }
+
+    res.json(result);
   } catch (error: any) {
-    logger.error('Error updating serial', { id: req.params.id, error: error.message });
-    res.status(500).json({ error: 'Server error updating serial number' });
+    logger.error('Error updating serial', { id: req.params.id, error: error.message, code: error.code });
+    if (error.code === 'P2002') {
+      res.status(400).json({ error: 'A product with this serial number already exists' });
+      return;
+    }
+    if (error.code === 'P2025') {
+      res.status(404).json({ error: 'Serial number record not found' });
+      return;
+    }
+    res.status(500).json({ error: error.message || 'Server error updating serial number' });
   }
 };
 
@@ -378,10 +426,14 @@ export const serialLookup = async (req: Request, res: Response): Promise<void> =
 export const deleteSerial = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
+    if (!id) {
+      res.status(400).json({ error: 'Serial ID is required' });
+      return;
+    }
 
     const unit = await prisma.productUnit.findUnique({ where: { id } });
     if (!unit) {
-      res.status(404).json({ error: 'Serial not found' });
+      res.status(404).json({ error: 'Serial number record not found' });
       return;
     }
     
@@ -396,7 +448,15 @@ export const deleteSerial = async (req: Request, res: Response): Promise<void> =
 
     res.json({ message: 'Serial number deleted successfully' });
   } catch (error: any) {
-    logger.error('Error deleting serial', { id: req.params.id, error: error.message });
-    res.status(500).json({ error: 'Server error deleting serial number' });
+    logger.error('Error deleting serial', { id: req.params.id, error: error.message, code: error.code });
+    if (error.code === 'P2025') {
+      res.status(404).json({ error: 'Serial number record not found' });
+      return;
+    }
+    if (error.code === 'P2003') {
+      res.status(400).json({ error: 'Cannot delete this serial because it is linked to other records' });
+      return;
+    }
+    res.status(500).json({ error: error.message || 'Server error deleting serial number' });
   }
 };
